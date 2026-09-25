@@ -53,6 +53,17 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    (bukan pengganti verifikasi behavior nyata, cuma nangkep compile-error/regresi test lebih awal
    drpd nunggu build APK penuh). Ditaruh sebelum "Decode keystore" (test tak butuh signing), 0
    step lain (keystore/build/release) disentuh sama sekali.
+4. ⚠️ OPEN (v15, ditemukan dari CI run nyata pertama C3/v14, fail-log-16): 6/6 test
+   `FstrimExecutorTest.kt` (v7) FAILED nyata di CI — `mockStatic(Shizuku::class.java)` tidak
+   berhasil di-intercept Mockito inline mock maker di JVM unit-test worker sungguhan (real method
+   Shizuku pihak-ketiga yg jalan, bukan stub). v15 men-`@Ignore` class ini (bukan hapus/palsu
+   hijau) sampai ada solusi TERVERIFIKASI NYATA — kandidat (belum dicoba/belum terbukti, sandbox
+   tanpa SDK/Gradle): (a) JVM arg `-Djdk.attach.allowAttachSelf=true` di test task kalau ternyata
+   soal self-attach agent, (b) suntik-dependensi (seam/interface) di sekitar pemanggilan Shizuku
+   di `FstrimExecutor.kt` biar bisa di-mock non-static (paling robust, tapi ini REFACTOR produksi —
+   butuh approval eksplisit user dulu, bukan otomatis), (c) pindah ke Robolectric/instrumented test
+   kalau (a)/(b) juga gagal. `PrefsTest.kt` (4 test, tidak pakai Shizuku) TETAP aktif & tidak
+   terdampak. File v15: `FstrimExecutorTest.kt` only (+ dokumen ini).
 
 ## D. Technical debt (dicatat sebagai risiko, backlog — bukan refactor sekarang)
 1. ✅ SELESAI (v9): `FstrimExecutor.sh()` panggil `Shizuku.newProcess` (method private) via
@@ -108,6 +119,10 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
   validasi batch2 berikutnya, drpd D2 yg eksplisit rendah prioritas atau F1/F2 yg cuma tooling
   opsional): C3 selesai (lihat detail di atas). 1 file: `.github/workflows/build.yml`. Sisa
   backlog: D2 ("Prioritas rendah"), F1, F2.
+- v15 (bug fix atas laporan user, evidence CI nyata fail-log-16 — bukan dari daftar
+  prioritas/roadmap normal): C4 baru dibuka & langsung ditangani (skip test, bukan tutup
+  permanen) — lihat detail C4 di atas. 1 file: `FstrimExecutorTest.kt`. Sisa backlog: C4
+  (butuh solusi nyata, belum tertutup), D2, F1, F2.
 
 ## Eksplisit DI LUAR SCOPE
 Tidak ada rencana ganti arsitektur, ganti dependency utama (Shizuku/WorkManager/Compose), migrasi

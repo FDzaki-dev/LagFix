@@ -3,6 +3,7 @@ package com.lagfix.fstrim
 import android.content.Context
 import android.content.pm.PackageManager
 import org.junit.Assert.assertEquals
+import org.junit.Ignore
 import org.junit.Test
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.mockStatic
@@ -13,7 +14,26 @@ import rikka.shizuku.Shizuku
  * Menguji FstrimExecutor.state() murni sebagai fungsi mapping (Shizuku static calls di-mock),
  * tanpa device fisik. FstrimExecutor.run() (blocking shell exec via reflection) TIDAK diuji di
  * sini — itu butuh Shizuku binder nyata, di luar scope unit test JVM (tetap PENDING_ROADMAP D1).
+ *
+ * v15 — DI-SKIP SEMENTARA (bukan dihapus): CI run nyata pertama (fail-log-16, C3/v14) menunjukkan
+ * mockStatic(Shizuku::class.java) TIDAK berhasil di-intercept Mockito inline mock maker di JVM
+ * unit-test worker sungguhan — real method Shizuku yang jalan (bukan stub): 5/6 test
+ * MissingMethodInvocationException (real call return diam2, tak tercatat sbg mock invocation),
+ * 1/6 RuntimeException asli dari Shizuku.pingBinder() (Shizuku butuh environment Android/binder
+ * nyata yg tak ada di JVM murni). Ini kegagalan TEKNIK MOCKING pihak ketiga (kemungkinan besar
+ * bytecode Shizuku — AAR yg didesugar toolchain Android per catatan resmi library — tak bisa
+ * diinstrumentasi Byte Buddy), BUKAN bukti FstrimExecutor.state() salah; logic-nya TIDAK diubah
+ * batch ini. Di-@Ignore (bukan dihapus/dipalsukan hijau) supaya CI jujur: tidak mengklaim coverage
+ * yg sebenarnya tidak berjalan. PrefsTest.kt (4 test, tidak pakai static-mock Shizuku) TETAP aktif.
+ * Belum diverifikasi run compiler sungguhan sandbox ini (tanpa SDK/Gradle/jaringan) — WAJIB
+ * `./gradlew testDebugUnitTest` CI/lokal utk konfirmasi 6 test ini benar SKIPPED (bukan FAILED)
+ * & 4 test Prefs tetap PASSED. Re-aktivasi butuh solusi terverifikasi nyata (bukan tebakan) —
+ * lihat PENDING_ROADMAP.md C4.
  */
+@Ignore(
+    "mockStatic(Shizuku) tak ter-intercept di CI JVM nyata (fail-log-16) — lihat KDoc kelas ini " +
+        "& PENDING_ROADMAP.md C4"
+)
 class FstrimExecutorTest {
 
     @Test
