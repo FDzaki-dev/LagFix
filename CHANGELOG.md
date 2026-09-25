@@ -35,3 +35,7 @@
 - Tombol "Jalankan fstrim sekarang" sekarang minta konfirmasi dulu (dialog "Jalankan"/"Batal") sebelum benar-benar memicu operasi TRIM.
 - Setelah fstrim selesai dijalankan, muncul notifikasi (toast) hasilnya (berhasil/gagal) — tak perlu scroll ke Riwayat untuk tahu.
 - Tiap kontrol di tab Pengaturan (jadwal otomatis, interval, charging/idle, tema) sekarang menampilkan toast konfirmasi singkat tiap kali diubah.
+
+## v12
+- Fix: toast konfirmasi tidak lagi terasa delay saat mengganti beberapa pengaturan (tema/interval/dll) secara berurutan cepat — toast baru langsung menggantikan toast lama, tidak menumpuk antrean.
+- Card "Tautan" (unduh rilis, kode sumber, lapor masalah, tentang aplikasi) dipindah dari tab Utama ke tab Pengaturan (paling bawah), supaya tab Utama lebih ringkas.

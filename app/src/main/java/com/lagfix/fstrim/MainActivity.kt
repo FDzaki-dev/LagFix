@@ -32,6 +32,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -140,6 +141,15 @@ private fun LagFixTheme(themeMode: ThemeMode, content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = scheme, shapes = calmShapes, content = content)
 }
 
+// v12 (fix delay toast): showSnackbar() bawaan ANTRE kalau dipanggil beruntun cepat (mis. user
+// gonta-ganti tema/interval berturut-turut) — toast baru nunggu toast lama habis durasi penuh dulu,
+// kerasa "lag". Fix: dismiss yg sedang tampil lebih dulu sebelum tampilkan yg baru, jadi toast
+// selalu langsung reflect aksi TERAKHIR, tidak menumpuk antrean.
+private suspend fun SnackbarHostState.showFeedback(message: String) {
+    currentSnackbarData?.dismiss()
+    showSnackbar(message, duration = SnackbarDuration.Short)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HomeScreen(vm: MainViewModel) {
@@ -153,14 +163,14 @@ private fun HomeScreen(vm: MainViewModel) {
     var showRunConfirm by rememberSaveable { mutableStateOf(false) } // v11: konfirmasi sebelum jalankan manual
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val onFeedback: (String) -> Unit = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
+    val onFeedback: (String) -> Unit = { msg -> scope.launch { snackbarHostState.showFeedback(msg) } }
 
     // v11: toast hasil fstrim manual — hanya saat transisi running true->false (bukan komposisi
     // awal, biar tak muncul spontan dari riwayat lama saat app baru dibuka/rotasi).
     var wasRunning by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(ui.running) {
         if (wasRunning && !ui.running) {
-            snackbarHostState.showSnackbar(
+            snackbarHostState.showFeedback(
                 if (ui.lastOk) "fstrim berhasil dijalankan." else "fstrim gagal dijalankan."
             )
         }
@@ -198,12 +208,17 @@ private fun HomeScreen(vm: MainViewModel) {
                     versionName = versionName,
                     onRunNow = { showRunConfirm = true }, // v11: minta konfirmasi dulu
                     onGrant = vm::requestPermission,
-                    onAboutClick = { showAbout = true },
                     onCheckUpdate = vm::checkUpdate,
                     onInstallUpdate = vm::installUpdate
                 )
             } else {
-                SettingsTab(ui = ui, vm = vm, onFeedback = onFeedback)
+                SettingsTab(
+                    ui = ui,
+                    ctx = ctx,
+                    vm = vm,
+                    onFeedback = onFeedback,
+                    onAboutClick = { showAbout = true }
+                )
             }
         }
 
@@ -241,7 +256,6 @@ private fun MainTab(
     versionName: String?,
     onRunNow: () -> Unit,
     onGrant: () -> Unit,
-    onAboutClick: () -> Unit,
     onCheckUpdate: () -> Unit,
     onInstallUpdate: (String) -> Unit
 ) {
@@ -264,16 +278,6 @@ private fun MainTab(
         }
     }
 
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Tautan", style = MaterialTheme.typography.titleMedium)
-            LinkRow("Unduh rilis terbaru") { openUrl(ctx, AppLinks.releases) }
-            LinkRow("Lihat kode sumber") { openUrl(ctx, AppLinks.source) }
-            LinkRow("Laporkan masalah") { openUrl(ctx, AppLinks.newIssue) }
-            AboutRow("Tentang aplikasi") { onAboutClick() } // v9 (E2): konsolidasi info app
-        }
-    }
-
     UpdateCard(
         checking = ui.updateChecking,
         result = ui.updateResult,
@@ -293,7 +297,13 @@ private fun MainTab(
 // v10: tab "Pengaturan" — jadwal otomatis + interval + charging/idle (dipindah dari Utama, sama
 // persis logic/callback-nya, cuma beda lokasi tab) + BARU: pemilih tema (Ikuti sistem/Terang/Gelap).
 @Composable
-private fun SettingsTab(ui: UiState, vm: MainViewModel, onFeedback: (String) -> Unit) {
+private fun SettingsTab(
+    ui: UiState,
+    ctx: Context,
+    vm: MainViewModel,
+    onFeedback: (String) -> Unit,
+    onAboutClick: () -> Unit
+) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Jadwal", style = MaterialTheme.typography.titleMedium)
@@ -342,6 +352,17 @@ private fun SettingsTab(ui: UiState, vm: MainViewModel, onFeedback: (String) -> 
                     )
                 }
             }
+        }
+    }
+
+    // v12: dipindah dari tab Utama biar tab Utama cuma isi fitur utama (status/aksi/riwayat/pembaruan).
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Tautan", style = MaterialTheme.typography.titleMedium)
+            LinkRow("Unduh rilis terbaru") { openUrl(ctx, AppLinks.releases) }
+            LinkRow("Lihat kode sumber") { openUrl(ctx, AppLinks.source) }
+            LinkRow("Laporkan masalah") { openUrl(ctx, AppLinks.newIssue) }
+            AboutRow("Tentang aplikasi") { onAboutClick() } // v9 (E2): konsolidasi info app
         }
     }
 }

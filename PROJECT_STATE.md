@@ -249,15 +249,56 @@ tanya user mau lanjut item mana, atau ada task lain di luar roadmap.]
   diubah (v11 di luar daftar A–F, sama spt v10).
 - Batch: v11
 
-[RESUME POINT: v10 FULLY VERIFIED via evidence video device asli (16 detik) — tab bar, kedua tab,
-kedua tema calm semua CONFIRMED jalan nyata, tidak ada regresi. v11 selesai (toast Snackbar hasil
-fstrim + toast konfirmasi tiap kontrol Pengaturan/Tema + dialog konfirmasi sebelum jalankan
-manual), validasi statis (brace+referensi simbol) only, BELUM pernah dijalankan compiler sungguhan
-DAN belum ada evidence visual device utk v11 -> Remaining: jalankan DAILY UPDATE, push ke main,
-biarkan CI build (assembleRelease/Debug) jalan -> Next Action: install APK hasil CI di device asli,
-verifikasi visual v11: (1) tekan "Jalankan fstrim sekarang" -> dialog konfirmasi muncul -> tekan
-"Jalankan" -> setelah selesai muncul Snackbar hasil (berhasil/gagal) di bawah, tidak ketutup
-NavigationBar; (2) tekan tombol "Batal" di dialog -> tidak ada fstrim terpicu; (3) di tab
-Pengaturan, ganti tiap kontrol (jadwal/interval/charging/idle/tema) satu-satu -> tiap ganti muncul
-Snackbar konfirmasi teksnya sesuai; rekam evidence (video/screenshot) spt pola v6/v9/v10 sebelumnya.
-PENDING_ROADMAP.md sisa: B, C3, D2, F1, F2 (backlog, tunggu user eksplisit minta)]
+- v11 feedback user (tekstual, BUKAN video/screenshot — beda level bukti drpd v10): dijalankan di
+  device asli, toast & dialog konfirmasi berfungsi — TAPI ada 1 bug dilaporkan: toast terasa delay
+  saat user gonta-ganti tema/interval beruntun cepat.
+- v12 (bug fix root-cause, atas laporan user + permintaan ad-hoc pindah Tautan): 1 file source
+  diubah — `MainActivity.kt` only:
+  - ROOT CAUSE toast delay: `SnackbarHostState.showSnackbar()` bawaan Compose M3 ANTRE — kalau
+    dipanggil lagi sebelum toast sebelumnya selesai durasi penuhnya, panggilan baru nunggu di
+    belakang antrean dulu (bukan langsung ganti). User gonta-ganti kontrol cepat = beberapa toast
+    numpuk di antrean = kerasa lag/telat. FIX: extension baru `SnackbarHostState.showFeedback()` —
+    `currentSnackbarData?.dismiss()` dulu sebelum `showSnackbar()`, jadi toast baru LANGSUNG ganti
+    toast lama (bukan nunggu di antrean). Dipakai di 2 tempat yg sebelumnya panggil
+    `showSnackbar()` langsung (toast tiap kontrol Pengaturan + toast hasil fstrim manual) — logic
+    lain (kapan toast muncul, teks pesannya) TIDAK diubah sama sekali, murni ganti mekanisme
+    tampil.
+  - Card "Tautan" (3x `LinkRow` + `AboutRow` "Tentang aplikasi") DIPINDAH dari `MainTab` ke
+    `SettingsTab` (ditaruh paling bawah, setelah card Tema) — permintaan eksplisit user "looks
+    clean". `MainTab` sekarang murni: StatusCard, tombol jalankan, Riwayat, Pembaruan, label versi
+    (fitur utama saja). Param `onAboutClick`+`ctx` dipindah dari signature `MainTab` ke
+    `SettingsTab` (`ctx` sudah connect dari `HomeScreen` yg sama, `AboutDialog` sendiri TIDAK
+    dipindah — tetap dirender di `HomeScreen`, cuma tombol pemicunya yg pindah tab). 0 perubahan ke
+    isi/logic `LinkRow`/`AboutRow`/`AboutDialog` itu sendiri.
+  - 0 file production lain (Prefs.kt, MainViewModel.kt, FstrimExecutor.kt, TrimWorker.kt,
+    UpdateChecker.kt, CrashLogger.kt, AppLinks.kt, LagFixApp.kt, AndroidManifest.xml,
+    build.gradle.kts) disentuh. Tidak ada dependensi baru (`SnackbarDuration` sudah bagian
+    `androidx.compose.material3` yg sudah dipakai).
+- v12 VALIDASI: brace/paren balance MainActivity.kt 140/140 & 360/360 (naik dari 139/139+353/353
+  v11, konsisten dgn penambahan `showFeedback` + pemindahan 1 Card, no drift) + cross-check simbol:
+  `MainTab`/`SettingsTab` masing2 tetap 1x definisi + 1x pemanggilan dgn parameter cocok persis
+  (`onAboutClick` dihapus dari `MainTab` & ditambah ke `SettingsTab`, `ctx` ditambah ke
+  `SettingsTab`), `LinkRow`/`AboutRow` tetap dipanggil persis 1x masing2 (di lokasi baru),
+  `showFeedback` didefinisikan 1x & dipakai di 2 titik pemanggilan Snackbar yg ada. BELUM pernah
+  dicompile compiler sungguhan & BELUM ada evidence visual device utk v12 — sandbox tanpa Android
+  SDK/Gradle/jaringan (sama spt semua batch sebelumnya). `./gradlew assembleDebug` WAJIB dijalankan
+  sebelum diklaim hijau beneran. Perlu dicek nyata: (1) toast TIDAK lagi delay saat ganti kontrol
+  beruntun cepat (harusnya langsung ganti pesan, bukan antre), (2) card Tautan tampil benar di tab
+  Pengaturan (paling bawah, setelah Tema) & 3 link + "Tentang aplikasi" masih berfungsi sama persis
+  spt sebelum dipindah, (3) tab Utama tidak lagi ada card Tautan (bersih, sesuai maksud "looks
+  clean").
+- Docs: `CHANGELOG.md` — entri v12 ditambah (user-facing, full). `PENDING_ROADMAP.md` tidak diubah.
+- Batch: v12
+
+[RESUME POINT: v10 FULLY VERIFIED via evidence video device asli. v11 dilaporkan user jalan di
+device asli (feedback tekstual) — toast+dialog konfirmasi berfungsi, 1 bug (delay toast beruntun)
+sudah di-root-cause & difix di v12 (dismiss-before-show, `showFeedback()`). v12 juga pindahkan card
+Tautan dari tab Utama ke tab Pengaturan (permintaan "looks clean"). Validasi v12: statis
+(brace+referensi simbol) only, BELUM pernah dijalankan compiler sungguhan DAN belum ada evidence
+visual device utk v12 -> Remaining: jalankan DAILY UPDATE, push ke main, biarkan CI build
+(assembleRelease/Debug) jalan -> Next Action: install APK hasil CI di device asli, verifikasi
+visual v12: (1) ganti2 tema/interval/toggle beruntun cepat -> toast harus langsung update ke pesan
+terbaru, TIDAK lagi kerasa delay/antre, (2) buka tab Pengaturan -> card Tautan ada di paling bawah
+(3 link + Tentang aplikasi) & semua masih jalan (buka browser/dialog Tentang), (3) tab Utama sudah
+bersih tanpa card Tautan; rekam evidence (video/screenshot) spt pola sebelumnya. PENDING_ROADMAP.md
+sisa: B, C3, D2, F1, F2 (backlog, tunggu user eksplisit minta)]
