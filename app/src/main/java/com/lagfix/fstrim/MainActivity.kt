@@ -26,12 +26,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -120,8 +122,38 @@ private fun HomeScreen(vm: MainViewModel) {
                     }
                 }
             }
+
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Tautan", style = MaterialTheme.typography.titleMedium)
+                    LinkRow("Unduh rilis terbaru") { openUrl(ctx, AppLinks.releases) }
+                    LinkRow("Lihat kode sumber") { openUrl(ctx, AppLinks.source) }
+                    LinkRow("Laporkan masalah") { openUrl(ctx, AppLinks.newIssue) }
+                }
+            }
+
+            val versionName = remember {
+                runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull()
+            }
+            Text(
+                "LagFix" + if (!versionName.isNullOrBlank()) " • v$versionName" else "",
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+            )
         }
     }
+}
+
+@Composable
+private fun LinkRow(label: String, onClick: () -> Unit) {
+    TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+        Text(label, Modifier.weight(1f))
+        Text("↗")
+    }
+}
+
+private fun openUrl(ctx: Context, url: String) {
+    runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
 }
 
 @Composable

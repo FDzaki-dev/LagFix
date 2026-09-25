@@ -4,6 +4,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,8 +30,36 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -f release.keystore ]; then gradle --no-daemon assembleRelease; else gradle --no-daemon assembleDebug; fi
-      - uses: actions/upload-artifact@v4
+          set -o pipefail
+          if [ -f release.keystore ]; then TASK=assembleRelease; else TASK=assembleDebug; fi
+          gradle --no-daemon --stacktrace "$TASK" 2>&1 | tee build_output.log
+
+      # Pathway log_fail: nama file WAJIB diakhiri run_number dari workflow ini.
+      - name: Simpan log kegagalan
+        if: failure()
+        run: |
+          mkdir -p logs
+          cp build_output.log "logs/LagFix_build_fail_log_${{ github.run_number }}.txt"
+      - name: Unggah log kegagalan
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: LagFix-fail-log-${{ github.run_number }}
+          path: logs/LagFix_build_fail_log_${{ github.run_number }}.txt
+
+      - name: Unggah APK (artifact)
+        if: success()
+        uses: actions/upload-artifact@v4
         with:
           name: LagFix-apk
           path: app/build/outputs/apk/**/*.apk
+
+      # Pathway GitHub Release: tag & nama rilis dari run_number yang sama dengan log_fail agar mudah ditelusuri.
+      - name: Buat GitHub Release
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: "LagFix build ${{ github.run_number }}"
+          make_latest: true
+          files: app/build/outputs/apk/**/*.apk
