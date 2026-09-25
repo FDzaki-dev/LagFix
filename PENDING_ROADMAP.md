@@ -48,8 +48,11 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    compiler sungguhan (sandbox); wajib `./gradlew testDebugUnitTest` di CI/lokal utk verifikasi run.
 2. Checklist manual/instrumented untuk alur Shizuku (grant/revoke permission via
    `requestPermission()`) dan alur install-update (FileProvider + Package Installer).
-3. `build.yml` saat ini cuma assembleRelease/Debug, belum ada step `test` — kalau C1 dikerjakan,
-   tambah step test di CI sebagai validasi tambahan (bukan pengganti verifikasi behavior nyata).
+3. ✅ SELESAI (v14): `build.yml` sekarang punya step "Unit test" (`gradle testDebugUnitTest`)
+   sebelum step Build — jalan duluan, gerbang validasi tambahan sebelum assembleRelease/Debug
+   (bukan pengganti verifikasi behavior nyata, cuma nangkep compile-error/regresi test lebih awal
+   drpd nunggu build APK penuh). Ditaruh sebelum "Decode keystore" (test tak butuh signing), 0
+   step lain (keystore/build/release) disentuh sama sekali.
 
 ## D. Technical debt (dicatat sebagai risiko, backlog — bukan refactor sekarang)
 1. ✅ SELESAI (v9): `FstrimExecutor.sh()` panggil `Shizuku.newProcess` (method private) via
@@ -101,6 +104,10 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
   detail di atas). 4 file: `TrimWorker.kt`, `UpdateChecker.kt`, `MainViewModel.kt`,
   `MainActivity.kt`. Sisa backlog: C3, D2, F1, F2 (D2 eksplisit "Prioritas rendah" per catatan
   sendiri di atas).
+- v14 (SELESAI, lanjutan "priority first" — C3 dipilih krn langsung menaikkan keandalan proses
+  validasi batch2 berikutnya, drpd D2 yg eksplisit rendah prioritas atau F1/F2 yg cuma tooling
+  opsional): C3 selesai (lihat detail di atas). 1 file: `.github/workflows/build.yml`. Sisa
+  backlog: D2 ("Prioritas rendah"), F1, F2.
 
 ## Eksplisit DI LUAR SCOPE
 Tidak ada rencana ganti arsitektur, ganti dependency utama (Shizuku/WorkManager/Compose), migrasi

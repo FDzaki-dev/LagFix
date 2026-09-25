@@ -348,16 +348,49 @@ luar roadmap.]
   diperbarui. `CHANGELOG.md` — entri v13 ditambah (user-facing, full).
 - Batch: v13
 
-[RESUME POINT: v10–v12 semua VERIFIED (v10 via video, v11–v12 via laporan tekstual user). v13
-(PENDING_ROADMAP.md item B — robustness, dipilih user via "priority first") selesai: retry
-otomatis saat Shizuku belum ready (bukan nunggu jadwal penuh), pesan error jaringan ramah (bukan
-stacktrace mentah), cleanup APK parsial kalau unduhan putus, pembeda visual skip vs fail asli di
-Riwayat. Validasi statis only (brace+referensi simbol+re-cek 2 file test), BELUM pernah dijalankan
-compiler sungguhan DAN belum ada evidence visual/behavioral device utk v13 (lebih sulit diverifikasi
-drpd batch UI biasa krn perlu simulasi Shizuku-mati/koneksi-putus) -> Remaining: jalankan DAILY
-UPDATE, push ke main, biarkan CI build (assembleRelease/Debug + idealnya testDebugUnitTest) jalan ->
-Next Action: verifikasi 3 skenario v13 di device asli spt tercatat di atas (retry/pesan error
-jaringan/cleanup APK parsial) — kalau user tidak sanggup simulasi ketiganya scr manual, minimal
-verifikasi (1) app tetap jalan normal tanpa crash/regresi di flow biasa (jalankan manual, ganti
-tema, dst — spt v10-v12) sbg baseline safety check. PENDING_ROADMAP.md sisa: C3, D2 (eksplisit
-"Prioritas rendah"), F1, F2 — tunggu user eksplisit minta lagi.]
+- v13 VERIFIED SEBAGIAN (evidence: feedback tekstual singkat user — "Sudah muncul pemberitahuan
+  nya."): mengonfirmasi entri/notifikasi skip (B1+B4: retry + visibilitas Riwayat) sudah kelihatan
+  jalan di device. TIDAK eksplisit mengonfirmasi 2 skenario v13 lain (B2 pesan error jaringan ramah,
+  B3 cleanup APK parsial) — belum ada laporan/bukti utk itu, jangan diklaim verified sampai ada
+  konfirmasi user yg jelas nyebut skenario itu scr spesifik.
+- User ditanya lanjut kemana lagi ("Next", generik) -> mengikuti delegasi "priority first" yg sudah
+  ditetapkan user sebelumnya (giliran v13), lanjut pilih dari sisa backlog tanpa nanya ulang.
+  Keputusan: C3 (step test CI) — plg menaikkan keandalan proses validasi utk batch2 berikutnya
+  (relevan langsung krn semua batch sejauh ini "belum pernah dicompile compiler sungguhan"), drpd
+  D2 yg eksplisit rendah prioritas atau F1/F2 yg cuma tooling opsional (lint/Dependabot).
+- v14 (PENDING_ROADMAP.md item C3): 1 file diubah — `.github/workflows/build.yml`: step baru
+  "Unit test" (`gradle --no-daemon --stacktrace testDebugUnitTest`, output di-tee ke
+  `build_output.log` sama spt step Build) ditaruh SEBELUM "Decode keystore" (unit test tak butuh
+  signing) DAN sebelum "Build" — jadi gerbang validasi lebih awal, gagal test = build/release tidak
+  jalan (default GitHub Actions: step gagal -> step berikutnya di-skip). Nama file log sengaja
+  disamakan (`build_output.log`) dgn step Build biar step "Simpan/Unggah log kegagalan" yg sudah
+  ada otomatis nangkep log dari SIAPAPUN step yg gagal duluan (test ATAU build), tanpa perlu
+  duplikasi logic capture-log. 0 step lain (checkout/setup-java/setup-gradle/Decode keystore/Build/
+  Simpan+Unggah log/Unggah APK/Siapkan APK rilis/Buat GitHub Release) diubah sama sekali — cuma
+  disisipi 1 step baru. 0 file lain disentuh (build.gradle.kts sudah punya
+  junit+mockito-core dari v7, tidak perlu tambahan dependency).
+- v14 VALIDASI: YAML diparse via `python3 -c "import yaml; yaml.safe_load(...)"` -> valid, urutan
+  11 step dicek eksplisit (Unit test ada di posisi ke-4, tepat sebelum Decode keystore, tepat
+  setelah setup-gradle) -> confirmed sesuai desain. Task `testDebugUnitTest` adalah nama task
+  standar Android Gradle Plugin (bukan asumsi/tebakan) & `app/build.gradle.kts` SUDAH punya
+  `testImplementation` junit+mockito sejak v7 (dicek ulang, tidak perlu tambahan). BELUM pernah
+  dijalankan compiler/CI sungguhan (sandbox tanpa Android SDK/Gradle/jaringan, sama spt semua batch
+  — tapi khusus batch ini ITULAH POINNYA: baru akan benar2 tervalidasi begitu CI jalan stlh push
+  ini). CHANGELOG.md TIDAK ditambah entri (konsisten pola v7 — batch CI/test-only tanpa perubahan
+  behavior user-facing, tidak pernah dapat entri changelog).
+- Docs: `PENDING_ROADMAP.md` — C3 ditutup, catatan urutan eksekusi diperbarui (sisa: D2/F1/F2).
+- Batch: v14
+
+[RESUME POINT: v10–v12 semua VERIFIED. v13 VERIFIED SEBAGIAN (cuma skenario retry/Riwayat yg
+dikonfirmasi user; pesan-error-jaringan & cleanup-APK-parsial BELUM ada konfirmasi eksplisit — masih
+valid utk diminta device-test kalau relevan/ katanya muncul lagi). v14 (C3 — step Unit test di CI)
+selesai, 1 file (`build.yml`), validasi YAML+urutan step only, BELUM pernah dijalankan CI sungguhan
+-> Remaining: jalankan DAILY UPDATE, push ke main -> Next Action: (1) amati run CI pertama stlh push
+ini — apakah step "Unit test" muncul & lulus (test dari v7: PrefsTest.kt 4 test,
+FstrimExecutorTest.kt 6 test), apakah build tetap lanjut normal stlhnya (assembleRelease/Debug +
+release GitHub spt biasa, TIDAK ada regresi ke pipeline release yg sudah ada); (2) kalau CI gagal
+di step baru ini, cek log kegagalan (`LagFix-fail-log-<run_number>`) — kemungkinan besar
+compile-error yg sebelumnya tak pernah kejaring krn app ini memang belum pernah dicompile compiler
+sungguhan dari v10-v13 (perubahan TrimWorker/UpdateChecker/MainViewModel/MainActivity blm pernah
+lolos compiler beneran). PENDING_ROADMAP.md sisa: D2 ("Prioritas rendah"), F1, F2 — tunggu user
+eksplisit minta (atau lanjut "priority first" lagi kalau user minta serupa).]
