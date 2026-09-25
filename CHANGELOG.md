@@ -39,3 +39,9 @@
 ## v12
 - Fix: toast konfirmasi tidak lagi terasa delay saat mengganti beberapa pengaturan (tema/interval/dll) secara berurutan cepat — toast baru langsung menggantikan toast lama, tidak menumpuk antrean.
 - Card "Tautan" (unduh rilis, kode sumber, lapor masalah, tentang aplikasi) dipindah dari tab Utama ke tab Pengaturan (paling bawah), supaya tab Utama lebih ringkas.
+
+## v13
+- Kalau Shizuku belum siap saat jadwal otomatis jalan, sekarang dicoba ulang otomatis (bukan nunggu jadwal penuh berikutnya yang bisa berhari-hari).
+- Pesan error "Cek pembaruan"/"Update sekarang" sekarang lebih jelas untuk kasus tanpa koneksi internet dan rate-limit GitHub (bukan pesan teknis mentah).
+- Kalau unduhan update APK putus di tengah jalan, file rusaknya otomatis dibersihkan.
+- Riwayat sekarang membedakan entri "dilewati" (Shizuku belum siap, warna kuning) dari entri "gagal" beneran (warna merah).

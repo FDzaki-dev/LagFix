@@ -23,8 +23,17 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             waited += 500
         }
         val state = FstrimExecutor.state(applicationContext)
-        val r = if (state == ShizukuState.READY) FstrimExecutor.run()
-        else TrimResult(false, "dilewati, Shizuku: $state", 0L)
+        if (state != ShizukuState.READY) {
+            // v13 (B1+B4): sebelumnya cuma dicatat lalu Result.success() -> nunggu jadwal
+            // periodik berikutnya (bisa sampai berhari-hari kalau interval besar). Sekarang tetap
+            // dicatat (biar kelihatan di Riwayat, bukan silent skip), lalu Result.retry() supaya
+            // WorkManager coba lagi dgn backoff bawaan (tak perlu setBackoffCriteria manual).
+            // TIDAK retry kalau fstrim SUDAH dicoba tapi gagal (exit code non-0) — itu beda kelas
+            // masalah (bukan precondition Shizuku), retry tak akan menolong, lihat bawah.
+            prefs.record(TrimResult(false, "dilewati, Shizuku: $state", 0L))
+            return@withContext Result.retry()
+        }
+        val r = FstrimExecutor.run()
         prefs.record(r)
         Result.success()
     }

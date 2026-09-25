@@ -272,7 +272,11 @@ private fun MainTab(
             Text("Riwayat", style = MaterialTheme.typography.titleMedium)
             Text(
                 if (ui.lastRunMs == 0L) "Belum pernah dijalankan"
-                else formatTime(ui.lastRunMs) + if (ui.lastOk) " — berhasil" else " — gagal"
+                else formatTime(ui.lastRunMs) + when {
+                    ui.log.firstOrNull()?.contains("dilewati") == true -> " — dilewati (Shizuku belum siap)"
+                    ui.lastOk -> " — berhasil"
+                    else -> " — gagal"
+                }
             )
             ui.log.forEach { LogLine(it) }
         }
@@ -420,6 +424,7 @@ private fun AboutDialog(
 // dites PrefsTest.kt, tidak disentuh). Baris yang tak cocok pola tetap tampil polos (fallback aman).
 private val logLineRegex = Regex("""^(\d{2}/\d{2} \d{2}:\d{2}) (OK|FAIL) (.*)$""")
 private val successGreen = Color(0xFF2E7D32)
+private val skippedAmber = Color(0xFFB26A00) // v13 (B4): beda dari FAIL asli — precondition Shizuku, bukan error eksekusi
 
 @Composable
 private fun LogLine(line: String) {
@@ -430,7 +435,12 @@ private fun LogLine(line: String) {
     }
     val (stamp, status, rest) = match.destructured
     val ok = status == "OK"
-    val tint = if (ok) successGreen else MaterialTheme.colorScheme.error
+    val skipped = !ok && rest.contains("dilewati")
+    val tint = when {
+        ok -> successGreen
+        skipped -> skippedAmber
+        else -> MaterialTheme.colorScheme.error
+    }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Text("●", color = tint, style = MaterialTheme.typography.bodySmall)
         Text(

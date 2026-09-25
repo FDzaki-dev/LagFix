@@ -17,16 +17,29 @@ dokumen ini PLANNING ONLY. Tiap item butuh approval eksplisit sebelum dieksekusi
    opsional kalau user mau extra-sure, tidak blocking apapun.
 Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, poin 3 verified via source.
 
-## B. Robustness / edge case (logic minimum, non-breaking, TIDAK dieksekusi tanpa approval)
-1. `TrimWorker` polling `Shizuku.pingBinder()` tiap 500ms maks 5 detik lalu langsung skip kalau
-   belum ready — belum ada retry di luar jadwal periodik berikutnya. Perlu keputusan: cukup as-is
-   atau perlu backoff/retry.
-2. `UpdateChecker` — perilaku saat GitHub API rate-limit (403) atau tanpa koneksi belum ditelusuri
-   eksplisit; perlu pastikan pesan error yang tampil ke user jelas (bukan stacktrace mentah).
-3. Unduhan APK putus di tengah jalan (koneksi hilang) — perlu pastikan file partial di
-   `cache/updates/` ikut terhapus, tidak nyangkut.
-4. Shizuku mati setelah reboot: README sudah sebut job dilewati & tercatat di Riwayat — perlu
-   pastikan status ini kelihatan jelas di UI Riwayat, bukan cuma silent skip di background.
+## B. Robustness / edge case (logic minimum, non-breaking) — SEMUA SELESAI v13
+1. ✅ SELESAI (v13, keputusan: perlu retry, bukan cukup as-is): `TrimWorker` sekarang
+   `Result.retry()` (bukan `Result.success()`) kalau Shizuku belum ready setelah poll 5 detik —
+   WorkManager otomatis coba lagi dgn backoff bawaan, tak perlu nunggu jadwal periodik penuh
+   berikutnya. Skip TETAP dicatat ke Riwayat (`prefs.record()`) spt sebelumnya. TIDAK retry kalau
+   fstrim SUDAH dicoba tapi gagal (exit code non-0) — beda kelas masalah, retry tak menolong. File:
+   `TrimWorker.kt` only.
+2. ✅ SELESAI (v13): `UpdateChecker.friendlyError()` (baru) memetakan `UnknownHostException`/
+   `SocketTimeoutException` -> "Tidak ada koneksi internet." dan HTTP 403 -> pesan rate-limit,
+   dipakai di `check()` (langsung) & `MainViewModel.installUpdate()` (pemanggilan eksplisit) —
+   sebelumnya keduanya tampilkan `e.message` mentah ke user. Kasus lain tetap fallback ke
+   `e.message` apa adanya (logic minimum, tidak coba tangani semua jenis exception). File:
+   `UpdateChecker.kt`, `MainViewModel.kt`.
+3. ✅ SELESAI (v13): `UpdateChecker.download()` sekarang hapus `update.apk` parsial kalau copy
+   stream gagal di tengah jalan (exception ditangkap, `dest.delete()`, lalu dilempar ulang) —
+   sebelumnya file rusak bisa nyangkut di cache sampai percobaan unduh berikutnya. File:
+   `UpdateChecker.kt` only.
+4. ✅ SELESAI (v13, verifikasi + polish): dicek dari kode — skip SUDAH tercatat ke Riwayat sejak
+   v6 (bukan silent skip beneran, `prefs.record()` selalu dipanggil di jalur ini). Yang ditambah:
+   pembeda visual skip (dot amber, teks "— dilewati (Shizuku belum siap)") vs FAIL asli (dot merah,
+   "— gagal") di `MainActivity.kt` (Riwayat header + `LogLine`), supaya beberapa entri skip
+   berturut-turut (efek samping retry poin B1) tidak disalahartikan sbg fstrim gagal berulang kali.
+   Parse-only, format `Prefs.record()` TIDAK diubah (PrefsTest.kt tetap valid).
 
 ## C. Testing (gap nyata — dicek langsung: tidak ada app/src/test atau app/src/androidTest sama sekali)
 1. ✅ SELESAI (v7): Unit test `Prefs.record()` (rotasi log maks 30 baris, format timestamp
@@ -82,7 +95,12 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
 - v9 (SELESAI, atas permintaan eksplisit user): D1 (catatan risiko reflection Shizuku di README,
   docs-only) + E2 (dialog "Tentang" konsolidasi info app) — 1 file source (`MainActivity.kt`) +
   README.md (VIP doc). 0 file production logic disentuh.
-- Backlog bebas urutan (C3 CI test step, D2, E3, F1–F2): hanya kalau user eksplisit minta.
+- Backlog bebas urutan (C3 CI test step, D2, F1–F2): hanya kalau user eksplisit minta.
+- v13 (SELESAI, atas permintaan eksplisit user "priority first" — B dipilih krn plg berdampak ke
+  keandalan fitur utama, drpd C3/D2/F1/F2 yg semuanya tooling/proses): B1-B4 semua selesai (lihat
+  detail di atas). 4 file: `TrimWorker.kt`, `UpdateChecker.kt`, `MainViewModel.kt`,
+  `MainActivity.kt`. Sisa backlog: C3, D2, F1, F2 (D2 eksplisit "Prioritas rendah" per catatan
+  sendiri di atas).
 
 ## Eksplisit DI LUAR SCOPE
 Tidak ada rencana ganti arsitektur, ganti dependency utama (Shizuku/WorkManager/Compose), migrasi

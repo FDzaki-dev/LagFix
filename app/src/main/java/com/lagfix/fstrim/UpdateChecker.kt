@@ -6,7 +6,9 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
 import java.net.URL
+import java.net.UnknownHostException
 
 /** Info rilis terbaru dari GitHub, untuk pembanding versi before/after + changelog di dalam app. */
 data class UpdateInfo(
@@ -58,7 +60,18 @@ object UpdateChecker {
             UpdateResult.Available(installedBuild, UpdateInfo(tag, name, latestBuild, apkUrl, changelog))
         }
     } catch (e: Exception) {
-        UpdateResult.Error(e.message ?: "Tidak diketahui")
+        UpdateResult.Error(friendlyError(e))
+    }
+
+    // v13 (B2): sebelumnya UpdateResult.Error/downloadError tampilkan e.message mentah (mis.
+    // "Unable to resolve host..." atau "HTTP 403") langsung ke user. Sekarang dipetakan ke pesan
+    // Indonesia yg jelas utk 2 kasus yg disebut eksplisit di roadmap (tanpa koneksi, rate-limit
+    // GitHub) — kasus lain tetap fallback ke e.message apa adanya (tidak coba tangani semua jenis
+    // exception, sesuai "logic minimum"). Dipakai jg oleh MainViewModel.installUpdate().
+    fun friendlyError(e: Exception): String = when {
+        e is UnknownHostException || e is SocketTimeoutException -> "Tidak ada koneksi internet."
+        e.message == "HTTP 403" -> "Terlalu banyak permintaan ke GitHub (rate limit), coba lagi nanti."
+        else -> e.message ?: "Tidak diketahui"
     }
 
     /**
@@ -81,7 +94,12 @@ object UpdateChecker {
             conn.setRequestProperty("User-Agent", "LagFix-App")
             conn.requestMethod = "GET"
             if (conn.responseCode !in 200..299) throw IOException("HTTP ${conn.responseCode}")
-            conn.inputStream.use { input -> FileOutputStream(dest).use { output -> input.copyTo(output) } }
+            try {
+                conn.inputStream.use { input -> FileOutputStream(dest).use { output -> input.copyTo(output) } }
+            } catch (e: Exception) {
+                dest.delete() // v13 (B3): koneksi putus di tengah unduhan -> jangan tinggalkan APK parsial
+                throw e
+            }
         } finally {
             conn.disconnect()
         }

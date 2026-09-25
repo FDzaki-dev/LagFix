@@ -132,7 +132,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 app.startActivity(intent)
                 ui = ui.copy(downloading = false)
             } catch (e: Exception) {
-                ui = ui.copy(downloading = false, downloadError = e.message ?: "Tidak diketahui")
+                ui = ui.copy(downloading = false, downloadError = UpdateChecker.friendlyError(e))
             }
         }
     }

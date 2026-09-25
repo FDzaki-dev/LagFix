@@ -290,15 +290,74 @@ tanya user mau lanjut item mana, atau ada task lain di luar roadmap.]
 - Docs: `CHANGELOG.md` — entri v12 ditambah (user-facing, full). `PENDING_ROADMAP.md` tidak diubah.
 - Batch: v12
 
-[RESUME POINT: v10 FULLY VERIFIED via evidence video device asli. v11 dilaporkan user jalan di
-device asli (feedback tekstual) — toast+dialog konfirmasi berfungsi, 1 bug (delay toast beruntun)
-sudah di-root-cause & difix di v12 (dismiss-before-show, `showFeedback()`). v12 juga pindahkan card
-Tautan dari tab Utama ke tab Pengaturan (permintaan "looks clean"). Validasi v12: statis
-(brace+referensi simbol) only, BELUM pernah dijalankan compiler sungguhan DAN belum ada evidence
-visual device utk v12 -> Remaining: jalankan DAILY UPDATE, push ke main, biarkan CI build
-(assembleRelease/Debug) jalan -> Next Action: install APK hasil CI di device asli, verifikasi
-visual v12: (1) ganti2 tema/interval/toggle beruntun cepat -> toast harus langsung update ke pesan
-terbaru, TIDAK lagi kerasa delay/antre, (2) buka tab Pengaturan -> card Tautan ada di paling bawah
-(3 link + Tentang aplikasi) & semua masih jalan (buka browser/dialog Tentang), (3) tab Utama sudah
-bersih tanpa card Tautan; rekam evidence (video/screenshot) spt pola sebelumnya. PENDING_ROADMAP.md
-sisa: B, C3, D2, F1, F2 (backlog, tunggu user eksplisit minta)]
+- v12 VERIFIED (evidence: feedback tekstual user langsung, bukan video/screenshot — beda level
+  bukti drpd v10): "Udah gak delay notifikasi nya, dan tautan juga sudah berpindah tab." — fix
+  `showFeedback()` (dismiss-before-show) CONFIRMED hilangkan delay toast beruntun, dan card Tautan
+  CONFIRMED sudah tampil & berfungsi di tab Pengaturan.
+
+[RESUME POINT: v10 FULLY VERIFIED (video device). v11 VERIFIED via laporan user (tekstual). v12
+VERIFIED via laporan user (tekstual): delay toast FIXED, card Tautan berhasil pindah ke tab
+Pengaturan. Tidak ada item blocking/pending tersisa dari v10–v12 -> Remaining: tidak ada -> Next
+Action: tanya user mau lanjut ke item PENDING_ROADMAP.md yang mana (B robustness/edge-case, C3 step
+test di CI, D2 aktifkan R8+keep-rule, F1 lint/detekt, F2 Dependabot), atau ada task ad-hoc lain di
+luar roadmap.]
+
+- User ditanya arah backlog mana yg mau dikerjakan (B/C3/D2/F1+F2) -> jawab "yang priority first
+  aja" (delegasi keputusan). Keputusan: pilih B (robustness/edge-case) — plg berdampak ke keandalan
+  fitur utama (fstrim + update), drpd C3/D2/F1/F2 yg semuanya tooling/proses; D2 pun eksplisit
+  ditandai "Prioritas rendah" oleh dokumen roadmap itu sendiri.
+- v13 (PENDING_ROADMAP.md item B, SEMUA 4 sub-item selesai): 4 file diubah —
+  - `TrimWorker.kt`: skip (Shizuku belum ready) sekarang `Result.retry()` (bukan
+    `Result.success()`), WorkManager retry otomatis dgn backoff bawaan drpd nunggu jadwal periodik
+    penuh berikutnya (bisa berhari-hari). `prefs.record()` skip TETAP jalan spt sebelumnya (utk
+    B4). Fstrim yg SUDAH dicoba tapi gagal (exit non-0) TETAP `Result.success()` — beda kelas
+    masalah, retry tak menolong di kasus itu.
+  - `UpdateChecker.kt`: fungsi baru `friendlyError(e)` — `UnknownHostException`/
+    `SocketTimeoutException` -> "Tidak ada koneksi internet.", HTTP 403 -> pesan rate-limit GitHub;
+    kasus lain fallback `e.message` apa adanya (logic minimum). Dipakai di `check()`. Juga:
+    `download()` sekarang `dest.delete()` kalau copy stream exception di tengah jalan (APK parsial
+    tak nyangkut di cache), lalu exception dilempar ulang spt biasa.
+  - `MainViewModel.kt`: `installUpdate()` catch-block pakai `UpdateChecker.friendlyError(e)`
+    (bukan `e.message` mentah lagi) utk `downloadError`.
+  - `MainActivity.kt` (konsekuensi langsung dari retry B1, BUKAN scope baru): pembeda visual skip
+    (dot amber + "— dilewati (Shizuku belum siap)") vs FAIL asli (dot merah + "— gagal") di Riwayat
+    header & `LogLine` — parse-only, cek substring `"dilewati"` pada baris log, format
+    `Prefs.record()` TIDAK diubah sama sekali (PrefsTest.kt tetap valid, sudah dicek ulang isinya
+    sblm edit).
+  - B4 (Shizuku dead visibility) ternyata SUDAH terpenuhi sejak v6 by design (`prefs.record()`
+    selalu dipanggil di jalur skip) — dicek dari kode dulu sblm nulis apapun, bukan diasumsikan;
+    yg dikerjakan cuma polish pembeda visual di atas.
+  - 0 file lain (Prefs.kt formatnya, AndroidManifest.xml, build.gradle.kts, FstrimExecutor.kt)
+    disentuh. Tidak ada dependensi baru (`Result.retry()` sudah bagian `androidx.work` yg sudah
+    dipakai; `UnknownHostException`/`SocketTimeoutException` sudah bagian JDK `java.net`).
+- v13 VALIDASI: brace/paren balance ke-9 file semua match (TrimWorker 8/8+43/43, UpdateChecker
+  26/26+74/74, MainViewModel 26/26+82/82, MainActivity 142/142+364/364) + cross-check simbol
+  (`friendlyError` 1x definisi dipakai di 2 titik, `Result.retry()`/`Result.success()` dipakai
+  sesuai cabang yg benar, `skippedAmber`/`skipped` dipakai konsisten) + `PrefsTest.kt` &
+  `FstrimExecutorTest.kt` dibaca ulang penuh, DIKONFIRMASI tidak ada assertion yg bergantung ke
+  perilaku yg diubah (keduanya test `Prefs.record()` & `FstrimExecutor.state()` murni, TIDAK
+  disentuh batch ini). BELUM pernah dicompile compiler sungguhan & BELUM ada evidence visual/
+  behavioral device utk v13 — sandbox tanpa Android SDK/Gradle/jaringan. `./gradlew testDebugUnitTest`
+  + `assembleDebug` WAJIB dijalankan sebelum diklaim hijau beneran. Perlu dicek nyata (butuh
+  simulasi kondisi, lebih sulit diverifikasi drpd batch UI biasa): (1) matikan Shizuku lalu tunggu
+  jadwal -> harus ada retry (cek Riwayat: beberapa entri amber "dilewati" berturut dgn jarak waktu
+  pendek, BUKAN nunggu interval penuh), (2) putuskan wifi saat "Cek pembaruan" -> pesan "Tidak ada
+  koneksi internet." (bukan raw exception), (3) putuskan koneksi PAS lagi unduh APK -> cek
+  `cache/updates/` di device (via adb/file manager root) TIDAK ada `update.apk` parsial nyangkut.
+- Docs: `PENDING_ROADMAP.md` — section B ditutup semua (4 sub-item), catatan urutan eksekusi
+  diperbarui. `CHANGELOG.md` — entri v13 ditambah (user-facing, full).
+- Batch: v13
+
+[RESUME POINT: v10–v12 semua VERIFIED (v10 via video, v11–v12 via laporan tekstual user). v13
+(PENDING_ROADMAP.md item B — robustness, dipilih user via "priority first") selesai: retry
+otomatis saat Shizuku belum ready (bukan nunggu jadwal penuh), pesan error jaringan ramah (bukan
+stacktrace mentah), cleanup APK parsial kalau unduhan putus, pembeda visual skip vs fail asli di
+Riwayat. Validasi statis only (brace+referensi simbol+re-cek 2 file test), BELUM pernah dijalankan
+compiler sungguhan DAN belum ada evidence visual/behavioral device utk v13 (lebih sulit diverifikasi
+drpd batch UI biasa krn perlu simulasi Shizuku-mati/koneksi-putus) -> Remaining: jalankan DAILY
+UPDATE, push ke main, biarkan CI build (assembleRelease/Debug + idealnya testDebugUnitTest) jalan ->
+Next Action: verifikasi 3 skenario v13 di device asli spt tercatat di atas (retry/pesan error
+jaringan/cleanup APK parsial) — kalau user tidak sanggup simulasi ketiganya scr manual, minimal
+verifikasi (1) app tetap jalan normal tanpa crash/regresi di flow biasa (jalankan manual, ganti
+tema, dst — spt v10-v12) sbg baseline safety check. PENDING_ROADMAP.md sisa: C3, D2 (eksplisit
+"Prioritas rendah"), F1, F2 — tunggu user eksplisit minta lagi.]
