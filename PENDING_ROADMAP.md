@@ -39,10 +39,11 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    tambah step test di CI sebagai validasi tambahan (bukan pengganti verifikasi behavior nyata).
 
 ## D. Technical debt (dicatat sebagai risiko, backlog — bukan refactor sekarang)
-1. `FstrimExecutor.sh()` panggil `Shizuku.newProcess` (method private) via reflection — titik
-   rapuh utama. Kalau versi `dev.rikka.shizuku` naik dan tanda tangan method berubah, gagalnya
-   diam-diam di runtime, bukan compile error. Mitigasi realistis: versi sudah di-pin (13.1.5, OK);
-   catat di README bahwa upgrade Shizuku wajib re-verifikasi manual reflection ini.
+1. ✅ SELESAI (v9): `FstrimExecutor.sh()` panggil `Shizuku.newProcess` (method private) via
+   reflection — titik rapuh utama, gagalnya diam-diam di runtime kalau versi Shizuku naik &
+   signature berubah. Mitigasi (sesuai scope item ini — bukan refactor): dicatat di `README.md`
+   ("Catatan teknis — reflection Shizuku") + wajib re-verifikasi manual tiap upgrade versi
+   Shizuku. 0 file source diubah (docs-only, sesuai keputusan "bukan refactor sekarang").
 2. `isMinifyEnabled = false` permanen di release (sengaja, karena poin D1) — APK release lebih
    besar dari perlu. Kalau nanti mau aktifkan R8: wajib keep-rule spesifik hanya utk method yang
    direflect, BUKAN blanket keep-rule (sesuai guard R8 di .cursorrules). Prioritas rendah.
@@ -56,7 +57,12 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    `LogLine()`) — format baris dari `Prefs.record()` tidak diubah (PrefsTest.kt tetap valid).
    Fallback teks polos kalau baris tak cocok pola (non-breaking). Belum dicompile compiler
    sungguhan (sandbox tanpa SDK/Gradle).
-2. Tidak ada halaman "Tentang" terpisah; info app tersebar di card Tautan.
+2. ✅ SELESAI (v9): Info app dikonsolidasi lewat dialog "Tentang" (baru) — dipicu tombol baru
+   (`AboutRow`, "›") di card Tautan. Isi dialog: tagline app, versi terpasang, package id, tombol
+   ke source/developer. File diubah: `MainActivity.kt` only (tambah `AboutRow`+`AboutDialog`+state
+   `showAbout`; `versionName` dipindah ke atas `HomeScreen` biar dipakai bareng label footer & dialog
+   — nilai/perilaku label footer TIDAK berubah). 0 file production logic lain (Prefs/FstrimExecutor/
+   MainViewModel/TrimWorker/UpdateChecker) disentuh.
 3. Tidak ada toggle dark/light manual (ikut system default M3) — cek apakah disengaja.
 
 ## F. Release/CI hardening (opsional, backlog)
@@ -70,7 +76,10 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
 - v8 (SELESAI, atas permintaan eksplisit user): D3 (versionName dinamis) + E1 (indikator OK/FAIL
   Riwayat) — 2 file source (`app/build.gradle.kts`, `MainActivity.kt`), 0 file production logic
   lain disentuh. Item B tetap TIDAK dieksekusi (belum ada evidence real jadi masalah).
-- Backlog bebas urutan (C3 CI test step, D2, D3, E1–E3, F1–F2): hanya kalau user eksplisit minta.
+- v9 (SELESAI, atas permintaan eksplisit user): D1 (catatan risiko reflection Shizuku di README,
+  docs-only) + E2 (dialog "Tentang" konsolidasi info app) — 1 file source (`MainActivity.kt`) +
+  README.md (VIP doc). 0 file production logic disentuh.
+- Backlog bebas urutan (C3 CI test step, D2, E3, F1–F2): hanya kalau user eksplisit minta.
 
 ## Eksplisit DI LUAR SCOPE
 Tidak ada rencana ganti arsitektur, ganti dependency utama (Shizuku/WorkManager/Compose), migrasi

@@ -21,6 +21,15 @@ Kartu "Tautan" di layar utama membuka rilis terbaru, source, dan lapor masalah d
 ## Pembaruan di app
 Kartu "Pembaruan" mengecek rilis terbaru (`releases/latest`) + `CHANGELOG.md` mentah dari branch main. Menampilkan versi terpasang vs tersedia (build number = run_number CI) dan changelog dalam dialog scrollable. Tombol "Update sekarang" mengunduh APK ke cache privat app lalu langsung membuka Package Installer (FileProvider) — bukan lewat browser, dan tidak menyimpan file ke folder Download publik (sisa unduhan lama dihapus tiap unduh baru). Butuh izin `INTERNET` + `REQUEST_INSTALL_PACKAGES`; Android akan minta izin "unknown sources" sekali di awal (proteksi OS bawaan, tidak bisa dilewati tanpa root).
 
+## Catatan teknis — reflection Shizuku (D1, tech debt)
+`FstrimExecutor.sh()` memanggil `Shizuku.newProcess(String[], String[], String)` — method
+`private` sejak Shizuku API 13 — lewat reflection (`getDeclaredMethod` + `isAccessible = true`).
+Ini titik rapuh utama aplikasi: kalau versi `dev.rikka.shizuku` dinaikkan dan nama/urutan/tipe
+parameter method itu berubah, kegagalannya **diam-diam di runtime**, bukan compile error. Versi
+saat ini sudah di-pin (`dev.rikka.shizuku:api` & `:provider` di `13.1.5`) — **wajib
+re-verifikasi manual reflection ini** (buka source `Shizuku` versi baru, cocokkan signature
+`newProcess`) tiap kali mau menaikkan versi Shizuku, sebelum rilis.
+
 ## Pathway CI
 - **Build sukses** → GitHub Release otomatis (tag `build-<run_number>`), APK terlampir sbg `LagFix_build-<run_number>_release-atau-debug.apk` (nama unik per build, bukan `app-release.apk` generik — hindari tabrakan nama saat unduh rilis berturut-turut), selalu jadi `/releases/latest`.
 - **Build gagal** → log build diunggah sebagai artifact Actions, nama file `LagFix_build_fail_log_<run_number>.txt`.

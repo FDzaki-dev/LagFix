@@ -85,3 +85,39 @@ Action: push ke main (assembleDebug/Release + testDebugUnitTest lokal disarankan
 Termux ada JDK+SDK; kalau tidak, cukup andalkan CI), verifikasi visual Riwayat OK/FAIL & label versi
 `v1.0.<n>` di device asli setelah install build baru — PENDING_ROADMAP.md sisa: B (butuh evidence
 real dulu), C3/D1/D2/E2/E3/F1/F2 (backlog, tunggu user eksplisit minta)]
+
+- v9 (D1+E2 dari PENDING_ROADMAP.md, atas pilihan eksplisit user): 1 file source diubah —
+  - `MainActivity.kt` (E2): dialog baru "Tentang" (`AboutDialog`) konsolidasi info app (tagline,
+    versi, package id, tombol source/developer) — dipicu row baru `AboutRow` ("›", beda dari
+    `LinkRow` "↗" krn buka dialog in-app bukan browser) di card "Tautan". `versionName` (sudah ada
+    sejak v2) dipindah dari bawah `HomeScreen` ke atas biar dipakai bareng label footer lama +
+    dialog baru — nilai & tampilan label footer TIDAK berubah (murni hoist, no-op secara output).
+  - `README.md` (D1, docs-only): tambah bagian "Catatan teknis — reflection Shizuku" — dokumentasi
+    risiko `FstrimExecutor.sh()` reflect method private `Shizuku.newProcess` (bisa gagal diam-diam
+    kalau versi Shizuku naik & signature berubah) + kewajiban re-verifikasi manual tiap upgrade.
+    Sesuai keputusan item D1 sendiri di roadmap ("bukan refactor sekarang") — 0 source diubah utk
+    poin ini, FstrimExecutor.kt TIDAK disentuh.
+  - 0 file production logic lain (Prefs.kt, FstrimExecutor.kt, MainViewModel.kt, TrimWorker.kt,
+    UpdateChecker.kt, build.gradle.kts) disentuh. Tautan/footer/nav lama tidak dihapus/diubah.
+- v9 VALIDASI: brace/paren balance MainActivity.kt 97/97, 238/238 (before edit juga balance,
+  no drift) + cross-check simbol (`AboutRow`, `AboutDialog`, `showAbout`, `versionName` dipakai
+  konsisten, tiap definisi dipanggil persis sekali). `Modifier.weight()` di `AboutDialog` resolve
+  sama seperti `LinkRow`/`ToggleRow` existing (member RowScope, tanpa import tambahan) — tidak ada
+  import baru ditambah. BELUM pernah dicompile compiler sungguhan — sandbox tanpa Android
+  SDK/Gradle/jaringan (sama seperti v7/v8). `./gradlew assembleDebug` WAJIB dijalankan di CI/lokal
+  sebelum diklaim hijau beneran; verifikasi visual dialog "Tentang" (buka/tutup, tombol source)
+  butuh device/emulator asli — belum ada evidence device utk v9.
+- Docs: `PENDING_ROADMAP.md` — item D.1 & E.2 ditandai ✅ SELESAI (v9); `CHANGELOG.md` — entri v9
+  ditambah (append-only, cuma catat E2 yg user-facing; D1 docs-only/dev-only tidak dientri,
+  konsisten pola v7).
+- Batch: v9
+
+[RESUME POINT: v9 selesai (D1 catatan risiko reflection Shizuku di README + E2 dialog "Tentang"
+konsolidasi info app di MainActivity.kt), validasi statis (brace+referensi simbol) only, BELUM
+pernah dijalankan compiler sungguhan (sandbox tanpa SDK/Gradle/jaringan) -> Remaining: jalankan
+DAILY UPDATE, push, CI build jalan seperti biasa (assembleRelease/Debug) — v7 unit test (C1) &
+v9 dialog "Tentang" (E2) SAMA-SAMA belum pernah tervalidasi run/tampil nyata (CI belum ada step
+test/C3; dialog belum ada evidence device) -> Next Action: push ke main, lalu verifikasi visual di
+device asli setelah install build baru: buka card Tautan -> tombol "Tentang aplikasi" -> cek
+dialog tampil benar (tagline+versi+package+tombol source) & bisa ditutup; PENDING_ROADMAP.md sisa:
+B (butuh evidence real dulu), C3/D2/E3/F1/F2 (backlog, tunggu user eksplisit minta)]

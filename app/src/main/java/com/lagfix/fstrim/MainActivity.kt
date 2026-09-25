@@ -83,6 +83,10 @@ private fun LagFixTheme(content: @Composable () -> Unit) {
 private fun HomeScreen(vm: MainViewModel) {
     val ui = vm.ui
     val ctx = LocalContext.current
+    val versionName = remember {
+        runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull()
+    }
+    var showAbout by rememberSaveable { mutableStateOf(false) } // v9 (E2)
     Scaffold(topBar = { TopAppBar(title = { Text("LagFix (fstrim)") }) }) { pad ->
         Column(
             Modifier.padding(pad).verticalScroll(rememberScrollState()).padding(16.dp),
@@ -135,6 +139,7 @@ private fun HomeScreen(vm: MainViewModel) {
                     LinkRow("Unduh rilis terbaru") { openUrl(ctx, AppLinks.releases) }
                     LinkRow("Lihat kode sumber") { openUrl(ctx, AppLinks.source) }
                     LinkRow("Laporkan masalah") { openUrl(ctx, AppLinks.newIssue) }
+                    AboutRow("Tentang aplikasi") { showAbout = true } // v9 (E2): konsolidasi info app
                 }
             }
 
@@ -147,13 +152,19 @@ private fun HomeScreen(vm: MainViewModel) {
                 onInstall = vm::installUpdate
             )
 
-            val versionName = remember {
-                runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull()
-            }
             Text(
                 "LagFix" + if (!versionName.isNullOrBlank()) " • v$versionName" else "",
                 style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+            )
+        }
+
+        if (showAbout) {
+            AboutDialog(
+                versionName = versionName,
+                packageName = ctx.packageName,
+                onOpenSource = { openUrl(ctx, AppLinks.source) },
+                onDismiss = { showAbout = false }
             )
         }
     }
@@ -169,6 +180,42 @@ private fun LinkRow(label: String, onClick: () -> Unit) {
 
 private fun openUrl(ctx: Context, url: String) {
     runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+}
+
+// v9 (E2): beda dari LinkRow ("↗" = buka browser) — "›" krn ini buka dialog in-app, bukan tautan.
+@Composable
+private fun AboutRow(label: String, onClick: () -> Unit) {
+    TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+        Text(label, Modifier.weight(1f))
+        Text("›")
+    }
+}
+
+// v9 (E2): konsolidasi info app (sebelumnya cuma tersebar: label versi di footer + card Tautan
+// terpisah) jadi satu dialog ringkas. Tidak menghapus/mengubah Tautan/footer yang sudah ada.
+@Composable
+private fun AboutDialog(
+    versionName: String?,
+    packageName: String,
+    onOpenSource: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Tutup") } },
+        title = { Text("Tentang LagFix") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Pemicu & penjadwal fstrim non-root (setara mFSTRIM), via Shizuku.")
+                Text("Versi: " + (versionName?.takeIf { it.isNotBlank() } ?: "tidak diketahui"))
+                Text("Paket: $packageName")
+                TextButton(onClick = onOpenSource, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                    Text("Source & developer", Modifier.weight(1f))
+                    Text("↗")
+                }
+            }
+        }
+    )
 }
 
 // v8 (E1): indikator visual OK/FAIL di Riwayat. Parse-only di sisi UI — format baris log
