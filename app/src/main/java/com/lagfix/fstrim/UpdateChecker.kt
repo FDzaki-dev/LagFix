@@ -1,6 +1,9 @@
 package com.lagfix.fstrim
 
+import android.content.Context
 import org.json.JSONObject
+import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -56,6 +59,33 @@ object UpdateChecker {
         }
     } catch (e: Exception) {
         UpdateResult.Error(e.message ?: "Tidak diketahui")
+    }
+
+    /**
+     * Unduh APK ke cache privat app (BUKAN folder Download publik) -> dipasang lewat
+     * Package Installer langsung (FileProvider), tidak lewat browser, tidak menumpuk
+     * (sisa unduhan lama dihapus dulu tiap kali unduh baru dimulai).
+     * Blocking (network+disk) — WAJIB dipanggil dari Dispatchers.IO.
+     */
+    fun download(context: Context, url: String): File {
+        val dir = File(context.cacheDir, "updates").apply {
+            deleteRecursively()
+            mkdirs()
+        }
+        val dest = File(dir, "update.apk")
+        val conn = URL(url).openConnection() as HttpURLConnection
+        try {
+            conn.connectTimeout = 15_000
+            conn.readTimeout = 15_000
+            conn.instanceFollowRedirects = true
+            conn.setRequestProperty("User-Agent", "LagFix-App")
+            conn.requestMethod = "GET"
+            if (conn.responseCode !in 200..299) throw IOException("HTTP ${conn.responseCode}")
+            conn.inputStream.use { input -> FileOutputStream(dest).use { output -> input.copyTo(output) } }
+        } finally {
+            conn.disconnect()
+        }
+        return dest
     }
 
     private fun get(url: String): String {

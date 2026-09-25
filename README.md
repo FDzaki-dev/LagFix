@@ -19,7 +19,7 @@ CI: GitHub Actions (`.github/workflows/build.yml`). Lokal: `gradle assembleDebug
 Kartu "Tautan" di layar utama membuka rilis terbaru, source, dan lapor masalah di `github.com/FDzaki-dev/LagFix`.
 
 ## Pembaruan di app
-Kartu "Pembaruan" mengecek rilis terbaru (`releases/latest`) + `CHANGELOG.md` mentah dari branch main. Menampilkan versi terpasang vs tersedia (build number = run_number CI), changelog dalam dialog scrollable, dan tombol unduh (APK asset rilis kalau ada, else halaman rilis). Butuh izin `INTERNET`.
+Kartu "Pembaruan" mengecek rilis terbaru (`releases/latest`) + `CHANGELOG.md` mentah dari branch main. Menampilkan versi terpasang vs tersedia (build number = run_number CI) dan changelog dalam dialog scrollable. Tombol "Update sekarang" mengunduh APK ke cache privat app lalu langsung membuka Package Installer (FileProvider) — bukan lewat browser, dan tidak menyimpan file ke folder Download publik (sisa unduhan lama dihapus tiap unduh baru). Butuh izin `INTERNET` + `REQUEST_INSTALL_PACKAGES`; Android akan minta izin "unknown sources" sekali di awal (proteksi OS bawaan, tidak bisa dilewati tanpa root).
 
 ## Pathway CI
 - **Build sukses** → GitHub Release otomatis (tag `build-<run_number>`), APK terlampir sbg `LagFix_build-<run_number>_release-atau-debug.apk` (nama unik per build, bukan `app-release.apk` generik — hindari tabrakan nama saat unduh rilis berturut-turut), selalu jadi `/releases/latest`.

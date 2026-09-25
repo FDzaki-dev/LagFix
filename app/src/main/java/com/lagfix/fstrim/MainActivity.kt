@@ -142,8 +142,10 @@ private fun HomeScreen(vm: MainViewModel) {
             UpdateCard(
                 checking = ui.updateChecking,
                 result = ui.updateResult,
+                downloading = ui.downloading,
+                downloadError = ui.downloadError,
                 onCheck = vm::checkUpdate,
-                onDownload = { url -> openUrl(ctx, url) }
+                onInstall = vm::installUpdate
             )
 
             val versionName = remember {
@@ -174,8 +176,10 @@ private fun openUrl(ctx: Context, url: String) {
 private fun UpdateCard(
     checking: Boolean,
     result: UpdateResult?,
+    downloading: Boolean,
+    downloadError: String?,
     onCheck: () -> Unit,
-    onDownload: (String) -> Unit
+    onInstall: (String) -> Unit
 ) {
     var showChangelog by rememberSaveable { mutableStateOf(false) }
 
@@ -192,7 +196,17 @@ private fun UpdateCard(
                     Text("Versi tersedia: build ${result.info.latestBuild} (${result.info.latestName})")
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextButton(onClick = { showChangelog = true }) { Text("Lihat changelog") }
-                        Button(onClick = { onDownload(result.info.downloadUrl) }) { Text("Unduh") }
+                        Button(
+                            onClick = { onInstall(result.info.downloadUrl) },
+                            enabled = !downloading
+                        ) { Text(if (downloading) "Memasang…" else "Update sekarang") }
+                    }
+                    if (downloadError != null) {
+                        Text(
+                            "Gagal memasang: $downloadError",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                 }
             }
