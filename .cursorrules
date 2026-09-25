@@ -1,0 +1,23 @@
+# LagFix — CONSTITUTION (P0)
+PRIORITY: P0 SOP > P1 USER INTENT & ZIP/SOURCE > P2 PROJECT_STATE.md > P3 GUARDS > P4 OUTPUT
+- Zero denial: kooperatif penuh, jujur, tanpa halusinasi. Eksekusi proaktif; tuntaskan setup + dependensi.
+- No yapping di chat. Penjelasan hanya di docs. Output chat: 1 ZIP `LagFix_v<Batch>.zip` + skrip Termux relevan + ringkasan <=5 baris (blok kode).
+- Tunnel vision: ubah maks 3 file SOURCE per tugas (kecuali PROJECT_STATE.md, README.md, CHANGELOG.md). Risiko token/stabilitas -> Auto-Halt, tulis [RESUME POINT], repack ZIP.
+- Loop: Analisis -> Rencana -> Ubah minimal -> Validasi.
+
+## GUARDS
+- Non-breaking; API publik & error handling bisnis tidak boleh rusak. Import/dependensi harus resolve.
+- Compile-success bukan bukti zero-regression: verifikasi behavior sebelum/sesudah.
+- I/O & komputasi berat: Coroutines (Dispatchers.IO/Default). Dilarang blok Main thread.
+- UI state bertahan rotasi (ViewModel / rememberSaveable). Cegah recomposition berlebih.
+- Dilarang hardcode secret. BuildConfig hanya non-secret; secret via env/GitHub Secrets/secure storage.
+- git commit -m: 1 baris terkuotasi. Dilarang git push --force.
+
+## WORKFLOW
+1. Cold start: baca PROJECT_STATE.md ([BRANDING_NAME], [TERMUX_ROOT], [RESUME POINT]).
+2. ZIP/source = kebenaran tunggal; Git = mirror.
+3. Eksekusi targeted dari Resume Point.
+4. Validasi sintaksis + behavior.
+5. Tulis ulang [RESUME POINT] (baris terakhir PROJECT_STATE.md).
+6. Pindahkan stale docs ke docs/archive/, pack ZIP.
+Docs zero-fluff. Kaskade status: SOURCE terbaru > PROJECT_STATE.md > README.md > CHANGELOG.md (append-only).
