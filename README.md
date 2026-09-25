@@ -22,5 +22,5 @@ Kartu "Tautan" di layar utama membuka rilis terbaru, source, dan lapor masalah d
 Kartu "Pembaruan" mengecek rilis terbaru (`releases/latest`) + `CHANGELOG.md` mentah dari branch main. Menampilkan versi terpasang vs tersedia (build number = run_number CI), changelog dalam dialog scrollable, dan tombol unduh (APK asset rilis kalau ada, else halaman rilis). Butuh izin `INTERNET`.
 
 ## Pathway CI
-- **Build sukses** → GitHub Release otomatis (tag `build-<run_number>`), APK terlampir, selalu jadi `/releases/latest`.
+- **Build sukses** → GitHub Release otomatis (tag `build-<run_number>`), APK terlampir sbg `LagFix_build-<run_number>_release-atau-debug.apk` (nama unik per build, bukan `app-release.apk` generik — hindari tabrakan nama saat unduh rilis berturut-turut), selalu jadi `/releases/latest`.
 - **Build gagal** → log build diunggah sebagai artifact Actions, nama file `LagFix_build_fail_log_<run_number>.txt`.

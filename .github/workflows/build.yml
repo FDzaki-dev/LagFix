@@ -54,6 +54,17 @@ jobs:
           name: LagFix-apk
           path: app/build/outputs/apk/**/*.apk
 
+      # Asset rilis WAJIB nama unik per build (bukan "app-release.apk"/"app-debug.apk" generik dari Gradle):
+      # nama generik yg sama di tiap rilis bikin browser nabrak nama saat unduh berkali-kali
+      # (jadi "app-release (1).apk", "(2).apk", dst menumpuk) & tidak informatif versi apa isinya.
+      - name: Siapkan APK rilis (nama unik & informatif)
+        if: success()
+        run: |
+          mkdir -p dist
+          APK_SRC=$(find app/build/outputs/apk -name '*.apk' | head -n 1)
+          APK_KIND=$([ -f release.keystore ] && echo release || echo debug)
+          cp "$APK_SRC" "dist/LagFix_build-${{ github.run_number }}_${APK_KIND}.apk"
+
       # Pathway GitHub Release: tag & nama rilis dari run_number yang sama dengan log_fail agar mudah ditelusuri.
       - name: Buat GitHub Release
         if: success()
@@ -62,4 +73,4 @@ jobs:
           tag_name: build-${{ github.run_number }}
           name: "LagFix build ${{ github.run_number }}"
           make_latest: true
-          files: app/build/outputs/apk/**/*.apk
+          files: dist/*.apk
