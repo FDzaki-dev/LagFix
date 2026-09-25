@@ -1,6 +1,7 @@
 package com.lagfix.fstrim
 
 import android.app.Application
+import android.os.Build
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -19,7 +20,9 @@ data class UiState(
     val running: Boolean = false,
     val lastRunMs: Long = 0L,
     val lastOk: Boolean = false,
-    val log: List<String> = emptyList()
+    val log: List<String> = emptyList(),
+    val updateChecking: Boolean = false,
+    val updateResult: UpdateResult? = null
 )
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
@@ -49,7 +52,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         log = prefs.log
     )
 
-    fun refresh() { ui = read(ui.running) }
+    fun refresh() { ui = read(ui.running).copy(updateChecking = ui.updateChecking, updateResult = ui.updateResult) }
 
     private fun reschedule() {
         Scheduler.apply(getApplication<Application>(), prefs)
@@ -75,7 +78,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val r = if (FstrimExecutor.state(app) == ShizukuState.READY) FstrimExecutor.run()
             else TrimResult(false, "Shizuku belum siap", 0L)
             prefs.record(r)
-            ui = read(false)
+            ui = read(false).copy(updateChecking = ui.updateChecking, updateResult = ui.updateResult)
+        }
+    }
+
+    fun checkUpdate() {
+        if (ui.updateChecking) return
+        ui = ui.copy(updateChecking = true, updateResult = null)
+        viewModelScope.launch(Dispatchers.IO) {
+            val app = getApplication<Application>()
+            val installedBuild = runCatching {
+                val pi = app.packageManager.getPackageInfo(app.packageName, 0)
+                if (Build.VERSION.SDK_INT >= 28) pi.longVersionCode.toInt()
+                else @Suppress("DEPRECATION") pi.versionCode
+            }.getOrDefault(1)
+            val result = UpdateChecker.check(installedBuild)
+            ui = ui.copy(updateChecking = false, updateResult = result)
         }
     }
 

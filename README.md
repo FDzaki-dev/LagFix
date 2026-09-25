@@ -18,6 +18,9 @@ CI: GitHub Actions (`.github/workflows/build.yml`). Lokal: `gradle assembleDebug
 ## Tautan di app
 Kartu "Tautan" di layar utama membuka rilis terbaru, source, dan lapor masalah di `github.com/FDzaki-dev/LagFix`.
 
+## Pembaruan di app
+Kartu "Pembaruan" mengecek rilis terbaru (`releases/latest`) + `CHANGELOG.md` mentah dari branch main. Menampilkan versi terpasang vs tersedia (build number = run_number CI), changelog dalam dialog scrollable, dan tombol unduh (APK asset rilis kalau ada, else halaman rilis). Butuh izin `INTERNET`.
+
 ## Pathway CI
 - **Build sukses** → GitHub Release otomatis (tag `build-<run_number>`), APK terlampir, selalu jadi `/releases/latest`.
 - **Build gagal** → log build diunggah sebagai artifact Actions, nama file `LagFix_build_fail_log_<run_number>.txt`.

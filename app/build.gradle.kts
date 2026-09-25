@@ -12,7 +12,10 @@ android {
         applicationId = "com.lagfix.fstrim"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
+        // CI (GitHub Actions) selalu menyetel GITHUB_RUN_NUMBER otomatis; tag rilis = build-<run_number>.
+        // Dipakai agar versionCode APK terpasang match dengan run_number rilis -> compare update before/after riil.
+        // Lokal/dev (tanpa env ini) tetap fallback ke 1, tidak berubah dari sebelumnya.
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
         versionName = "1.0.0"
     }
 
