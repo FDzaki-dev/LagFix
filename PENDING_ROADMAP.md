@@ -7,14 +7,15 @@ Dasar dokumen: dibaca langsung dari LagFix_v6.zip (9 file Kotlin, 756 baris tota
 LagFix_build-6_release.apk yang sudah dikompilasi. Tidak ada source yang diubah di batch ini —
 dokumen ini PLANNING ONLY. Tiap item butuh approval eksplisit sebelum dieksekusi (no scope creep).
 
-## A. BLOCKING — wajib sebelum batch baru manapun
-1. Verifikasi real-device alur "Update sekarang" (v6): prompt "unknown sources" muncul sekali,
-   FileProvider expose APK ke Package Installer, `cache/updates/` benar-benar kosong/terganti
-   tiap unduhan baru (bukan menumpuk). Ini carry-over dari PROJECT_STATE Known-bullet, BELUM ada
-   evidence baru selain build sukses.
-2. Konfirmasi versionCode APK terpasang (build-6) = run_number rilis GitHub yang sesuai (cek tag
-   `build-6` di Actions match).
-Build hijau (build-6_release.apk ada) ≠ behavior terverifikasi — P0 constitution.
+## A. BLOCKING — status setelah evidence video real-device
+1. ✅ VERIFIED (evidence video): prompt "unknown sources" muncul sekali, FileProvider->Package
+   Installer kebuka, install sukses, app kebuka ulang tanpa crash, state persist.
+2. ✅ VERIFIED (evidence video): versi terpasang naik build 6 -> build 7 sesuai versionCode CI.
+3. ✅ DITUTUP via pembacaan kode (`UpdateChecker.download()`): `deleteRecursively()` + nama file
+   tetap `update.apk` -> menumpuk arsitektural tidak mungkin. Verified via source, bukan runtime
+   device-test — beda level bukti, tapi cukup kuat. Cek ukuran Cache di Setelan > Aplikasi tetap
+   opsional kalau user mau extra-sure, tidak blocking apapun.
+Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, poin 3 verified via source.
 
 ## B. Robustness / edge case (logic minimum, non-breaking, TIDAK dieksekusi tanpa approval)
 1. `TrimWorker` polling `Shizuku.pingBinder()` tiap 500ms maks 5 detik lalu langsung skip kalau
@@ -57,10 +58,10 @@ Build hijau (build-6_release.apk ada) ≠ behavior terverifikasi — P0 constitu
 2. Belum ada dependency-update check otomatis (mis. Dependabot) utk `dev.rikka.shizuku`.
 
 ## Urutan eksekusi disarankan
-- v6 (current): SELESAI compile, PENDING poin A — jangan mulai batch baru sebelum A verified.
-- v7 (usulan, setelah A verified OK): C1 saja (unit test Prefs + FstrimExecutor.state), maks 2
-  file test baru + config test di `app/build.gradle.kts` kalau perlu.
-- v8 (usulan, kondisional): item B yang benar-benar terbukti jadi masalah dari evidence real A —
+- v6 (current): compile OK + A FULLY CLOSED (A1/A2 via device evidence, A3 via source analysis).
+- v7 (siap dimulai): C1 (unit test Prefs + FstrimExecutor.state), maks 2 file test baru + config
+  test di `app/build.gradle.kts` kalau perlu.
+- v8 (usulan, kondisional): item B yang benar-benar terbukti jadi masalah dari evidence real —
   jangan eksekusi B secara spekulatif tanpa evidence.
 - Backlog bebas urutan (D2, D3, E1–E3, F1–F2): hanya kalau user eksplisit minta per item.
 
