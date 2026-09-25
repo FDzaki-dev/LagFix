@@ -30,6 +30,8 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Shapes
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,8 +40,10 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -48,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -145,8 +150,26 @@ private fun HomeScreen(vm: MainViewModel) {
     }
     var showAbout by rememberSaveable { mutableStateOf(false) } // v9 (E2)
     var selectedTab by rememberSaveable { mutableStateOf(0) } // v10: 0=Utama, 1=Pengaturan
+    var showRunConfirm by rememberSaveable { mutableStateOf(false) } // v11: konfirmasi sebelum jalankan manual
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val onFeedback: (String) -> Unit = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
+
+    // v11: toast hasil fstrim manual — hanya saat transisi running true->false (bukan komposisi
+    // awal, biar tak muncul spontan dari riwayat lama saat app baru dibuka/rotasi).
+    var wasRunning by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(ui.running) {
+        if (wasRunning && !ui.running) {
+            snackbarHostState.showSnackbar(
+                if (ui.lastOk) "fstrim berhasil dijalankan." else "fstrim gagal dijalankan."
+            )
+        }
+        wasRunning = ui.running
+    }
+
     Scaffold(
         topBar = { TopAppBar(title = { Text("LagFix (fstrim)") }) },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
@@ -173,14 +196,14 @@ private fun HomeScreen(vm: MainViewModel) {
                     ui = ui,
                     ctx = ctx,
                     versionName = versionName,
-                    onRunNow = vm::runNow,
+                    onRunNow = { showRunConfirm = true }, // v11: minta konfirmasi dulu
                     onGrant = vm::requestPermission,
                     onAboutClick = { showAbout = true },
                     onCheckUpdate = vm::checkUpdate,
                     onInstallUpdate = vm::installUpdate
                 )
             } else {
-                SettingsTab(ui = ui, vm = vm)
+                SettingsTab(ui = ui, vm = vm, onFeedback = onFeedback)
             }
         }
 
@@ -190,6 +213,20 @@ private fun HomeScreen(vm: MainViewModel) {
                 packageName = ctx.packageName,
                 onOpenSource = { openUrl(ctx, AppLinks.source) },
                 onDismiss = { showAbout = false }
+            )
+        }
+
+        if (showRunConfirm) { // v11 (tab konfirmasi): konfirmasi sebelum memicu operasi TRIM
+            AlertDialog(
+                onDismissRequest = { showRunConfirm = false },
+                confirmButton = {
+                    TextButton(onClick = { showRunConfirm = false; vm.runNow() }) { Text("Jalankan") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showRunConfirm = false }) { Text("Batal") }
+                },
+                title = { Text("Jalankan fstrim sekarang?") },
+                text = { Text("Ini akan memicu operasi TRIM penyimpanan (non-root, via Shizuku).") }
             )
         }
     }
@@ -256,11 +293,14 @@ private fun MainTab(
 // v10: tab "Pengaturan" — jadwal otomatis + interval + charging/idle (dipindah dari Utama, sama
 // persis logic/callback-nya, cuma beda lokasi tab) + BARU: pemilih tema (Ikuti sistem/Terang/Gelap).
 @Composable
-private fun SettingsTab(ui: UiState, vm: MainViewModel) {
+private fun SettingsTab(ui: UiState, vm: MainViewModel, onFeedback: (String) -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Jadwal", style = MaterialTheme.typography.titleMedium)
-            ToggleRow("Jadwal otomatis", ui.enabled, vm::setEnabled)
+            ToggleRow("Jadwal otomatis", ui.enabled) {
+                vm.setEnabled(it)
+                onFeedback(if (it) "Jadwal otomatis diaktifkan." else "Jadwal otomatis dinonaktifkan.")
+            }
             Text("Interval")
             Row(
                 Modifier.horizontalScroll(rememberScrollState()),
@@ -270,13 +310,19 @@ private fun SettingsTab(ui: UiState, vm: MainViewModel) {
                     .forEach { (h, label) ->
                         FilterChip(
                             selected = ui.intervalHours == h,
-                            onClick = { vm.setInterval(h) },
+                            onClick = { vm.setInterval(h); onFeedback("Interval diubah ke $label.") },
                             label = { Text(label) }
                         )
                     }
             }
-            ToggleRow("Hanya saat mengisi daya", ui.requireCharging, vm::setCharging)
-            ToggleRow("Hanya saat perangkat idle", ui.requireIdle, vm::setIdle)
+            ToggleRow("Hanya saat mengisi daya", ui.requireCharging) {
+                vm.setCharging(it)
+                onFeedback(if (it) "Hanya saat mengisi daya: aktif." else "Hanya saat mengisi daya: nonaktif.")
+            }
+            ToggleRow("Hanya saat perangkat idle", ui.requireIdle) {
+                vm.setIdle(it)
+                onFeedback(if (it) "Hanya saat perangkat idle: aktif." else "Hanya saat perangkat idle: nonaktif.")
+            }
         }
     }
 
@@ -291,7 +337,7 @@ private fun SettingsTab(ui: UiState, vm: MainViewModel) {
                 ).forEach { (mode, label) ->
                     FilterChip(
                         selected = ui.themeMode == mode,
-                        onClick = { vm.setThemeMode(mode) },
+                        onClick = { vm.setThemeMode(mode); onFeedback("Tema: $label.") },
                         label = { Text(label) }
                     )
                 }

@@ -199,20 +199,65 @@ tanya user mau lanjut item mana, atau ada task lain di luar roadmap.]
   tab Pengaturan+tema); `CHANGELOG.md` — entri v10 ditambah (user-facing, full).
 - Batch: v10
 
-[RESUME POINT: v10 (tab "Pengaturan" + tema calm Cupertino-style) RE-AUDIT independen sesi ini —
-0 file diubah (ZIP yang diberikan user SUDAH berisi implementasi v10 lengkap; dikonfirmasi ulang
-dari nol, bukan cuma percaya klaim dokumen ini): brace/paren balance ke-9 file Kotlin semua match
-(MainActivity 117/117+318/318, Prefs 11/11+63/63, MainViewModel 26/26+81/81, dst), cross-check
-simbol ThemeMode/SettingsTab/MainTab/calmLightScheme/calmDarkScheme/calmShapes/setThemeMode semua
-konsisten & dipanggil sesuai desain, compose-bom 2024.10.01 kompatibel (Shapes ctor/NavigationBar/
-NavigationBarItem/FilterChip semua tersedia di versi ini), themes.xml native (Theme.LagFix, splash
-pre-Compose) tidak disentuh & tidak konflik dgn color scheme Compose baru. Status TETAP: belum
-pernah dicompile compiler sungguhan & belum ada evidence visual device sama sekali (sandbox tanpa
-SDK/Gradle/jaringan) -> Remaining: jalankan DAILY UPDATE di Termux, push ke main, biarkan CI build
-(assembleRelease/Debug) jalan -> Next Action: install APK hasil CI di device asli, verifikasi
-visual: (1) tab bar bawah muncul & tak ketutup gesture-bar, (2) tab "Utama" = konten lama
-(StatusCard/tombol jalankan/Riwayat/Tautan/Tentang/Pembaruan/versi) minus 4 kontrol jadwal, (3) tab
-"Pengaturan" = 4 kontrol jadwal (fungsi sama persis) + card Tema baru, (4) ganti 3 pilihan tema
-tanpa crash & dark mode terasa calm/navy-charcoal (bukan hitam pekat) sesuai keluhan awal user;
-rekam evidence (video/screenshot) spt pola v6/v9 sebelumnya. PENDING_ROADMAP.md sisa: B, C3, D2,
-F1, F2 (backlog, tunggu user eksplisit minta)]
+- v10 VERIFIED (evidence: screen recording user, ~16 detik, device asli, ditonton frame-by-frame
+  via ffmpeg 1fps): (1) `NavigationBar` 2 tab (Utama/Pengaturan) tampil, TIDAK ketutup gesture-bar
+  sistem — insets ditangani otomatis. (2) tab Utama utuh: StatusCard "Siap — Shizuku aktif",
+  tombol "Jalankan fstrim sekarang", Riwayat dgn indikator hijau OK, card Tautan (4 baris termasuk
+  "Tentang aplikasi"), card Pembaruan, label versi "LagFix • v1.0.12" — semua persis spt sebelum
+  dipindah. (3) tab Pengaturan tampil 4 kontrol jadwal (Jadwal otomatis, Interval 6 jam/12 jam/
+  1 hari/3 hari/7 hari, Hanya saat mengisi daya, Hanya saat perangkat idle) + card Tema baru. (4)
+  ganti tema "Terang" -> palet calm terang (bg abu-lavender lembut #F4F4F8, BUKAN putih tajam) dan
+  "Gelap" -> navy-charcoal lembut (BUKAN hitam pekat) — kontras teks/Switch/FilterChip di kedua
+  skema kebaca jelas, tanpa crash saat ganti-ganti. v10 CONFIRMED jalan nyata di device, sesuai
+  keluhan awal user "bukan dark statis yang bikin lelah mata".
+- v11 (permintaan ad-hoc eksplisit user, di luar PENDING_ROADMAP.md): "sempurnakan feedback" —
+  toast + dialog konfirmasi. 1 file source diubah — `MainActivity.kt` only:
+  - `HomeScreen`: tambah `SnackbarHostState` + `Scaffold.snackbarHost` (baru, tanpa dependensi
+    baru — `SnackbarHost`/`SnackbarHostState` sudah bagian `androidx.compose.material3` yg sudah
+    dipakai). `onFeedback: (String) -> Unit` (baru, lokal ke `HomeScreen`) dispatch via
+    `rememberCoroutineScope().launch { snackbarHostState.showSnackbar(msg) }`, diteruskan ke
+    `SettingsTab` sbg parameter baru.
+  - Toast hasil fstrim manual: `LaunchedEffect(ui.running)` + flag `wasRunning` (rememberSaveable)
+    deteksi transisi running true->false SAJA (bukan komposisi awal/rotasi) -> tampil "fstrim
+    berhasil dijalankan."/"fstrim gagal dijalankan." sesuai `ui.lastOk`. Tidak baca/ubah format
+    `Prefs.record()` sama sekali (PrefsTest.kt v7 tetap valid).
+  - Toast konfirmasi tiap kontrol `SettingsTab` (Jadwal otomatis on/off, Interval per pilihan jam,
+    Hanya saat mengisi daya on/off, Hanya saat idle on/off, Tema per pilihan) — dipanggil langsung
+    di `onClick`/`onChange` masing2 kontrol, bareng pemanggilan `vm.setXxx()` yg sudah ada (logic
+    `MainViewModel`/`Prefs` TIDAK disentuh sama sekali, murni tambahan efek samping UI).
+  - "Dialog konfirmasi" (tab konfirmasi) sebelum trigger manual: tombol "Jalankan fstrim sekarang"
+    di `MainTab` sekarang cuma buka `showRunConfirm` (state baru di `HomeScreen`, bukan langsung
+    panggil `vm.runNow()`); `AlertDialog` baru "Jalankan fstrim sekarang?" dgn tombol
+    Jalankan/Batal — pola identik `showAbout`/`AboutDialog` (v9) yg sudah terbukti jalan di
+    device asli, jadi risiko pola ini rendah. `vm.runNow()` cuma terpanggil setelah user tekan
+    "Jalankan" di dialog.
+  - 0 file production lain (Prefs.kt, MainViewModel.kt, FstrimExecutor.kt, TrimWorker.kt,
+    UpdateChecker.kt, CrashLogger.kt, AppLinks.kt, LagFixApp.kt, AndroidManifest.xml,
+    build.gradle.kts) disentuh. Tidak ada dependensi baru.
+- v11 VALIDASI: brace/paren balance MainActivity.kt 139/139 & 353/353 (naik dari 117/117+318/318
+  v10, konsisten dgn penambahan blok baru, no drift) + cross-check simbol (`onFeedback`,
+  `showRunConfirm`, `snackbarHostState`, `wasRunning` semua dipakai konsisten; `SettingsTab`/
+  `MainTab` masing2 tetap didefinisikan 1x & dipanggil 1x). BELUM pernah dicompile compiler
+  sungguhan — sandbox tanpa Android SDK/Gradle/jaringan (sama spt semua batch sebelumnya).
+  `./gradlew assembleDebug` WAJIB dijalankan sebelum diklaim hijau beneran. BELUM ada evidence
+  visual device utk batch ini — meski pola AlertDialog & SnackbarHost adalah API M3 standar (bukan
+  hal baru/eksotis) & mengikuti pola `AboutDialog` yg sudah VERIFIED (v9), tetap perlu dicek nyata:
+  (1) Snackbar tidak ketutup NavigationBar/gesture-bar, (2) dialog konfirmasi muncul & Jalankan/
+  Batal berfungsi, (3) toast tiap kontrol Pengaturan muncul & tidak dobel/tidak nyangkut kalau
+  ganti kontrol beruntun cepat.
+- Docs: `CHANGELOG.md` — entri v11 ditambah (user-facing, full). `PENDING_ROADMAP.md` tidak
+  diubah (v11 di luar daftar A–F, sama spt v10).
+- Batch: v11
+
+[RESUME POINT: v10 FULLY VERIFIED via evidence video device asli (16 detik) — tab bar, kedua tab,
+kedua tema calm semua CONFIRMED jalan nyata, tidak ada regresi. v11 selesai (toast Snackbar hasil
+fstrim + toast konfirmasi tiap kontrol Pengaturan/Tema + dialog konfirmasi sebelum jalankan
+manual), validasi statis (brace+referensi simbol) only, BELUM pernah dijalankan compiler sungguhan
+DAN belum ada evidence visual device utk v11 -> Remaining: jalankan DAILY UPDATE, push ke main,
+biarkan CI build (assembleRelease/Debug) jalan -> Next Action: install APK hasil CI di device asli,
+verifikasi visual v11: (1) tekan "Jalankan fstrim sekarang" -> dialog konfirmasi muncul -> tekan
+"Jalankan" -> setelah selesai muncul Snackbar hasil (berhasil/gagal) di bawah, tidak ketutup
+NavigationBar; (2) tekan tombol "Batal" di dialog -> tidak ada fstrim terpicu; (3) di tab
+Pengaturan, ganti tiap kontrol (jadwal/interval/charging/idle/tema) satu-satu -> tiap ganti muncul
+Snackbar konfirmasi teksnya sesuai; rekam evidence (video/screenshot) spt pola v6/v9/v10 sebelumnya.
+PENDING_ROADMAP.md sisa: B, C3, D2, F1, F2 (backlog, tunggu user eksplisit minta)]
