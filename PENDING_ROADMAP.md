@@ -29,8 +29,10 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    pastikan status ini kelihatan jelas di UI Riwayat, bukan cuma silent skip di background.
 
 ## C. Testing (gap nyata — dicek langsung: tidak ada app/src/test atau app/src/androidTest sama sekali)
-1. Unit test `Prefs.record()` (rotasi log maks 30 baris, format timestamp `dd/MM HH:mm`) dan
-   `FstrimExecutor.state()` (mapping 4 status Shizuku) — logic murni, tidak butuh device fisik.
+1. ✅ SELESAI (v7): Unit test `Prefs.record()` (rotasi log maks 30 baris, format timestamp
+   `dd/MM HH:mm`) dan `FstrimExecutor.state()` (mapping 4 status Shizuku) — logic murni, tidak
+   butuh device fisik. File: `PrefsTest.kt`, `FstrimExecutorTest.kt`. BELUM pernah dicompile
+   compiler sungguhan (sandbox); wajib `./gradlew testDebugUnitTest` di CI/lokal utk verifikasi run.
 2. Checklist manual/instrumented untuk alur Shizuku (grant/revoke permission via
    `requestPermission()`) dan alur install-update (FileProvider + Package Installer).
 3. `build.yml` saat ini cuma assembleRelease/Debug, belum ada step `test` — kalau C1 dikerjakan,
@@ -58,12 +60,12 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
 2. Belum ada dependency-update check otomatis (mis. Dependabot) utk `dev.rikka.shizuku`.
 
 ## Urutan eksekusi disarankan
-- v6 (current): compile OK + A FULLY CLOSED (A1/A2 via device evidence, A3 via source analysis).
-- v7 (siap dimulai): C1 (unit test Prefs + FstrimExecutor.state), maks 2 file test baru + config
-  test di `app/build.gradle.kts` kalau perlu.
+- v6: compile OK + A FULLY CLOSED (A1/A2 via device evidence, A3 via source analysis).
+- v7 (SELESAI): C1 unit test Prefs+FstrimExecutor.state — 3 file diubah (build.gradle.kts + 2
+  test baru), 0 file production. Belum dicompile beneran (sandbox) — perlu run CI/lokal.
 - v8 (usulan, kondisional): item B yang benar-benar terbukti jadi masalah dari evidence real —
   jangan eksekusi B secara spekulatif tanpa evidence.
-- Backlog bebas urutan (D2, D3, E1–E3, F1–F2): hanya kalau user eksplisit minta per item.
+- Backlog bebas urutan (C3 CI test step, D2, D3, E1–E3, F1–F2): hanya kalau user eksplisit minta.
 
 ## Eksplisit DI LUAR SCOPE
 Tidak ada rencana ganti arsitektur, ganti dependency utama (Shizuku/WorkManager/Compose), migrasi

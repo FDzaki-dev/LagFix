@@ -59,4 +59,8 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.9.1")
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
+
+    // v7: unit test murni (JVM, tanpa device) — Prefs.record() + FstrimExecutor.state()
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.mockito:mockito-core:5.23.0") // 5.x: inline mock maker default (mockStatic tanpa artifact tambahan)
 }
