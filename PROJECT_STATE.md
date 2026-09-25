@@ -28,5 +28,7 @@
 - Repo: https://github.com/FDzaki-dev/LagFix — AppLinks.GITHUB_OWNER = "FDzaki-dev" (sudah terisi, bukan placeholder lagi).
 - Batch: v6
 - Known: alur download+install (v6) belum diuji nyata di device (sandbox tanpa SDK/jaringan) — cek: (1) prompt izin "unknown sources" muncul sekali di awal, (2) APK di `cache/updates/` kebaca FileProvider & installer kebuka, (3) `cache/updates/` beneran kosong/terganti tiap kali unduh ulang (bukan menumpuk).
+- Evidence user: `LagFix_build-6_release.apk` sudah berhasil dikompilasi (CI build-6 hijau). Behavior real-device (poin Known di atas) MASIH belum diuji — build hijau ≠ behavior verified.
+- Docs: `PENDING_ROADMAP.md` dibuat (planning-only, 0 source file diubah) — rencana penyempurnaan A(blocking)/B(edge case)/C(testing)/D(tech debt)/E(UX minor)/F(CI), digrounded dari inspeksi langsung source v6 (tanpa app/src/test sama sekali).
 
-[RESUME POINT: v6 fix install in-app (Package Installer, bukan browser) selesai ditulis, validasi statis (brace+XML) only -> Remaining: jalankan DAILY UPDATE, push, build CI, install APK rilis terbaru, tekan "Update sekarang" di device asli utk verifikasi nyata (permission prompt, FileProvider, instalasi jadi, cache kebersih) -> Next Action: push ke main, tunggu CI, test end-to-end di HP]
+[RESUME POINT: v6 build-6 sukses dikompilasi (evidence: LagFix_build-6_release.apk), behavior real-device instal-update MASIH belum diuji; PENDING_ROADMAP.md ditulis utk batch v7+ -> Remaining: (1) verifikasi real-device sesuai checklist Known-bullet, (2) kalau OK lanjut roadmap v7 (unit test Prefs+FstrimExecutor.state) -> Next Action: user uji "Update sekarang" di device asli & laporkan hasil (evidence), baru mulai batch v7 sesuai PENDING_ROADMAP.md]
