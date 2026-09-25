@@ -19,6 +19,7 @@ data class UiState(
     val intervalHours: Long = 24L,
     val requireCharging: Boolean = true,
     val requireIdle: Boolean = false,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val running: Boolean = false,
     val lastRunMs: Long = 0L,
     val lastOk: Boolean = false,
@@ -50,6 +51,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         intervalHours = prefs.intervalHours,
         requireCharging = prefs.requireCharging,
         requireIdle = prefs.requireIdle,
+        themeMode = prefs.themeMode,
         running = running,
         lastRunMs = prefs.lastRunMs,
         lastOk = prefs.lastOk,
@@ -74,6 +76,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setInterval(h: Long) { prefs.intervalHours = h; reschedule() }
     fun setCharging(v: Boolean) { prefs.requireCharging = v; reschedule() }
     fun setIdle(v: Boolean) { prefs.requireIdle = v; reschedule() }
+    fun setThemeMode(m: ThemeMode) { prefs.themeMode = m; ui = ui.copy(themeMode = m) }
 
     fun requestPermission() {
         runCatching {

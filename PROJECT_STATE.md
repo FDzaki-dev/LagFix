@@ -121,3 +121,98 @@ test/C3; dialog belum ada evidence device) -> Next Action: push ke main, lalu ve
 device asli setelah install build baru: buka card Tautan -> tombol "Tentang aplikasi" -> cek
 dialog tampil benar (tagline+versi+package+tombol source) & bisa ditutup; PENDING_ROADMAP.md sisa:
 B (butuh evidence real dulu), C3/D2/E3/F1/F2 (backlog, tunggu user eksplisit minta)]
+
+- v9 VERIFIED (evidence: screen recording user, ~9 detik, device asli, ditonton frame-by-frame):
+  (1) card "Tautan" tampil row baru "Tentang aplikasi" dgn chevron "›" (bukan "↗" spt link lain) —
+  sesuai desain `AboutRow`.
+  (2) tap row -> dialog "Tentang LagFix" muncul persis sesuai `AboutDialog`: tagline "Pemicu &
+  penjadwal fstrim non-root (setara mFSTRIM), via Shizuku.", "Versi: 1.0.11", "Paket:
+  com.lagfix.fstrim", tombol "Source & developer" + tombol "Tutup" — build CI nyata (versionName
+  format run-number, bukan "1.0.0-dev" lokal) sudah terinstal di device, D3(v8) ikut re-konfirmasi.
+  (3) tap "Source & developer" -> browser device kebuka ke `github.com/FDzaki-dev/LagFix` (repo
+  benar, bukan salah tautan) -> listing repo nyata: 9 tags, file `app/`, `README.md`,
+  `CHANGELOG.md`, `PENDING_ROADMAP.md`, `PROJECT_STATE.md` berstatus "2 minutes ago" (persis 5 file
+  yg diubah batch v9), sisanya (`.github/workflows`, `.cursorrules`, `.gitignore`,
+  `build.gradle.kts`) tetap "33 minutes ago" (tidak tersentuh) — DAILY UPDATE + push v9 CONFIRMED
+  jalan bersih, tanpa file nyasar/tanpa regresi scope.
+  Catatan minor (non-blocking, di luar scope verifikasi ini): versionName run_number=11 vs repo
+  cuma nunjuk 9 tags — kemungkinan ada run yg skip pembuatan release tag di antaranya; belum
+  ditelusuri, tidak mempengaruhi apapun yg diverifikasi barusan.
+  Belum kelihatan on-camera: tap "Tutup" (dismiss dialog) — tidak blocking, `onDismiss` sama
+  persis pola `showChangelog` (v4) yg sudah lama terbukti jalan.
+
+[RESUME POINT: v9 FULLY VERIFIED — dialog "Tentang" (E2) tampil & isi benar di device asli, tautan
+"Source & developer" benar, push v9 ke GitHub CONFIRMED bersih (persis 5 file berubah, 0 file
+nyasar) -> Remaining: tidak ada lagi item blocking di batch v9; D1 (README note) tak butuh
+verifikasi device (docs-only). Backlog PENDING_ROADMAP.md: B (robustness, butuh evidence masalah
+nyata dulu), C3 (step test di CI), D2 (aktifkan R8 + keep-rule spesifik), E3 (toggle dark/light
+manual), F1 (lint/detekt), F2 (Dependabot) — semua nunggu user eksplisit pilih -> Next Action:
+tanya user mau lanjut item mana, atau ada task lain di luar roadmap.]
+
+- v10 (di luar urutan PENDING_ROADMAP.md — permintaan ad-hoc eksplisit user, bukan dari daftar
+  pilihan yg ditawarkan/C3-D2-E3-F1-F2): tab "Pengaturan" baru + tema kustom. 3 file source diubah:
+  - `MainActivity.kt`: `HomeScreen` sekarang punya `Scaffold.bottomBar` (`NavigationBar` 2 tab,
+    tanpa dependensi icon-pack baru — pakai emoji "🏠"/"⚙️" spt gaya app ini yg sudah pakai
+    karakter polos "●"/"›"/"↗"). Konten lama dipecah jadi 2 composable baru tanpa ubah
+    logic/callback sama sekali (murni pindah lokasi): `MainTab` (StatusCard, tombol jalankan,
+    Riwayat, Tautan+Tentang, Pembaruan, label versi — SEMUA fitur utama tetap di sini) dan
+    `SettingsTab` (Jadwal otomatis+interval+charging/idle — 4 kontrol yg dulu nebeng di layar utama
+    tanpa judul, sekarang di tab tersendiri + BARU: picker tema "Ikuti sistem/Terang/Gelap").
+    Palet warna lama (`dynamicDarkColorScheme`/`dynamicLightColorScheme` Material You + fallback
+    `darkColorScheme()`/`lightColorScheme()` kosong) DIGANTI TOTAL palet kustom "calm"
+    terinspirasi Cupertino/iOS (`calmLightScheme`/`calmDarkScheme`) — dark mode SENGAJA navy-charcoal
+    lembut (#1C1E27) bukan hitam pekat, sesuai permintaan eksplisit user "bukan dark statis yang
+    bikin lelah mata". Tambah `calmShapes` (corner radius M3 default dinaikkan ~+4dp) utk kesan
+    kartu lebih membulat ala Cupertino — visual-only, tidak ubah struktur Card/Column apapun.
+    LINGKUP "Cupertino style" DIBATASI ke palet warna + corner radius (bukan rebuild komponen jadi
+    segmented-control/SF-style penuh) — keputusan scoping, di luar itu blm dikerjakan.
+  - `Prefs.kt`: `enum class ThemeMode {SYSTEM,LIGHT,DARK}` (baru) + persist `themeMode` (SharedPreferences
+    String, default SYSTEM = perilaku lama, non-breaking utk user existing/upgrade). `record()`/`log`/
+    field lain TIDAK disentuh (PrefsTest.kt v7 tetap valid tanpa modifikasi).
+  - `MainViewModel.kt`: `UiState.themeMode` (baru, default SYSTEM) dibaca fresh tiap `read()` sama
+    spt field prefs lain (TIDAK butuh copy-preservation khusus spt `updateChecking`/dst, krn bukan
+    state transient in-memory) + `setThemeMode()` baru (langsung update `ui`, TIDAK panggil
+    `reschedule()`/Scheduler krn tema tak berhubungan dgn WorkManager — beda dgn `setEnabled`/dst).
+  - 0 file production lain (FstrimExecutor.kt, TrimWorker.kt, UpdateChecker.kt, CrashLogger.kt,
+    AppLinks.kt, LagFixApp.kt, AndroidManifest.xml, build.gradle.kts) disentuh. Tidak ada dependensi
+    baru ditambah (NavigationBar/Shapes/RoundedCornerShape semua sudah tersedia dari
+    androidx.compose.material3/foundation yg sudah ada).
+  - Efek samping (di luar scope diminta tapi relevan dicatat): PENDING_ROADMAP.md E.3 ("tidak ada
+    toggle dark/light manual") jadi TERTUTUP oleh fitur ini (malah lebih lengkap — ada picker
+    3-arah + palet kustom, bukan cuma toggle 2-arah).
+- v10 VALIDASI: brace/paren balance MainActivity.kt 117/117 & 318/318, Prefs.kt 11/11 & 63/63,
+  MainViewModel.kt 26/26 & 81/81 — semua balance, no drift. Cross-check simbol: `ThemeMode`/
+  `themeMode`/`MainTab`/`SettingsTab`/`calmLightScheme`/`calmDarkScheme`/`calmShapes` dipakai
+  konsisten lintas 3 file, tiap definisi dipanggil sesuai jumlah yg diharapkan (MainTab 1x,
+  SettingsTab 1x). Grep konfirmasi tidak ada file lain (TrimWorker.kt dst) yg referensi composable
+  yg dipindah/diubah — perubahan terisolasi ke 3 file yg disebut. BELUM pernah dicompile compiler
+  sungguhan — sandbox tanpa Android SDK/Gradle/jaringan (sama spt semua batch sebelumnya).
+  `./gradlew assembleDebug` WAJIB dijalankan sebelum diklaim hijau beneran. BELUM diverifikasi
+  visual sama sekali di device asli — ini restrukturisasi UI TERBESAR sejak v1 (nav-bar 2 tab +
+  ganti total color scheme), risiko regresi visual/tata-letak lebih tinggi drpd batch2 sebelumnya
+  meski logic/callback per kontrol individual tidak diubah. Perlu extra-hati2 cek: (1) NavigationBar
+  tidak ketutup gesture-bar sistem (enableEdgeToEdge aktif — M3 NavigationBar seharusnya auto-handle
+  insets, tapi belum dibuktikan di device asli), (2) kontras warna calmDarkScheme/calmLightScheme
+  scr real (terutama teks di atas Card/Surface), (3) FilterChip tema & interval tetap kebaca jelas
+  di kedua skema warna baru.
+- Docs: `PENDING_ROADMAP.md` — E.3 ditandai ✅ SELESAI (v10, di luar urutan, superseded oleh fitur
+  tab Pengaturan+tema); `CHANGELOG.md` — entri v10 ditambah (user-facing, full).
+- Batch: v10
+
+[RESUME POINT: v10 (tab "Pengaturan" + tema calm Cupertino-style) RE-AUDIT independen sesi ini —
+0 file diubah (ZIP yang diberikan user SUDAH berisi implementasi v10 lengkap; dikonfirmasi ulang
+dari nol, bukan cuma percaya klaim dokumen ini): brace/paren balance ke-9 file Kotlin semua match
+(MainActivity 117/117+318/318, Prefs 11/11+63/63, MainViewModel 26/26+81/81, dst), cross-check
+simbol ThemeMode/SettingsTab/MainTab/calmLightScheme/calmDarkScheme/calmShapes/setThemeMode semua
+konsisten & dipanggil sesuai desain, compose-bom 2024.10.01 kompatibel (Shapes ctor/NavigationBar/
+NavigationBarItem/FilterChip semua tersedia di versi ini), themes.xml native (Theme.LagFix, splash
+pre-Compose) tidak disentuh & tidak konflik dgn color scheme Compose baru. Status TETAP: belum
+pernah dicompile compiler sungguhan & belum ada evidence visual device sama sekali (sandbox tanpa
+SDK/Gradle/jaringan) -> Remaining: jalankan DAILY UPDATE di Termux, push ke main, biarkan CI build
+(assembleRelease/Debug) jalan -> Next Action: install APK hasil CI di device asli, verifikasi
+visual: (1) tab bar bawah muncul & tak ketutup gesture-bar, (2) tab "Utama" = konten lama
+(StatusCard/tombol jalankan/Riwayat/Tautan/Tentang/Pembaruan/versi) minus 4 kontrol jadwal, (3) tab
+"Pengaturan" = 4 kontrol jadwal (fungsi sama persis) + card Tema baru, (4) ganti 3 pilihan tema
+tanpa crash & dark mode terasa calm/navy-charcoal (bukan hitam pekat) sesuai keluhan awal user;
+rekam evidence (video/screenshot) spt pola v6/v9 sebelumnya. PENDING_ROADMAP.md sisa: B, C3, D2,
+F1, F2 (backlog, tunggu user eksplisit minta)]

@@ -7,8 +7,18 @@ import java.util.Locale
 
 data class TrimResult(val ok: Boolean, val message: String, val durationMs: Long)
 
+// v10 (tab Pengaturan + tema): pilihan tema manual, disimpan sbg String biar aman kalau urutan
+// enum berubah nanti. Default SYSTEM = perilaku lama (ikut sistem), non-breaking utk user existing.
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
 class Prefs(context: Context) {
     private val sp = context.applicationContext.getSharedPreferences("lagfix", Context.MODE_PRIVATE)
+
+    var themeMode: ThemeMode
+        get() = runCatching {
+            ThemeMode.valueOf(sp.getString("themeMode", ThemeMode.SYSTEM.name)!!)
+        }.getOrDefault(ThemeMode.SYSTEM)
+        set(v) { sp.edit().putString("themeMode", v.name).apply() }
 
     var enabled: Boolean
         get() = sp.getBoolean("enabled", false)

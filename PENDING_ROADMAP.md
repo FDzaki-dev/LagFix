@@ -57,13 +57,16 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    `LogLine()`) — format baris dari `Prefs.record()` tidak diubah (PrefsTest.kt tetap valid).
    Fallback teks polos kalau baris tak cocok pola (non-breaking). Belum dicompile compiler
    sungguhan (sandbox tanpa SDK/Gradle).
-2. ✅ SELESAI (v9): Info app dikonsolidasi lewat dialog "Tentang" (baru) — dipicu tombol baru
+2. ✅ SELESAI (v9), VERIFIED (evidence video device asli): Info app dikonsolidasi lewat dialog "Tentang" (baru) — dipicu tombol baru
    (`AboutRow`, "›") di card Tautan. Isi dialog: tagline app, versi terpasang, package id, tombol
    ke source/developer. File diubah: `MainActivity.kt` only (tambah `AboutRow`+`AboutDialog`+state
    `showAbout`; `versionName` dipindah ke atas `HomeScreen` biar dipakai bareng label footer & dialog
    — nilai/perilaku label footer TIDAK berubah). 0 file production logic lain (Prefs/FstrimExecutor/
    MainViewModel/TrimWorker/UpdateChecker) disentuh.
-3. Tidak ada toggle dark/light manual (ikut system default M3) — cek apakah disengaja.
+3. ✅ SELESAI (v10, di luar urutan — permintaan ad-hoc user, bukan dipilih dari daftar ini):
+   Toggle dark/light manual sekarang ada (malah lebih lengkap: picker "Ikuti sistem/Terang/Gelap"),
+   plus palet warna kustom "calm" (bukan Material You dinamis lama). Detail di PROJECT_STATE.md
+   batch v10.
 
 ## F. Release/CI hardening (opsional, backlog)
 1. Belum ada lint/static-analysis (ktlint/detekt) di `build.yml`.

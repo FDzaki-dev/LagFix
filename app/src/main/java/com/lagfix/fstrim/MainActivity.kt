@@ -3,7 +3,6 @@ package com.lagfix.fstrim
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -26,14 +26,15 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -57,7 +58,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { LagFixTheme { HomeScreen(vm) } }
+        setContent {
+            val ui = vm.ui
+            LagFixTheme(ui.themeMode) { HomeScreen(vm) }
+        }
     }
 
     override fun onResume() {
@@ -66,16 +70,69 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+// v10 (settings tab + tema): palet kustom "calm" terinspirasi Cupertino/iOS — biru-lavender lembut
+// + sage muted, BUKAN warna Material You dinamis lama & BUKAN dark statis hitam pekat (sengaja
+// pakai navy-charcoal lembut #1C1E27, bukan hitam #000000, biar tidak bikin lelah mata).
+private val calmLightScheme = lightColorScheme(
+    primary = Color(0xFF5A6ACF),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFE1E3FA),
+    onPrimaryContainer = Color(0xFF1B2560),
+    secondary = Color(0xFF6E8A7C),
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFDCEAE1),
+    onSecondaryContainer = Color(0xFF1E2E26),
+    tertiary = Color(0xFFB98A5E),
+    background = Color(0xFFF4F4F8),
+    onBackground = Color(0xFF2B2C33),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF2B2C33),
+    surfaceVariant = Color(0xFFE6E6EE),
+    onSurfaceVariant = Color(0xFF5B5C66),
+    outline = Color(0xFFB8B9C6),
+    error = Color(0xFFC0524B),
+    onError = Color(0xFFFFFFFF)
+)
+
+private val calmDarkScheme = darkColorScheme(
+    primary = Color(0xFFA9B4F2),
+    onPrimary = Color(0xFF1C2557),
+    primaryContainer = Color(0xFF394487),
+    onPrimaryContainer = Color(0xFFE1E3FA),
+    secondary = Color(0xFF9FC0AE),
+    onSecondary = Color(0xFF17301F),
+    secondaryContainer = Color(0xFF32493B),
+    onSecondaryContainer = Color(0xFFDCEAE1),
+    tertiary = Color(0xFFD9B287),
+    background = Color(0xFF1C1E27),
+    onBackground = Color(0xFFE7E7ED),
+    surface = Color(0xFF262933),
+    onSurface = Color(0xFFE7E7ED),
+    surfaceVariant = Color(0xFF33363F),
+    onSurfaceVariant = Color(0xFFC2C3CC),
+    outline = Color(0xFF6E7180),
+    error = Color(0xFFE0918B),
+    onError = Color(0xFF3A1210)
+)
+
+// Sudut lebih membulat drpd default M3 — kesan kartu ala Cupertino/iOS (soft rounded), visual-only.
+private val calmShapes = Shapes(
+    extraSmall = RoundedCornerShape(6.dp),
+    small = RoundedCornerShape(10.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(22.dp),
+    extraLarge = RoundedCornerShape(28.dp)
+)
+
 @Composable
-private fun LagFixTheme(content: @Composable () -> Unit) {
-    val dark = isSystemInDarkTheme()
-    val ctx = LocalContext.current
-    val scheme = when {
-        Build.VERSION.SDK_INT >= 31 -> if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
-        dark -> darkColorScheme()
-        else -> lightColorScheme()
+private fun LagFixTheme(themeMode: ThemeMode, content: @Composable () -> Unit) {
+    val dark = when (themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
     }
-    MaterialTheme(colorScheme = scheme, content = content)
+    val scheme = if (dark) calmDarkScheme else calmLightScheme
+    MaterialTheme(colorScheme = scheme, shapes = calmShapes, content = content)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,76 +144,44 @@ private fun HomeScreen(vm: MainViewModel) {
         runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull()
     }
     var showAbout by rememberSaveable { mutableStateOf(false) } // v9 (E2)
-    Scaffold(topBar = { TopAppBar(title = { Text("LagFix (fstrim)") }) }) { pad ->
+    var selectedTab by rememberSaveable { mutableStateOf(0) } // v10: 0=Utama, 1=Pengaturan
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("LagFix (fstrim)") }) },
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    icon = { Text("🏠") },
+                    label = { Text("Utama") }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    icon = { Text("⚙️") },
+                    label = { Text("Pengaturan") }
+                )
+            }
+        }
+    ) { pad ->
         Column(
             Modifier.padding(pad).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            StatusCard(ui.shizuku, onGrant = vm::requestPermission, onOpen = { openShizuku(ctx, ui.shizuku) })
-
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ToggleRow("Jadwal otomatis", ui.enabled, vm::setEnabled)
-                    Text("Interval")
-                    Row(
-                        Modifier.horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf(6L to "6 jam", 12L to "12 jam", 24L to "1 hari", 72L to "3 hari", 168L to "7 hari")
-                            .forEach { (h, label) ->
-                                FilterChip(
-                                    selected = ui.intervalHours == h,
-                                    onClick = { vm.setInterval(h) },
-                                    label = { Text(label) }
-                                )
-                            }
-                    }
-                    ToggleRow("Hanya saat mengisi daya", ui.requireCharging, vm::setCharging)
-                    ToggleRow("Hanya saat perangkat idle", ui.requireIdle, vm::setIdle)
-                }
+            if (selectedTab == 0) {
+                MainTab(
+                    ui = ui,
+                    ctx = ctx,
+                    versionName = versionName,
+                    onRunNow = vm::runNow,
+                    onGrant = vm::requestPermission,
+                    onAboutClick = { showAbout = true },
+                    onCheckUpdate = vm::checkUpdate,
+                    onInstallUpdate = vm::installUpdate
+                )
+            } else {
+                SettingsTab(ui = ui, vm = vm)
             }
-
-            Button(
-                onClick = vm::runNow,
-                enabled = ui.shizuku == ShizukuState.READY && !ui.running,
-                modifier = Modifier.fillMaxWidth()
-            ) { Text(if (ui.running) "Menjalankan…" else "Jalankan fstrim sekarang") }
-
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Riwayat", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        if (ui.lastRunMs == 0L) "Belum pernah dijalankan"
-                        else formatTime(ui.lastRunMs) + if (ui.lastOk) " — berhasil" else " — gagal"
-                    )
-                    ui.log.forEach { LogLine(it) }
-                }
-            }
-
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Tautan", style = MaterialTheme.typography.titleMedium)
-                    LinkRow("Unduh rilis terbaru") { openUrl(ctx, AppLinks.releases) }
-                    LinkRow("Lihat kode sumber") { openUrl(ctx, AppLinks.source) }
-                    LinkRow("Laporkan masalah") { openUrl(ctx, AppLinks.newIssue) }
-                    AboutRow("Tentang aplikasi") { showAbout = true } // v9 (E2): konsolidasi info app
-                }
-            }
-
-            UpdateCard(
-                checking = ui.updateChecking,
-                result = ui.updateResult,
-                downloading = ui.downloading,
-                downloadError = ui.downloadError,
-                onCheck = vm::checkUpdate,
-                onInstall = vm::installUpdate
-            )
-
-            Text(
-                "LagFix" + if (!versionName.isNullOrBlank()) " • v$versionName" else "",
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
-            )
         }
 
         if (showAbout) {
@@ -166,6 +191,111 @@ private fun HomeScreen(vm: MainViewModel) {
                 onOpenSource = { openUrl(ctx, AppLinks.source) },
                 onDismiss = { showAbout = false }
             )
+        }
+    }
+}
+
+// v10: tab "Utama" — status Shizuku, aksi jalankan fstrim, Riwayat, Tautan (+ Tentang), Pembaruan,
+// label versi. Persis konten yang sebelumnya ada di layar tunggal, cuma dipindah ke tab ini.
+@Composable
+private fun MainTab(
+    ui: UiState,
+    ctx: Context,
+    versionName: String?,
+    onRunNow: () -> Unit,
+    onGrant: () -> Unit,
+    onAboutClick: () -> Unit,
+    onCheckUpdate: () -> Unit,
+    onInstallUpdate: (String) -> Unit
+) {
+    StatusCard(ui.shizuku, onGrant = onGrant, onOpen = { openShizuku(ctx, ui.shizuku) })
+
+    Button(
+        onClick = onRunNow,
+        enabled = ui.shizuku == ShizukuState.READY && !ui.running,
+        modifier = Modifier.fillMaxWidth()
+    ) { Text(if (ui.running) "Menjalankan…" else "Jalankan fstrim sekarang") }
+
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Riwayat", style = MaterialTheme.typography.titleMedium)
+            Text(
+                if (ui.lastRunMs == 0L) "Belum pernah dijalankan"
+                else formatTime(ui.lastRunMs) + if (ui.lastOk) " — berhasil" else " — gagal"
+            )
+            ui.log.forEach { LogLine(it) }
+        }
+    }
+
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Tautan", style = MaterialTheme.typography.titleMedium)
+            LinkRow("Unduh rilis terbaru") { openUrl(ctx, AppLinks.releases) }
+            LinkRow("Lihat kode sumber") { openUrl(ctx, AppLinks.source) }
+            LinkRow("Laporkan masalah") { openUrl(ctx, AppLinks.newIssue) }
+            AboutRow("Tentang aplikasi") { onAboutClick() } // v9 (E2): konsolidasi info app
+        }
+    }
+
+    UpdateCard(
+        checking = ui.updateChecking,
+        result = ui.updateResult,
+        downloading = ui.downloading,
+        downloadError = ui.downloadError,
+        onCheck = onCheckUpdate,
+        onInstall = onInstallUpdate
+    )
+
+    Text(
+        "LagFix" + if (!versionName.isNullOrBlank()) " • v$versionName" else "",
+        style = MaterialTheme.typography.labelSmall,
+        modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+    )
+}
+
+// v10: tab "Pengaturan" — jadwal otomatis + interval + charging/idle (dipindah dari Utama, sama
+// persis logic/callback-nya, cuma beda lokasi tab) + BARU: pemilih tema (Ikuti sistem/Terang/Gelap).
+@Composable
+private fun SettingsTab(ui: UiState, vm: MainViewModel) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Jadwal", style = MaterialTheme.typography.titleMedium)
+            ToggleRow("Jadwal otomatis", ui.enabled, vm::setEnabled)
+            Text("Interval")
+            Row(
+                Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(6L to "6 jam", 12L to "12 jam", 24L to "1 hari", 72L to "3 hari", 168L to "7 hari")
+                    .forEach { (h, label) ->
+                        FilterChip(
+                            selected = ui.intervalHours == h,
+                            onClick = { vm.setInterval(h) },
+                            label = { Text(label) }
+                        )
+                    }
+            }
+            ToggleRow("Hanya saat mengisi daya", ui.requireCharging, vm::setCharging)
+            ToggleRow("Hanya saat perangkat idle", ui.requireIdle, vm::setIdle)
+        }
+    }
+
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Tema", style = MaterialTheme.typography.titleMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    ThemeMode.SYSTEM to "Ikuti sistem",
+                    ThemeMode.LIGHT to "Terang",
+                    ThemeMode.DARK to "Gelap"
+                ).forEach { (mode, label) ->
+                    FilterChip(
+                        selected = ui.themeMode == mode,
+                        onClick = { vm.setThemeMode(mode) },
+                        label = { Text(label) }
+                    )
+                }
+            }
         }
     }
 }
