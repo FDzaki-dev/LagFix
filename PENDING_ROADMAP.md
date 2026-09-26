@@ -53,17 +53,19 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    (bukan pengganti verifikasi behavior nyata, cuma nangkep compile-error/regresi test lebih awal
    drpd nunggu build APK penuh). Ditaruh sebelum "Decode keystore" (test tak butuh signing), 0
    step lain (keystore/build/release) disentuh sama sekali.
-4. ⚠️ OPEN (v15, ditemukan dari CI run nyata pertama C3/v14, fail-log-16): 6/6 test
-   `FstrimExecutorTest.kt` (v7) FAILED nyata di CI — `mockStatic(Shizuku::class.java)` tidak
-   berhasil di-intercept Mockito inline mock maker di JVM unit-test worker sungguhan (real method
-   Shizuku pihak-ketiga yg jalan, bukan stub). v15 men-`@Ignore` class ini (bukan hapus/palsu
-   hijau) sampai ada solusi TERVERIFIKASI NYATA — kandidat (belum dicoba/belum terbukti, sandbox
-   tanpa SDK/Gradle): (a) JVM arg `-Djdk.attach.allowAttachSelf=true` di test task kalau ternyata
-   soal self-attach agent, (b) suntik-dependensi (seam/interface) di sekitar pemanggilan Shizuku
-   di `FstrimExecutor.kt` biar bisa di-mock non-static (paling robust, tapi ini REFACTOR produksi —
+4. 🔄 KANDIDAT (a) SEDANG DICOBA (v16, belum terbukti) — histori: v15 men-`@Ignore` 6 test
+   `FstrimExecutorTest.kt` (v7) krn FAILED nyata di CI (fail-log-16): `mockStatic(Shizuku::class.java)`
+   tidak berhasil di-intercept Mockito inline mock maker di JVM unit-test worker sungguhan (real
+   method Shizuku pihak-ketiga yg jalan, bukan stub). v16: `@Ignore` DICABUT + kandidat (a) dicoba
+   — JVM arg `-Djdk.attach.allowAttachSelf=true` ditambah ke test task (`app/build.gradle.kts`,
+   `testOptions.unitTests.all`), dugaan agent ByteBuddy Mockito gagal self-attach tanpa flag ini.
+   BELUM ada evidence CI nyata (sandbox tanpa SDK/Gradle) — status ini TETAP OPEN sampai run CI
+   berikutnya konfirmasi 6 test PASS beneran. Kalau kandidat (a) gagal (error sama persis muncul
+   lagi): (b) suntik-dependensi (seam/interface) di sekitar pemanggilan Shizuku di
+   `FstrimExecutor.kt` biar bisa di-mock non-static (paling robust, tapi ini REFACTOR produksi —
    butuh approval eksplisit user dulu, bukan otomatis), (c) pindah ke Robolectric/instrumented test
-   kalau (a)/(b) juga gagal. `PrefsTest.kt` (4 test, tidak pakai Shizuku) TETAP aktif & tidak
-   terdampak. File v15: `FstrimExecutorTest.kt` only (+ dokumen ini).
+   kalau (b) juga tidak diambil. `PrefsTest.kt` (4 test, tidak pakai Shizuku) TETAP aktif & tidak
+   terdampak. File v16: `app/build.gradle.kts` + `FstrimExecutorTest.kt` (+ dokumen ini).
 
 ## D. Technical debt (dicatat sebagai risiko, backlog — bukan refactor sekarang)
 1. ✅ SELESAI (v9): `FstrimExecutor.sh()` panggil `Shizuku.newProcess` (method private) via
@@ -123,6 +125,11 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
   prioritas/roadmap normal): C4 baru dibuka & langsung ditangani (skip test, bukan tutup
   permanen) — lihat detail C4 di atas. 1 file: `FstrimExecutorTest.kt`. Sisa backlog: C4
   (butuh solusi nyata, belum tertutup), D2, F1, F2.
+- v16 (lanjutan "priority first" — C4 dipilih drpd D2 (eksplisit rendah)/F1/F2 (tooling opsional)
+  krn representasi gap coverage nyata di logic inti): kandidat (a) PENDING_ROADMAP C4 dicoba — JVM
+  arg self-attach + un-skip test. 2 file: `app/build.gradle.kts`, `FstrimExecutorTest.kt`. BELUM
+  ada evidence CI nyata, C4 TETAP OPEN sampai konfirmasi run berikutnya. Sisa backlog kalau C4
+  belum tuntas: kandidat (b)/(c); kalau C4 tuntas: D2, F1, F2.
 
 ## Eksplisit DI LUAR SCOPE
 Tidak ada rencana ganti arsitektur, ganti dependency utama (Shizuku/WorkManager/Compose), migrasi

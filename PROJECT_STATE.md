@@ -419,16 +419,43 @@ luar roadmap.]
   batch CI/test-only tanpa perubahan behavior user-facing).
 - Batch: v15
 
-[RESUME POINT: v10–v13 status tidak berubah (lihat entri masing2 di atas). v14 (step Unit test CI)
-SELESAI jalan sesuai desain — BERHASIL menangkap kegagalan nyata pertama (fail-log-16): 6 test
-`FstrimExecutorTest.kt` gagal krn static-mock Shizuku tak ter-intercept di JVM CI nyata (root cause
-detail di atas), 4 test `PrefsTest.kt` lulus. v15 men-`@Ignore` 6 test tsb (1 file, `PrefsTest.kt`
-tak disentuh) supaya CI hijau balik tanpa memalsukan coverage — BELUM pernah dijalankan compiler
-sungguhan (sandbox tanpa SDK/Gradle/jaringan, fix ini sendiri JUGA belum terverifikasi run nyata) ->
-Remaining: jalankan DAILY UPDATE, push ke main -> Next Action: amati run CI berikutnya — (1) step
-"Unit test" HARUS lulus dgn 6 test berstatus skipped (bukan failed) + 4 test Prefs passed, (2) step
-Build & Release HARUS lanjut normal (assembleRelease/Debug + GitHub Release jalan lagi spt sebelum
-v14); kalau masih merah krn alasan lain (bukan FstrimExecutorTest lagi), itu kegagalan BARU — cek
-log fail terbaru dari awal, jangan asumsikan sama dgn fail-log-16. PENDING_ROADMAP.md sisa: C4 (OPEN,
-solusi nyata static-mock Shizuku belum ditemukan — 3 kandidat dicatat, belum dicoba), D2 ("Prioritas
-rendah"), F1, F2 — tunggu user eksplisit minta.]
+- v15 VERIFIED (laporan user langsung via chat — "build hijau, berhasil diinstall ke device";
+  BUKAN artifact screenshot/video terlampir, dicatat apa adanya sesuai bentuk evidence-nya): CI
+  build hijau (step "Unit test" lulus, 6 test `FstrimExecutorTest` berstatus skipped bukan failed)
+  + APK ter-install & jalan di device nyata. Mengkonfirmasi `@Ignore` v15 bekerja sesuai desain —
+  gate lulus, step Build & Release lanjut normal, tidak ada regresi pipeline.
+- v16 (PENDING_ROADMAP C4, kandidat a — atas permintaan user "lanjut pending task priority"; C4
+  dipilih drpd D2 (eksplisit "Prioritas rendah")/F1/F2 (tooling opsional) krn representasi gap
+  coverage nyata di logic inti `FstrimExecutor.state()`, konsisten pola prioritas v13/v14): 2 file
+  source diubah —
+  - `app/build.gradle.kts`: `testOptions { unitTests.all { it.jvmArgs("-Djdk.attach.allowAttachSelf=true") } }`
+    baru — dugaan agent ByteBuddy Mockito gagal self-attach di worker JVM CI (JDK 17) tanpa flag
+    ini (restriksi Attach API sejak JDK 9). Scope: config test task saja, 0 production code.
+  - `FstrimExecutorTest.kt`: `@Ignore` (v15) DICABUT + import `org.junit.Ignore` dihapus, badan 6
+    test method TIDAK diubah sama sekali (murni un-skip). KDoc diupdate jelasin histori v15->v16.
+  - 0 file production (`app/src/main/`) disentuh. `PrefsTest.kt` tidak disentuh.
+- v16 VALIDASI: brace/paren balance `build.gradle.kts` 15/15+41/41 & `FstrimExecutorTest.kt`
+  24/24+83/83 (dicek script python) OK. Grep konfirmasi 0 anotasi `@Ignore` aktif tersisa (2 match
+  kata "Ignore" murni teks KDoc historis, bukan kode). BELUM pernah dijalankan compiler/CI
+  sungguhan (sandbox tanpa SDK/Gradle/jaringan, sama spt semua batch) — INI EKSPERIMEN kandidat
+  (a) dari PENDING_ROADMAP.md C4, dugaan teknis (self-attach agent) BELUM terbukti sebagai akar
+  masalah sebenarnya. WAJIB CI nyata utk konfirmasi: (1) 6 test `FstrimExecutorTest` jalan BENERAN
+  (bukan skipped lagi) & PASS, (2) 4 test `PrefsTest` tetap PASS, (3) step Build & Release lanjut
+  normal spt sebelumnya. Kalau CI masih gagal dgn error SAMA (`MissingMethodInvocationException`)
+  -> kandidat (a) terbukti salah tebakan, JANGAN diulang — lanjut kandidat (b)/(c) di
+  PENDING_ROADMAP.md C4 (kandidat b butuh approval eksplisit user dulu krn refactor produksi).
+- Docs: `PENDING_ROADMAP.md` — C4 status diupdate jadi "kandidat (a) sedang dicoba (v16), belum
+  terbukti", BUKAN ditutup (belum ada evidence CI nyata). `CHANGELOG.md` TIDAK ditambah entri
+  (konsisten pola v7/v14 — batch CI/test-only tanpa perubahan behavior user-facing).
+- Batch: v16
+
+[RESUME POINT: v15 VERIFIED (laporan user: build hijau + install sukses device, evidence teks
+bukan artifact). v16 mencoba kandidat (a) PENDING_ROADMAP C4 (JVM arg self-attach di
+`build.gradle.kts` + un-skip `FstrimExecutorTest.kt`), validasi statis only (brace/paren balance
+OK, 0 `@Ignore` aktif tersisa), BELUM pernah dijalankan compiler sungguhan (sandbox tanpa
+SDK/Gradle/jaringan) -> Remaining: jalankan DAILY UPDATE, push ke main -> Next Action: amati run
+CI berikutnya — kalau 6 test `FstrimExecutorTest` PASS beneran (bukan skipped) & 4 test Prefs
+tetap PASS & step Build/Release lanjut normal, C4 SELESAI beneran (bukan cuma di-skip) -> tutup di
+PENDING_ROADMAP.md, lanjut ke D2/F1/F2 kalau user eksplisit minta. Kalau masih gagal dgn error
+sama (`MissingMethodInvocationException`), JANGAN ulangi kandidat (a) — laporkan fail-log baru ke
+user, evaluasi kandidat (b) (butuh approval refactor eksplisit) atau (c) (Robolectric/instrumented).]
