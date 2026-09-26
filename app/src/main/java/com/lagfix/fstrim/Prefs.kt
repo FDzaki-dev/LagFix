@@ -36,6 +36,13 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("idle", false)
         set(v) { sp.edit().putBoolean("idle", v).apply() }
 
+    // v27 (fitur opsional, pilihan eksplisit user — lihat SettingsTab): toggle foreground service
+    // "keep-alive" (PersistentTrimService). Default false, non-breaking utk user existing yg belum
+    // pernah lihat/pilih opsi ini.
+    var persistentServiceEnabled: Boolean
+        get() = sp.getBoolean("persistentService", false)
+        set(v) { sp.edit().putBoolean("persistentService", v).apply() }
+
     val lastRunMs: Long get() = sp.getLong("lastRun", 0L)
     val lastOk: Boolean get() = sp.getBoolean("lastOk", false)
 

@@ -1081,3 +1081,71 @@ v26 dari user; kalau MASIH menyala terus setelah fix state ini (kemungkinan sang
 ini kontrak resmi Android TileService, bukan rendering OEM yg tak pasti spt teori v20/v25),
 investigasi lanjut jadi genuinely OS/OEM-level di luar kendali kode (beda level bukti dgn 2 teori
 sebelumnya yg sudah terbukti salah keduanya).]
+
+- v27 (implementasi "foreground service persisten" yg di-HALT di v25 — user KONFIRMASI ULANG
+  eksplisit dua kali stlh risiko dipaparkan lengkap di chat: pertama pilih "Ya, lanjutkan (paham
+  risikonya)" dari opsi konfirmasi, kedua re-affirm "selama dibikin gak asal jadi, hasilnya sesuai
+  SOP" — P0 AUTO-HALT poin (b) v25 TERPENUHI, dieksekusi):
+  1. DESAIN dipilih SENGAJA paling minim-risiko dari opsi yg ada: service ini 0 logic fstrim
+     sendiri (TIDAK reimplement/duplikasi jadwal — itu akan menciptakan 2 sumber kebenaran yg bisa
+     divergen = regresi baru). Satu-satunya tugas: `startForeground()` + notifikasi permanen biar
+     proses app tetap hidup, dengan harapan OS lebih jarang membunuhnya dibanding proses background
+     murni — jadwal fstrim yg SEBENARNYA jalan tetap 100% lewat `Scheduler.apply()`/`TrimWorker`
+     yang SUDAH ADA, 0 diubah sama sekali (0 risiko regresi ke jalur fstrim yg sudah battle-tested
+     sejak v1).
+  2. File BARU: `PersistentTrimService.kt` (Service `foregroundServiceType="specialUse"`,
+     notification channel IMPORTANCE_LOW senyap, `START_STICKY`, `start()`/`stop()` companion) +
+     `BootReceiver.kt` (restart service stlh reboot KALAU toggle aktif — service beda dari
+     WorkManager yg auto-reschedule sendiri lintas reboot).
+  3. File DIUBAH: `AndroidManifest.xml` (+4 permission: FOREGROUND_SERVICE,
+     FOREGROUND_SERVICE_SPECIAL_USE, POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED; +`<service>`
+     dgn `PROPERTY_SPECIAL_USE_FGS_SUBTYPE`; +`<receiver>` BOOT_COMPLETED, exported=true krn
+     protected system broadcast, standar); `Prefs.kt` (+1 pref `persistentServiceEnabled`,
+     default false); `MainViewModel.kt` (+field UiState +`setPersistentService()` start/stop
+     service ikut toggle); `MainActivity.kt` SettingsTab (+1 Card baru "Keandalan latar belakang
+     (opsional)" — toggle + minta izin `POST_NOTIFICATIONS` runtime kalau API 33+ blm granted
+     [granted/ditolak keduanya tetap nyalakan service, cuma notifnya yg tak tampil kalau ditolak —
+     sesuai kontrak resmi Android, dicek dulu sblm diasumsikan] + teks trade-off notifikasi
+     permanen + saran coba opsi baterai/Autostart dulu); `strings.xml` (+1 string teks notifikasi).
+  4. TIDAK dilakukan (di luar scope diminta, P0 zero-regression): TIDAK mengubah/menghapus jalur
+     WorkManager existing, TIDAK toggle otomatis nyala sendiri (default false, benar2 opt-in),
+     TIDAK ada logic polling/timer sendiri di service (dijelaskan poin 1 kenapa).
+  File diubah/baru: `PersistentTrimService.kt` (baru), `BootReceiver.kt` (baru),
+  `AndroidManifest.xml`, `Prefs.kt`, `MainViewModel.kt`, `MainActivity.kt`, `strings.xml` — 7
+  file, 1 fitur logis (exception thd batas 3-5 file, sama spt precedent v19/8-file). 0 file lain
+  disentuh (dikonfirmasi diff vs ZIP v26 yg sudah dikirim ke user).
+- v27 VALIDASI: xmllint OK (AndroidManifest.xml, strings.xml). Brace/paren balance OK di SEMUA
+  file baru/diubah batch ini (PersistentTrimService.kt, BootReceiver.kt, Prefs.kt,
+  MainViewModel.kt: 0/0; MainActivity.kt: parens_diff +1 tapi DIKONFIRMASI via diff langsung thd
+  ZIP v26 baseline — mismatch itu SUDAH ADA SEBELUM batch ini disentuh, murni teks komentar
+  prosa, pola sama persis spt yg sudah dicatat v22, BUKAN diintroduksi batch ini). Cross-check
+  simbol: `persistentServiceEnabled`/`PersistentTrimService`/`setPersistentService`/
+  `R.string.persistent_service_notif_text` semua konsisten dipanggil di titik yg tepat (grep
+  manual per simbol). Diff vs ZIP v26: PERSIS 7 file di atas (+PROJECT_STATE.md/CHANGELOG.md,
+  VIP docs tak dihitung), dikonfirmasi via `diff -rq`. **BELUM PERNAH dicompile compiler/AGP
+  sungguhan & BELUM dites device asli sama sekali** (sandbox tanpa Android SDK/Gradle/device) —
+  fitur ini PALING BERISIKO dari semua batch sejauh ini (kombinasi manifest+kode
+  foregroundServiceType specialUse harus persis, TIDAK BISA divalidasi lebih jauh dari static
+  check di sini, sesuai peringatan risiko yg sudah disampaikan ke user sebelum eksekusi) — **WAJIB
+  gradle assembleDebug/CI hijau DULU sblm test device**, lalu **WAJIB test device lengkap**: (a)
+  toggle ON -> app TIDAK crash, dialog izin notifikasi muncul (API 33+), notifikasi permanen
+  muncul; (b) app di-force-close/swipe dari recents -> cek proses/notifikasi masih ada (indikasi
+  "bertahan"); (c) restart HP -> notifikasi otomatis muncul lagi TANPA buka app manual (BootReceiver
+  jalan); (d) toggle OFF -> notifikasi hilang, service berhenti; (e) PALING PENTING — tunggu 1+
+  siklus interval jadwal, cek apakah Riwayat AKHIRNYA dapat entri otomatis (root masalah asli v22-
+  v24) — kalau (e) MASIH nihil stlh semua ini, berarti device/ROM memang tak bisa dibantu lewat
+  jalur apa pun tanpa root (kesimpulan final, sesuai yg sudah diperingatkan sblm eksekusi).
+- Docs: `CHANGELOG.md` +entry v27. `PENDING_ROADMAP.md` tidak disentuh.
+- Batch: v27
+
+[RESUME POINT: v27 — foreground service persisten (opsional, default OFF) diimplementasi atas
+konfirmasi ulang eksplisit user thd risiko yg dipaparkan v25/sesi ini. Desain sengaja 0 duplikasi
+logic fstrim (cuma keep-alive, jadwal asli tetap 100% via WorkManager existing, 0 diubah) utk
+minimalkan risiko regresi. 7 file baru/diubah, validasi statis only (xmllint+brace OK kecuali 1
+mismatch paren pre-existing di MainActivity.kt yg dikonfirmasi BUKAN dari batch ini, cross-check
+simbol OK, diff vs v26 confirmed 7 file) — BELUM PERNAH compile/AGP sungguhan & BELUM device test
+SAMA SEKALI, fitur paling berisiko sejauh ini (presisi manifest FGS specialUse) -> Remaining:
+jalankan DAILY UPDATE, push, **CI build WAJIB hijau dulu** (kalau merah di sini kemungkinan besar
+typo/kesalahan properti manifest FGS, PALING PRIORITAS utk dicek duluan) -> baru lanjut 5 poin
+test device di atas (a-e) -> Next Action: tunggu evidence CI + hasil 5 poin test device dari user;
+KALAU CI merah, JANGAN coba tebak-tebak fix tanpa lihat log error asli dulu (P0 NO HALLUCINATION).]

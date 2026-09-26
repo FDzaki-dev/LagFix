@@ -70,3 +70,6 @@
 
 ## v26
 - Fix akar masalah icon tile Quick Settings yang tak pernah kelihatan mati/idle (selalu tampil menyala) — ternyata bukan soal warna icon (sudah dicoba v25), tapi status tile yang dulu selalu di-set "menyala" walau sedang tidak memproses apa pun. Sekarang icon benar-benar meredup saat idle dan menyala hanya saat sedang memproses. Tap tile tetap selalu berfungsi seperti biasa.
+
+## v27
+- Baru (opsional, nonaktif secara default): toggle "Layanan latar depan persisten" di tab Pengaturan — buat HP yang sangat agresif mematikan aplikasi latar belakang (mis. Infinix XOS) dan sudah dicoba opsi baterai/Autostart tapi jadwal otomatis masih belum jalan sendiri. Kalau diaktifkan, muncul notifikasi permanen (tak bisa disembunyikan selama aktif) yang menjaga aplikasi tetap hidup, dan otomatis menyala lagi setelah HP di-restart.

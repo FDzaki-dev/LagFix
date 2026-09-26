@@ -1,12 +1,17 @@
 package com.lagfix.fstrim
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -53,6 +58,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -376,6 +382,42 @@ private fun SettingsTab(
                     "pengaturan \"Autostart\" / \"Latar belakang\" yang terpisah di App Management " +
                     "atau Phone Master/Security App bawaan HP (umum di Infinix, Tecno, Xiaomi, dll — " +
                     "nama menu beda-beda tiap merek & versi).",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+
+    // v27 (fitur opsional, HANYA utk user yg sudah coba opsi baterai/Autostart di atas & masih
+    // bermasalah — konsultasi eksplisit dgn user sebelum dibuat, lihat riwayat v25/v26, dikerjakan v27). 0 logic
+    // fstrim baru — cuma menjaga proses tetap hidup, jadwal periodik tetap lewat WorkManager
+    // (Scheduler.apply(), 0 diubah).
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Keandalan latar belakang (opsional)", style = MaterialTheme.typography.titleMedium)
+            val notifPermissionLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission()
+            ) {
+                // v27: granted atau tidak, service tetap dinyalakan — kalau ditolak, cuma
+                // notifikasinya yang tak tampil (kontrak Android), foreground service-nya sendiri
+                // tetap jalan seperti biasa.
+                vm.setPersistentService(true)
+            }
+            ToggleRow("Layanan latar depan persisten", ui.persistentServiceEnabled) { turnOn ->
+                if (turnOn &&
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) !=
+                        PackageManager.PERMISSION_GRANTED
+                ) {
+                    notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    vm.setPersistentService(turnOn)
+                }
+                onFeedback(if (turnOn) "Layanan latar depan diaktifkan." else "Layanan latar depan dimatikan.")
+            }
+            Text(
+                "Opsional — memaksa proses LagFix tetap hidup di HP yang agresif mematikan " +
+                    "aplikasi latar belakang, dengan notifikasi permanen yang tak bisa disembunyikan " +
+                    "selama aktif. Coba dulu opsi baterai & Autostart di atas sebelum ini.",
                 style = MaterialTheme.typography.bodySmall
             )
         }

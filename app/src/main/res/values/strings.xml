@@ -11,5 +11,6 @@
     <string name="toast_run_ok">fstrim berhasil dijalankan</string>
     <string name="toast_run_fail">fstrim gagal: %1$s</string>
     <string name="toast_shizuku_not_ready">Shizuku belum siap, aktifkan dulu lalu coba lagi</string>
+    <string name="persistent_service_notif_text">Menjaga proses LagFix tetap berjalan untuk jadwal fstrim otomatis</string>
 </resources>
 

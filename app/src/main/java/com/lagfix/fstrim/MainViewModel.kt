@@ -31,7 +31,8 @@ data class UiState(
     val updateChecking: Boolean = false,
     val updateResult: UpdateResult? = null,
     val downloading: Boolean = false,
-    val downloadError: String? = null
+    val downloadError: String? = null,
+    val persistentServiceEnabled: Boolean = false
 )
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
@@ -60,7 +61,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         lastRunMs = prefs.lastRunMs,
         lastOk = prefs.lastOk,
         log = prefs.log,
-        batteryUnrestricted = isBatteryUnrestricted()
+        batteryUnrestricted = isBatteryUnrestricted(),
+        persistentServiceEnabled = prefs.persistentServiceEnabled
     )
 
     // v21: root cause laporan user "jadwal otomatis tak tercatat" — confirmed toggle sudah ON dari
@@ -102,6 +104,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setCharging(v: Boolean) { prefs.requireCharging = v; reschedule() }
     fun setIdle(v: Boolean) { prefs.requireIdle = v; reschedule() }
     fun setThemeMode(m: ThemeMode) { prefs.themeMode = m; ui = ui.copy(themeMode = m) }
+
+    // v27 (fitur opsional, pilihan eksplisit user): start/stop PersistentTrimService ikut toggle.
+    // 0 logic fstrim/Scheduler disentuh — service ini cuma menjaga proses tetap hidup.
+    fun setPersistentService(v: Boolean) {
+        prefs.persistentServiceEnabled = v
+        val app = getApplication<Application>()
+        if (v) PersistentTrimService.start(app) else PersistentTrimService.stop(app)
+        ui = ui.copy(persistentServiceEnabled = v)
+    }
 
     fun requestPermission() {
         runCatching {
