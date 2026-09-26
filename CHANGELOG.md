@@ -54,3 +54,6 @@
 - Tombol widget & tile sekarang kasih tahu hasilnya (notifikasi toast: berhasil/gagal/Shizuku belum siap) — sebelumnya tidak ada tanda apa-apa setelah ditekan.
 - Teks status widget saat proses diganti "Sedang memproses…" (sebelumnya "Menjadwalkan…" yang membingungkan, bisa dikira fitur jadwal otomatis).
 - Tampilan widget dirapikan: kartu bersudut membulat + tombol "Jalankan Sekarang" warna biru (sebelumnya kotak polos + tombol abu-abu sistem).
+
+## v21
+- Widget, tile Quick Settings, dan tampilan di dalam app sekarang saling sinkron otomatis — begitu fstrim selesai dijalankan dari mana pun (widget/tile/app), yang lain langsung ikut update. Sebelumnya widget bisa nyangkut di teks "Sedang memproses…" sampai lama.

@@ -1,6 +1,10 @@
 package com.lagfix.fstrim
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.service.quicksettings.TileService
 import android.widget.Toast
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -38,11 +42,18 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             // TIDAK retry kalau fstrim SUDAH dicoba tapi gagal (exit code non-0) — itu beda kelas
             // masalah (bukan precondition Shizuku), retry tak akan menolong, lihat bawah.
             prefs.record(TrimResult(false, "dilewati, Shizuku: $state", 0L))
+            // v20 hotfix (laporan user: widget "gak berubah sama sekali" abis dipencet, widget/tile
+            // gak sinkron dgn state asli): sebelumnya TIDAK ADA yang memberi tahu widget/tile kalau
+            // hasil sudah ada -> widget nyangkut di teks "Sedang memproses…" sampai refresh 30 menit
+            // berikutnya. Panggil UNCONDITIONAL (bukan cuma `manual`) supaya jadwal otomatis pun,
+            // kalau/kapan jalan, langsung sinkron ke widget/tile juga — bukan cuma trigger manual.
+            Scheduler.notifyChanged(applicationContext)
             if (manual) toast(applicationContext.getString(R.string.toast_shizuku_not_ready))
             return@withContext Result.retry()
         }
         val r = FstrimExecutor.run()
         prefs.record(r)
+        Scheduler.notifyChanged(applicationContext)
         if (manual) {
             val msg = if (r.ok) {
                 applicationContext.getString(R.string.toast_run_ok)
@@ -88,5 +99,25 @@ object Scheduler {
         val data = Data.Builder().putBoolean(TrimWorker.KEY_MANUAL, true).build()
         WorkManager.getInstance(ctx.applicationContext)
             .enqueue(OneTimeWorkRequestBuilder<TrimWorker>().setInputData(data).build())
+    }
+
+    /**
+     * v20 hotfix: dorong widget & tile refresh SEGERA stlh hasil trim apa pun berubah — dipanggil
+     * dari sini (semua jalur TrimWorker: manual & otomatis) & dari MainViewModel.runNow() (run dari
+     * dalam app). Ini yang bikin widget/tile/app "wajib sinkron" (bukan cuma tunggu widget
+     * updatePeriodMillis 30 menit / tile onStartListening saat panel dibuka ulang).
+     */
+    fun notifyChanged(ctx: Context) {
+        val app = ctx.applicationContext
+        val mgr = AppWidgetManager.getInstance(app)
+        val ids = mgr.getAppWidgetIds(ComponentName(app, LagFixWidgetProvider::class.java))
+        if (ids.isNotEmpty()) {
+            app.sendBroadcast(
+                Intent(app, LagFixWidgetProvider::class.java)
+                    .setAction(AppWidgetManager.ACTION_APPWIDGET_UPDATE)
+                    .putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+            )
+        }
+        TileService.requestListeningState(app, ComponentName(app, LagFixTileService::class.java))
     }
 }

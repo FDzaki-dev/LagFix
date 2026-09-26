@@ -751,3 +751,68 @@ tampil bulat-biru-putih solid (kalau MASIH sama setelah onTileAdded() -> itu mem
 OEM/launcher, bukan bug app, tutup poin 3 sbg "as-designed OS"; kalau BERUBAH jadi monokrom
 ter-tint normal -> onTileAdded() konfirmasi jadi fix nyata) -> Next Action: user kirim hasil test
 3 poin di atas (screenshot/video kalau perlu), terutama poin 3 (paling belum pasti).]
+
+- v21 (hotfix lanjutan atas 3 laporan baru user, sebelum hasil test v20 di atas dikonfirmasi):
+  1. "Widget/tile/app wajib sinkron, minimal tidak salah state" + 2. "pesan widget gak berubah
+     sama sekali (Sedang memproses) sehabis dipencet" — SATU akar masalah yang sama: setelah
+     `TrimWorker.doWork()` selesai (sukses/gagal/dilewati) ATAU setelah run manual dari app
+     (`MainViewModel.runNow()`), TIDAK ADA kode yang memberi tahu widget/tile bahwa hasil sudah
+     berubah — widget cuma nunggu `updatePeriodMillis` (30 menit) & tile cuma nunggu
+     `onStartListening()` (dipanggil ulang kalau panel Quick Settings dibuka lagi). Kalau user
+     tidak menutup-buka ulang panel / belum lewat 30 menit, keduanya nyangkut di state lama
+     (persis laporan "Sedang memproses" tak berubah). Fix: fungsi baru `Scheduler.notifyChanged
+     (ctx)` (di `TrimWorker.kt`) — kirim broadcast eksplisit `ACTION_APPWIDGET_UPDATE` ke
+     `LagFixWidgetProvider` sendiri (memicu `onUpdate()` ulang, baca `Prefs.log` terbaru, jadi
+     otomatis lepas dari teks "Sedang memproses") + panggil `TileService.requestListeningState()`
+     resmi (API framework, minSdk 26 aman) utk `LagFixTileService` (memicu `onStartListening()`
+     ulang tanpa perlu user buka-tutup panel). Dipanggil UNCONDITIONAL (bukan cuma kalau
+     `manual=true`) di KEDUA cabang `TrimWorker.doWork()` (sukses & dilewati) SUPAYA kalau/kapan
+     jadwal otomatis benar-benar jalan (lihat poin 3 di bawah), widget/tile ikut sinkron juga —
+     bukan cuma trigger manual. Dipanggil juga dari `MainViewModel.runNow()` (run dari tombol
+     dalam app) — supaya app sendiri pun langsung sinkronkan widget/tile, bukan cuma sebaliknya.
+     0 permission baru (requestListeningState & sendBroadcast eksplisit ke receiver sendiri tidak
+     butuh permission tambahan).
+  3. "App tidak mencatatkan aktifitas trim selain yang di-trigger manual" — DIINVESTIGASI, TIDAK
+     diubah kodenya batch ini (root cause belum pasti, P0 NO HALLUCINATION): dicek `Prefs.record()`
+     — dipanggil UNCONDITIONAL di semua jalur (manual widget/tile via TrimWorker, run dari app via
+     MainViewModel.runNow(), DAN periodik via TrimWorker yang sama persis, 0 percabangan
+     berdasarkan sumber trigger). Dicek juga `MainActivity` Riwayat (`ui.log.forEach { LogLine(it)
+     }`) — 0 filter apa pun, semua isi `Prefs.log` ditampilkan apa adanya. Kesimpulan: TIDAK
+     ditemukan bug di kode yang secara sengaja/tidak sengaja mengecualikan run non-manual dari
+     pencatatan — kalau run periodik benar-benar dieksekusi WorkManager, otomatis akan tercatat
+     sama persis spt manual. Dugaan paling mungkin (BELUM dikonfirmasi, makanya TIDAK diubah):
+     (a) toggle "Jadwal otomatis" di tab Pengaturan belum pernah diaktifkan user (beda kontrol dari
+     widget/tile — widget/tile SELALU bisa jalan manual terlepas dari toggle ini, jadi wajar 0
+     entri otomatis kalau toggle ini off), ATAU (b) job WorkManager periodik dibunuh manajemen
+     baterai OEM (Xiaomi/MIUI, Oppo/ColorOS, Vivo, atau battery-saver agresif Samsung/One UI utk
+     app yg jarang dibuka) sebelum sempat jalan — ini masalah OS/OEM, bukan bug kode. TIDAK
+     ditebak/dipilih salah satu tanpa konfirmasi user (P0). AUTO-HALT poin ini — lihat RESUME
+     POINT.
+  File diubah: `TrimWorker.kt`, `MainViewModel.kt` (2 file saja, akar masalah poin 1+2 persis di
+  1 titik integrasi). 0 file lain disentuh (dikonfirmasi diff thd ZIP v20 yg sudah dikirim).
+- v21 VALIDASI: brace/paren balance OK (2 file). Cross-check: `Scheduler.notifyChanged` dipanggil
+  persis di 3 titik (2 cabang TrimWorker.doWork() + MainViewModel.runNow()), semua import baru
+  (AppWidgetManager/ComponentName/Intent/TileService) valid API framework minSdk 26. BELUM pernah
+  dicompile/AGP sungguhan & BELUM dites device asli (sandbox) — WAJIB test manual: jalankan trim
+  (widget/tile/app, bebas mana saja) lalu cek KEDUA yang lain (widget & tile & app) langsung
+  update tanpa perlu tunggu/buka-tutup panel.
+- Docs: `CHANGELOG.md` +entry v21 (user-facing: widget/tile sekarang auto-refresh stlh hasil run
+  apa pun, tak perlu tunggu). `PENDING_ROADMAP.md` tidak disentuh.
+- Batch: v21
+
+[RESUME POINT: v21 fix sinkronisasi widget/tile/app (root cause: tak ada yg memicu refresh stlh
+TrimWorker/runNow selesai -> ditambah Scheduler.notifyChanged(), dipanggil di 3 titik, unconditional
+biar jadwal otomatis pun ikut sinkron nanti) — 2 file diubah, validasi statis only (brace OK,
+cross-check call-site OK), BELUM compile/device test sungguhan -> Remaining: (A) test device utk
+v21: jalankan trim dari SALAH SATU sumber (widget/tile/app), cek KEDUA lainnya ikut update
+otomatis TANPA tunggu 30menit/buka-tutup panel; (B) v20 poin 3 (icon tile bulat-biru-putih) masih
+menunggu hasil test onTileAdded() dari user (lihat batch v20 di atas, belum berubah); (C) v20 poin
+1&2 sudah ke-superscede oleh v21 (root cause yg sama, v21 fix lebih menyeluruh) — TIDAK perlu test
+v20 poin 1&2 terpisah lagi, cukup test (A) di atas. AUTO-HALT terbuka utk laporan user poin 3
+("aktifitas trim selain manual tidak tercatat") — BUTUH jawaban user sebelum kode scheduler
+disentuh: (1) toggle "Jadwal otomatis" di tab Pengaturan app — nyala atau tidak? (2) HP merek/ROM
+apa (Xiaomi/MIUI, Oppo/ColorOS, Vivo, Samsung/One UI, dll — sebagian agresif mematikan job
+background app yg jarang dibuka)? -> Next Action: tunggu jawaban 2 pertanyaan itu + hasil test (A)
+& (B), baru lanjut (kalau toggle OFF -> bukan bug, cukup edukasi; kalau ON tapi tetap 0 entri
+otomatis & device masuk daftar OEM agresif -> baru pertimbangkan fix spt WorkManager
+setExpedited()/panduan battery-optimization-exemption, TIDAK menebak duluan).]

@@ -92,6 +92,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val r = if (FstrimExecutor.state(app) == ShizukuState.READY) FstrimExecutor.run()
             else TrimResult(false, "Shizuku belum siap", 0L)
             prefs.record(r)
+            Scheduler.notifyChanged(app)
             ui = read(false).copy(
                 updateChecking = ui.updateChecking,
                 updateResult = ui.updateResult,
