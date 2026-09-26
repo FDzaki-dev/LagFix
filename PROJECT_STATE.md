@@ -1032,3 +1032,52 @@ scr terpisah dari Settings search) + minta konfirmasi ulang eksplisit kalau user
 berat itu -> Next Action: tunggu balasan user: (a) hasil coba alternatif ringan tile Autostart, DAN
 (b) konfirmasi ulang ya/tidak utk lanjut foreground service given risiko yg baru dijelaskan. JANGAN
 mulai bikin Service/BootReceiver/manifest FGS sebelum (b) dikonfirmasi ulang eksplisit.]
+
+- v26 (2 request user): (1) laporan lanjutan — tile QS MASIH "default putih menyala, gak pernah
+  kelihatan mati/idle" walau v25 (ganti warna icon) sudah dicoba. (2) "selagi masih ada chance
+  utk SDK 35, just do it" — DICEK LEBIH DULU (P0 NO HALLUCINATION, bukan asumsi): `app/build.
+  gradle.kts` SUDAH `compileSdk = 35` & `targetSdk = 35` sejak batch lama (bukan baru, dikonfirmasi
+  baca langsung file, juga match `PROJECT_STATE.md` baris ringkasan "compile/target 35"), AGP
+  8.7.3 + Gradle 8.9 (build.yml) sudah kompatibel penuh. KESIMPULAN: 0 perubahan dibutuhkan/
+  dilakukan utk poin (2) — sudah 35 di seluruh toolchain, tidak ditebak jadi "naikkan ke 36"
+  (di luar scope, tidak diminta).
+  1. ROOT CAUSE BARU DITEMUKAN (beda dari dugaan v20/v25 soal warna icon): `LagFixTileService.
+     refresh()` HARDCODE `tile.state = Tile.STATE_ACTIVE` 100% waktu sejak pertama kali tile
+     dibuat (v18/v19) — TIDAK PERNAH `STATE_INACTIVE`. Akibatnya OS SELALU render tile dalam
+     gaya "menyala/on" (apa pun warna icon-nya, termasuk fix v25) — persis cocok dgn 2x laporan
+     user "menyala terus, gak pernah mati". Asumsi lama di komentar kode (state INACTIVE akan
+     "memblokir tap") DICEK ulang thd kontrak resmi `TileService`: SALAH — hanya
+     `STATE_UNAVAILABLE` yang membuat tile tak merespons klik; `ACTIVE`/`INACTIVE` sama-sama
+     tetap memanggil `onClick()` normal, beda cuma tampilan visual. Fix: `tile.state` sekarang
+     ikut parameter `running` yg sudah ada (`STATE_INACTIVE` saat idle, `STATE_ACTIVE` cuma pas
+     benar-benar memproses) — 0 perubahan pada kapan/bagaimana tap diterima, 0 skema data baru.
+     1 file: `LagFixTileService.kt` (KDoc kelas + 1 baris logic `refresh()`).
+  File diubah: `LagFixTileService.kt` (1 file). 0 file lain disentuh untuk poin 1. 0 file
+  disentuh untuk poin 2 (sudah terpenuhi, dikonfirmasi bukan dieksekusi).
+- v26 VALIDASI: brace/paren balance OK (7/7, 36/36). Cross-check: `Tile.STATE_ACTIVE` &
+  `Tile.STATE_INACTIVE` keduanya konstanta resmi `android.service.quicksettings.Tile` yg sudah
+  ter-import, 0 import baru dibutuhkan. Diff thd ZIP v25: persis 1 file
+  (`LagFixTileService.kt`), dikonfirmasi via `diff -rq`. BELUM pernah dicompile compiler/AGP
+  sungguhan & BELUM dites device asli (sandbox tanpa SDK/Gradle/jaringan, sama spt semua batch
+  sebelumnya) — **WAJIB user test ulang di device**: (a) tambah/lihat tile LagFix di panel Quick
+  Settings saat idle -> icon HARUS kelihatan "mati"/redup (bukan lagi putih menyala default),
+  (b) tap tile -> tetap trigger fstrim seperti biasa (toast hasil dari v20/v21 tetap harus
+  muncul, tidak regresi), (c) selama proses jalan singkat, icon boleh kelihatan "menyala" (itu
+  `STATE_ACTIVE` yg disengaja utk indikasi sedang memproses) lalu balik redup lagi setelah
+  selesai (`Scheduler.notifyChanged()` dari v21 yg memicu `onStartListening()` ulang).
+- Docs: `CHANGELOG.md` +entry v26 (user-facing: fix icon tile idle). `PENDING_ROADMAP.md` tidak
+  disentuh (0 item baru).
+- Batch: v26
+
+[RESUME POINT: v26 — root cause BARU tile "menyala terus" ditemukan & difix: `tile.state`
+dulu hardcode STATE_ACTIVE selalu (bukan soal warna icon spt dugaan v20/v25) -> sekarang ikut
+`running` (INACTIVE=idle, ACTIVE=proses). SDK 35 dicek: SUDAH terpenuhi penuh di toolchain
+(compileSdk/targetSdk/AGP/Gradle), 0 perubahan dilakukan/dibutuhkan. 1 file diubah
+(LagFixTileService.kt), validasi statis only (brace OK, diff vs v25 confirmed 1 file), BELUM
+compile/device test sungguhan -> Remaining: jalankan DAILY UPDATE, push, CI build hijau -> user
+WAJIB test ulang tile di device: idle harus kelihatan redup/mati (bukan putih menyala lagi), tap
+tetap jalan normal, kembali redup setelah proses selesai -> Next Action: tunggu hasil test tile
+v26 dari user; kalau MASIH menyala terus setelah fix state ini (kemungkinan sangat kecil, karena
+ini kontrak resmi Android TileService, bukan rendering OEM yg tak pasti spt teori v20/v25),
+investigasi lanjut jadi genuinely OS/OEM-level di luar kendali kode (beda level bukti dgn 2 teori
+sebelumnya yg sudah terbukti salah keduanya).]

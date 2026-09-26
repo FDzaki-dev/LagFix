@@ -67,3 +67,6 @@
 ## v23
 - Tab Pengaturan sekarang menampilkan tanda centang "Baterai: berjalan tanpa batas ✓" setelah izin diberikan — sebelumnya tombolnya cuma hilang tanpa keterangan apa-apa.
 - Tampilan status di widget dirapikan jadi lebih mudah dibaca: "Bersih ✓ · tanggal jam" / "Gagal ⚠ · tanggal jam" / "Shizuku belum siap · tanggal jam" — sebelumnya menampilkan baris log teknis mentah. Detail lengkap (durasi, exit code, dll) tetap bisa dilihat di Riwayat dalam aplikasi.
+
+## v26
+- Fix akar masalah icon tile Quick Settings yang tak pernah kelihatan mati/idle (selalu tampil menyala) — ternyata bukan soal warna icon (sudah dicoba v25), tapi status tile yang dulu selalu di-set "menyala" walau sedang tidak memproses apa pun. Sekarang icon benar-benar meredup saat idle dan menyala hanya saat sedang memproses. Tap tile tetap selalu berfungsi seperti biasa.
