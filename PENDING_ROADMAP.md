@@ -53,20 +53,18 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    (bukan pengganti verifikasi behavior nyata, cuma nangkep compile-error/regresi test lebih awal
    drpd nunggu build APK penuh). Ditaruh sebelum "Decode keystore" (test tak butuh signing), 0
    step lain (keystore/build/release) disentuh sama sekali.
-4. 🔄 KANDIDAT (b) DIIMPLEMENTASI (v17, belum ditutup — nunggu evidence CI) — histori: v15
-   men-`@Ignore` 6 test `FstrimExecutorTest.kt` (v7) krn FAILED nyata di CI (fail-log-16):
+4. ✅ SELESAI (v17, evidence CI nyata — laporan user "build hijau") — histori: v15 men-`@Ignore`
+   6 test `FstrimExecutorTest.kt` (v7) krn FAILED nyata di CI (fail-log-16):
    `mockStatic(Shizuku::class.java)` tidak berhasil di-intercept Mockito inline mock maker di JVM
    unit-test worker sungguhan. v16 coba kandidat (a) — JVM arg `-Djdk.attach.allowAttachSelf=true`
-   — TERBUKTI GAGAL (fail-log-18, error IDENTIK), dihentikan. v17 (approval eksplisit user): kandidat
-   (b) — seam/interface `ShizukuGateway` di sekitar 3 pemanggilan Shizuku dlm `FstrimExecutor.kt`
-   (`pingBinder`/`isPreV11`/`checkSelfPermission`), production pakai `RealShizukuGateway` (delegasi
-   murni, 0 perubahan behavior), test pakai `mock(ShizukuGateway::class.java)` non-static + `@After`
-   reset. JVM arg kandidat (a) di-revert dari `app/build.gradle.kts` (tidak relevan lagi). Root
-   cause static-mock-tak-ter-intercept sudah tidak berlaku scr desain (mock sekarang non-static).
-   BELUM ada evidence CI nyata (sandbox tanpa SDK/Gradle) — status TETAP OPEN sampai run CI
-   berikutnya konfirmasi 6 test PASS beneran (bukan skipped, bukan error mocking). Kalau ini pun
-   entah kenapa masih gagal: (c) pindah ke Robolectric/instrumented test. `PrefsTest.kt` (4 test,
-   tidak pakai Shizuku) TETAP aktif & tidak terdampak. File v17: `FstrimExecutor.kt` +
+   — TERBUKTI GAGAL (fail-log-18, error IDENTIK), dihentikan. v17 (approval eksplisit user):
+   kandidat (b) — seam/interface `ShizukuGateway` di sekitar 3 pemanggilan Shizuku dlm
+   `FstrimExecutor.kt` (`pingBinder`/`isPreV11`/`checkSelfPermission`), production pakai
+   `RealShizukuGateway` (delegasi murni, 0 perubahan behavior), test pakai
+   `mock(ShizukuGateway::class.java)` non-static + `@After` reset. JVM arg kandidat (a) di-revert.
+   Build hijau (step Unit test lulus, gate sebelum step Build) mengkonfirmasi 10/10 test PASS
+   beneran & step Build/Release lanjut normal — C4 TERTUTUP scr nyata, bukan cuma statis.
+   `PrefsTest.kt` (4 test) tetap PASS, tidak terdampak. File v17: `FstrimExecutor.kt` +
    `FstrimExecutorTest.kt` + `app/build.gradle.kts` (+ dokumen ini).
 
 ## D. Technical debt (dicatat sebagai risiko, backlog — bukan refactor sekarang)
@@ -100,7 +98,11 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    batch v10.
 
 ## F. Release/CI hardening (opsional, backlog)
-1. Belum ada lint/static-analysis (ktlint/detekt) di `build.yml`.
+1. ✅ SELESAI (v18, non-blocking): `build.yml` sekarang punya step "Lint & detekt" (Android Lint
+   bawaan AGP + `io.gitlab.arturbosch.detekt` 1.23.8) setelah step "Unit test". `continue-on-error:
+   true` — batch pertama, blm ada baseline/triase temuan lama, jadi tidak (belum) menggagalkan
+   pipeline. Report HTML diunggah sbg artifact. Evidence CI nyata masih ditunggu (validasi statis
+   only sejauh ini — lihat PROJECT_STATE.md batch v18).
 2. Belum ada dependency-update check otomatis (mis. Dependabot) utk `dev.rikka.shizuku`.
 
 ## Urutan eksekusi disarankan
@@ -135,9 +137,16 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
 - v17 (atas laporan user: kandidat (a) TERBUKTI gagal 2x — fail-log-16 & fail-log-18, error
   identik — + approval eksplisit user utk kandidat (b)): refactor seam/interface `ShizukuGateway`
   diimplementasi, JVM arg kandidat (a) di-revert. 3 file: `FstrimExecutor.kt`,
-  `FstrimExecutorTest.kt`, `app/build.gradle.kts`. BELUM ada evidence CI nyata, C4 TETAP OPEN
-  sampai konfirmasi run berikutnya. Sisa backlog kalau C4 tuntas: D2, F1, F2; kalau kandidat (b)
-  entah kenapa masih gagal: kandidat (c) (Robolectric/instrumented).
+  `FstrimExecutorTest.kt`, `app/build.gradle.kts`. VERIFIED (evidence CI nyata: laporan user "build
+  hijau" — step Unit test lulus utk 10/10 test, step Build/Release lanjut normal). C4 SELESAI &
+  DITUTUP. Sisa backlog: D2 ("Prioritas rendah"), F1, F2 — ketiganya opsional, butuh permintaan
+  eksplisit user.
+- v18 (atas pilihan eksplisit user, dari 3 opsional D2/F1/F2 setelah C4 ditutup): F1 dipilih —
+  lint (Android bawaan AGP) + detekt 1.23.8 ditambah ke `build.yml`, non-blocking
+  (`continue-on-error: true`) krn blm ada baseline/triase temuan kode lama. 3 file:
+  `build.gradle.kts` (root), `app/build.gradle.kts`, `.github/workflows/build.yml`. Validasi statis
+  only (brace/paren OK, YAML valid, diff pure-addition thd v17) — blm ada evidence CI nyata. Sisa
+  backlog: D2 ("Prioritas rendah"), F2.
 
 ## Eksplisit DI LUAR SCOPE
 Tidak ada rencana ganti arsitektur, ganti dependency utama (Shizuku/WorkManager/Compose), migrasi

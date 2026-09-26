@@ -1,7 +1,10 @@
+import io.gitlab.arturbosch.detekt.Detekt
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("io.gitlab.arturbosch.detekt")
 }
 
 android {
@@ -69,4 +72,20 @@ dependencies {
     // (ShizukuGateway) — mockito-core tetap dipakai utk mock() non-static ini.
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.mockito:mockito-core:5.23.0")
+}
+
+// F1 (PENDING_ROADMAP.md, CI hardening): static analysis Kotlin, non-blocking utk batch pertama
+// ini (lihat build.yml — continue-on-error) supaya pipeline hijau existing tidak mendadak merah
+// krn temuan gaya-kode lama yg belum pernah dicek. Tanpa config.yml custom -> pakai ruleset
+// default Detekt apa adanya (buildUponDefaultConfig hanya relevan kalau ada config custom).
+detekt {
+    buildUponDefaultConfig = true
+    allRules = false
+}
+
+tasks.withType<Detekt>().configureEach {
+    jvmTarget = "17"
+    reports {
+        html.required.set(true)
+    }
 }

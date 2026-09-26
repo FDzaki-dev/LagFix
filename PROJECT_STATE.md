@@ -513,3 +513,72 @@ run CI berikutnya — kalau 6 test `FstrimExecutorTest` PASS beneran & 4 test Pr
 step Build/Release lanjut normal, C4 SELESAI beneran -> tutup di PENDING_ROADMAP.md, lanjut ke
 D2/F1/F2 kalau user eksplisit minta. Kalau masih gagal (harusnya tidak, akar masalah sudah beda
 kelas), laporkan fail-log baru ke user, evaluasi kandidat (c) (Robolectric/instrumented).]
+
+- v17 VERIFIED (laporan user langsung via chat — "Build berhasil Hijau"; BUKAN artifact log
+  Actions/screenshot terlampir, dicatat apa adanya sesuai bentuk evidence-nya, sama spt pola v15):
+  build.yml jalan sekuensial (step "Unit test" gate sebelum step Build) — hijau end-to-end berarti
+  step "Unit test" (`gradle testDebugUnitTest`) lulus, yg scr desain CI ini hanya mungkin kalau
+  keseluruhan 10 test (6 `FstrimExecutorTest` + 4 `PrefsTest`) PASS beneran (gagal 1 saja bikin
+  task gagal & job berhenti sebelum step Build jalan). Mengkonfirmasi 3 kriteria tutup C4 dari
+  VALIDASI v17: (1) 6 test `FstrimExecutorTest` PASS non-skipped, (2) 4 test `PrefsTest` tetap
+  PASS, (3) step Build & Release lanjut normal — seam `ShizukuGateway` (kandidat b) TERBUKTI
+  menyelesaikan C4 scr nyata, bukan cuma statis. C4 DITUTUP.
+- Docs: `PENDING_ROADMAP.md` — C4 diubah ✅ SELESAI (v17, evidence CI nyata: build hijau).
+  `CHANGELOG.md` tetap TIDAK ditambah entri (konsisten — 0 perubahan behavior user-facing).
+- Batch: v17 (verified, tidak ada source diubah lagi di update ini — docs-only)
+
+[RESUME POINT: C4 DITUTUP (v17 VERIFIED via laporan user "build hijau" — step Unit test lulus utk
+10/10 test, step Build/Release lanjut normal, seam ShizukuGateway kandidat (b) terbukti bekerja
+scr CI nyata, bukan cuma statis). Tidak ada item blocking/bug tersisa -> Remaining: tidak ada yang
+mendesak; backlog opsional D2 (R8 minify + keep-rule reflection Shizuku, eksplisit "Prioritas
+rendah" per catatan sendiri), F1 (lint/detekt di CI), F2 (Dependabot utk dev.rikka.shizuku) —
+ketiganya BUTUH permintaan eksplisit user dulu (bukan otomatis) -> Next Action: tanya user mau
+mulai item mana (D2/F1/F2) atau ada task lain di luar roadmap.]
+
+- v18 (F1 dari PENDING_ROADMAP.md, atas pilihan eksplisit user): tambah lint (Android bawaan AGP)
+  + detekt (static analysis Kotlin) ke CI. 3 file:
+  - `build.gradle.kts` (root): +1 plugin `io.gitlab.arturbosch.detekt` versi `1.23.8` (`apply
+    false`) — point release resmi terakhir jalur 1.23.x, dibangun eksplisit utk Kotlin 2.0.21
+    (match persis versi Kotlin project ini, per release notes upstream, dicek via web search).
+  - `app/build.gradle.kts`: apply plugin detekt + `detekt { buildUponDefaultConfig = true;
+    allRules = false }` + `tasks.withType<Detekt>().configureEach { jvmTarget = "17"; reports {
+    html.required.set(true) } }`. Tanpa config.yml custom -> ruleset default apa adanya (0 file
+    config baru). 0 baris `android{}`/`dependencies{}` existing disentuh.
+  - `.github/workflows/build.yml`: step baru "Lint & detekt (non-blocking)" (`gradle lintDebug
+    detekt`) disisipkan persis setelah step "Unit test", sebelum "Decode keystore" (konsisten pola
+    v14 C3 — static check tak butuh signing) + step "Unggah laporan lint & detekt" (`if:
+    always()`, upload HTML report keduanya sbg artifact). `continue-on-error: true` SENGAJA
+    dipasang: batch pertama blm ada baseline/triase temuan kode lama -> non-blocking dulu drpd
+    pipeline hijau existing (10 unit test + Build/Release, verified v17) mendadak merah krn
+    gaya-kode lama yg blm pernah dicek (P0 zero-regression thd status hijau). `continue-on-error`
+    jg SENGAJA meredam trigger step "Simpan/Unggah log kegagalan" (`if: failure()`) dari temuan
+    lint/detekt — step itu tetap murni utk kegagalan step Build spt sebelumnya, 0 perubahan makna.
+    0 step lain disentuh.
+- v18 VALIDASI: brace/paren/bracket balance kedua file gradle.kts OK via script python. YAML
+  build.yml diparse ulang via PyYAML — valid, 13 step total, urutan step baru dikonfirmasi tepat
+  (setelah "Unit test", sebelum "Decode keystore"), `continue-on-error: true` terpasang di step yg
+  benar. Diff line-by-line thd v17 (ZIP sumber): ketiga file PURE ADDITION — 0 baris existing
+  dihapus/diubah. Versi plugin `1.23.8` dicek via web search: release notes resmi konfirmasi
+  "built against Kotlin 2.0.21" (match persis project ini; AGP tested-against 8.8.1 vs project
+  8.7.3, Gradle tested-against 8.12.1 vs CI 8.9 — dekat tapi bukan versi identik, risiko kecil
+  tersisa krn belum pernah dicoba nyata). BELUM pernah dijalankan compiler/CI sungguhan (sandbox
+  tanpa Android SDK/Gradle/jaringan, sama spt semua batch sebelumnya) — WAJIB `gradle lintDebug
+  detekt` jalan di CI/lokal utk konfirmasi: (1) plugin resolve & apply tanpa error versi/kompat
+  nyata, (2) step lint/detekt jalan (pass ATAU fail — keduanya OK krn non-blocking) tanpa merusak
+  step Unit test/Build/Release sesudahnya, (3) artifact report ke-upload sukses.
+- Docs: `PENDING_ROADMAP.md` — F1 diubah ✅ SELESAI (v18, non-blocking, evidence CI nyata msh
+  ditunggu). `CHANGELOG.md` TIDAK ditambah entri (0 perubahan behavior user-facing — CI tooling
+  internal, konsisten pola v14/v17).
+- Batch: v18
+
+[RESUME POINT: v18 F1 (lint Android + detekt) ditambah ke CI — 3 file diubah (`build.gradle.kts`
+root, `app/build.gradle.kts`, `.github/workflows/build.yml`), step baru non-blocking
+(`continue-on-error: true`) sengaja supaya pipeline hijau existing (v17, 10/10 unit test) tidak
+mendadak merah krn temuan gaya-kode lama blm pernah ditriase. Validasi statis only (brace/paren
+OK, YAML valid+step-order dikonfirmasi, diff pure-addition thd v17, versi Detekt 1.23.8 dicek
+match Kotlin 2.0.21 via web), BELUM pernah dijalankan compiler/CI sungguhan (sandbox tanpa
+SDK/Gradle/jaringan) -> Remaining: jalankan DAILY UPDATE, push ke main -> Next Action: amati run CI
+berikutnya — kalau step "Lint & detekt" jalan (pass/fail non-blocking, keduanya OK) & step Unit
+test/Build/Release TETAP lanjut normal & artifact report ke-upload, F1 VERIFIED beneran (bukan
+cuma statis) -> lanjut D2/F2 kalau user eksplisit minta. Kalau plugin gagal resolve/apply (skenario
+risiko tersisa di atas), laporkan fail-log baru ke user, evaluasi turunkan versi Detekt.]
