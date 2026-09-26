@@ -15,6 +15,11 @@ import android.service.quicksettings.TileService
  */
 class LagFixTileService : TileService() {
 
+    override fun onTileAdded() {
+        super.onTileAdded()
+        refresh(running = false)
+    }
+
     override fun onStartListening() {
         super.onStartListening()
         refresh(running = false)

@@ -688,3 +688,66 @@ ditambahkan ke PENDING_ROADMAP.md karena user belum sebut fitur baru lain secara
 ditebak/dikarang, tunggu user spesifikkan -> Next Action: tunggu evidence CI + hasil test device
 widget/tile dari user; kalau ada fitur baru lain yg dimaksud "sisanya", user perlu sebutkan
 konkret dulu baru masuk PENDING_ROADMAP.md.]
+
+- v20 (hotfix atas laporan user, evidence 2 screenshot device asli — widget di home screen +
+  tampilan tile QS): 3 keluhan konkret dari screenshot, root-cause minimum per item, 0 fitur baru
+  ditambah, 0 fitur v19 dihapus:
+  1. "Nol feedback sama sekali" — akar masalah: `Scheduler.runOnce()` (dipanggil widget/tile) cuma
+     enqueue `TrimWorker` tanpa cara memberi tahu hasil balik ke user; widget cuma sempat tampil
+     "Menjadwalkan…" lalu diam sampai refresh 30 menit berikutnya. Fix: `TrimWorker.doWork()`
+     sekarang terima flag `manual` via WorkManager input `Data` (`KEY_MANUAL`) — `Scheduler.
+     runOnce()` set flag ini true (satu-satunya pemanggil, jadi 0 risiko ke jalur lain), `Scheduler.
+     apply()` (periodik/jadwal otomatis) TIDAK pernah set flag ini -> default false -> 0 perubahan
+     perilaku jadwal otomatis existing (dikonfirmasi: diff `Scheduler.apply()` nihil). Kalau
+     `manual=true`: toast (`Dispatchers.Main`) muncul saat selesai — "fstrim berhasil dijalankan"
+     / "fstrim gagal: <pesan>" / "Shizuku belum siap, aktifkan dulu lalu coba lagi" (kasus
+     Shizuku belum siap sebelumnya cuma dicatat ke Riwayat + retry diam-diam, sekarang manual-trigger
+     dikasih tahu langsung kenapa tidak jalan).
+  2. "Fungsi menjadwalkan gak jelas buat awam" — akar masalah: teks status sementara widget/tile
+     pakai kata "Menjadwalkan…", bentrok makna dgn fitur "Jadwal otomatis" yang sudah ada (beda
+     konsep: itu benar-benar run seketika, bukan set jadwal baru). Fix: `strings.xml` ->
+     `widget_status_running` diganti "Sedang memproses…" (dipakai widget & subtitle tile, 1 string
+     dipakai bersama, 0 string baru perlu utk ini).
+  3. "Tampilan gak estetik" — widget: root background diganti `widget_card_bg.xml` (baru, rounded
+     20dp, warna tetap ikut tema via `?android:attr/colorBackground` — light/dark tetap kebaca,
+     0 warna baru) dan tombol diganti `widget_button_bg.xml` (baru, rounded 12dp, isi warna
+     `@color/ic_launcher_background` yang SUDAH ADA — sama persis biru ikon launcher app, bukan
+     warna baru) + teks putih, dari sebelumnya tombol abu-abu default sistem polos di screenshot.
+     Tile QS: TIDAK ada perubahan icon/warna (icon vector sudah ikuti pedoman resmi ikon tile —
+     monokrom putih solid di viewport 24dp; tampilan bulat-putih-biru solid di screenshot user
+     kemungkinan render "before first live update" bawaan skin OEM, bukan bug icon — TIDAK
+     ditebak/diubah tanpa bukti lebih lanjut, sesuai NO HALLUCINATION). Ditambah `onTileAdded()`
+     (baru, override) supaya icon/label/state langsung di-push begitu tile ditambahkan user,
+     bukan nunggu `onStartListening()` pertama — mitigasi kemungkinan render awal janggal, tapi
+     BELUM bisa dipastikan ini akar masalah pastinya tanpa device asli.
+  File diubah: `TrimWorker.kt`, `LagFixTileService.kt`, `strings.xml`, `widget_lagfix.xml` (4) +
+  2 drawable baru (`widget_card_bg.xml`, `widget_button_bg.xml`) = 6 file, 1 batch hotfix logis.
+  0 file lain (Prefs/FstrimExecutor/MainActivity/MainViewModel/UpdateChecker/AppLinks/CrashLogger/
+  LagFixApp/AndroidManifest.xml/widget_lagfix_info.xml/ic_tile_fstrim.xml) disentuh — dikonfirmasi
+  via diff thd ZIP v19 yang sudah dikirim ke user.
+- v20 VALIDASI: xmllint OK (4 XML disentuh: widget_lagfix.xml, strings.xml, 2 drawable baru).
+  Brace/paren balance OK (TrimWorker.kt, LagFixTileService.kt). Cross-check: `R.string.
+  toast_run_ok/toast_run_fail/toast_shizuku_not_ready` match deklarasi baru di strings.xml;
+  `TrimWorker.KEY_MANUAL` dipakai konsisten di `Scheduler.runOnce()` & `TrimWorker.doWork()`;
+  `Scheduler.apply()` dikonfirmasi TIDAK menyentuh `Data`/input work sama sekali (grep manual).
+  Diff thd ZIP v19: persis 6 file di atas. BELUM pernah dicompile compiler/AGP sungguhan & BELUM
+  dites device asli (sandbox tanpa SDK/Gradle/jaringan, sama spt semua batch) — poin 3-tile
+  (kemungkinan render OEM) khususnya WAJIB dikonfirmasi ulang oleh user di device asli setelah
+  update ini, karena root cause pastinya belum 100% dipastikan (beda level bukti dgn poin 1 & 2
+  yang akar masalahnya jelas dari kode).
+- Docs: `CHANGELOG.md` +entry v20 (user-facing: toast hasil run manual + widget lebih rapi).
+  `PENDING_ROADMAP.md` tidak disentuh (tidak ada item baru yg konkret utk ditambahkan).
+- Batch: v20
+
+[RESUME POINT: v20 hotfix widget/tile (3 keluhan device-evidence user: nol feedback -> toast
+manual-only ditambah; "Menjadwalkan" ambigu -> reworded "Sedang memproses…"; widget kurang estetik
+-> rounded card + tombol biru brand) — 6 file diubah, validasi statis only (xmllint+brace OK,
+cross-check R.*/KEY_MANUAL OK, diff vs v19 confirmed 6 file, 0 file lain tersentuh) -> Remaining:
+jalankan DAILY UPDATE, push, CI build hijau -> test manual device WAJIB utk 3 hal: (1) tap tombol
+widget -> toast hasil muncul (OK/FAIL/Shizuku-belum-siap) & widget tampilan baru (card rounded +
+tombol biru) kebaca bagus di wallpaper asli, (2) tap tile QS -> toast sama muncul, (3) tile QS
+setelah ditambah ulang (uninstall+reinstall tile atau tambah tile baru) apakah icon masih
+tampil bulat-biru-putih solid (kalau MASIH sama setelah onTileAdded() -> itu memang gaya render
+OEM/launcher, bukan bug app, tutup poin 3 sbg "as-designed OS"; kalau BERUBAH jadi monokrom
+ter-tint normal -> onTileAdded() konfirmasi jadi fix nyata) -> Next Action: user kirim hasil test
+3 poin di atas (screenshot/video kalau perlu), terutama poin 3 (paling belum pasti).]

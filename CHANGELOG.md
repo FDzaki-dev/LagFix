@@ -49,3 +49,8 @@
 ## v19
 - Baru: widget home screen — tampilkan status fstrim terakhir + tombol "Jalankan Sekarang" langsung dari layar utama, tanpa buka app.
 - Baru: tile Quick Settings "LagFix" — tap untuk trigger fstrim manual dari panel Quick Settings (swipe dari atas layar).
+
+## v20
+- Tombol widget & tile sekarang kasih tahu hasilnya (notifikasi toast: berhasil/gagal/Shizuku belum siap) — sebelumnya tidak ada tanda apa-apa setelah ditekan.
+- Teks status widget saat proses diganti "Sedang memproses…" (sebelumnya "Menjadwalkan…" yang membingungkan, bisa dikira fitur jadwal otomatis).
+- Tampilan widget dirapikan: kartu bersudut membulat + tombol "Jalankan Sekarang" warna biru (sebelumnya kotak polos + tombol abu-abu sistem).

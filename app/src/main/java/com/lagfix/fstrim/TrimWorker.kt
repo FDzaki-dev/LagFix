@@ -1,8 +1,10 @@
 package com.lagfix.fstrim
 
 import android.content.Context
+import android.widget.Toast
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
+import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
@@ -17,6 +19,11 @@ import java.util.concurrent.TimeUnit
 class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val prefs = Prefs(applicationContext)
+        // v19 hotfix (laporan user: widget "nol feedback" — tap tak ada hasil terlihat): flag ini
+        // HANYA true kalau datang dari Scheduler.runOnce() (widget/tile, manual). Jadwal periodik
+        // (Scheduler.apply()) tidak pernah set input data ini -> default false -> toast TIDAK
+        // pernah muncul utk run otomatis, 0 perubahan perilaku jadwal existing.
+        val manual = inputData.getBoolean(KEY_MANUAL, false)
         var waited = 0
         while (!Shizuku.pingBinder() && waited < 5000) {
             delay(500)
@@ -31,11 +38,28 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             // TIDAK retry kalau fstrim SUDAH dicoba tapi gagal (exit code non-0) — itu beda kelas
             // masalah (bukan precondition Shizuku), retry tak akan menolong, lihat bawah.
             prefs.record(TrimResult(false, "dilewati, Shizuku: $state", 0L))
+            if (manual) toast(applicationContext.getString(R.string.toast_shizuku_not_ready))
             return@withContext Result.retry()
         }
         val r = FstrimExecutor.run()
         prefs.record(r)
+        if (manual) {
+            val msg = if (r.ok) {
+                applicationContext.getString(R.string.toast_run_ok)
+            } else {
+                applicationContext.getString(R.string.toast_run_fail, r.message.take(60))
+            }
+            toast(msg)
+        }
         Result.success()
+    }
+
+    private suspend fun toast(text: String) = withContext(Dispatchers.Main) {
+        Toast.makeText(applicationContext, text, Toast.LENGTH_LONG).show()
+    }
+
+    companion object {
+        const val KEY_MANUAL = "manual"
     }
 }
 
@@ -61,6 +85,8 @@ object Scheduler {
 
     /** Dipakai widget (LagFixWidgetProvider) & QS tile (LagFixTileService) untuk trigger manual. */
     fun runOnce(ctx: Context) {
-        WorkManager.getInstance(ctx.applicationContext).enqueue(OneTimeWorkRequestBuilder<TrimWorker>().build())
+        val data = Data.Builder().putBoolean(TrimWorker.KEY_MANUAL, true).build()
+        WorkManager.getInstance(ctx.applicationContext)
+            .enqueue(OneTimeWorkRequestBuilder<TrimWorker>().setInputData(data).build())
     }
 }

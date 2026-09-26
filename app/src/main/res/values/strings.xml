@@ -3,6 +3,10 @@
     <string name="widget_description">Jalankan fstrim manual dari layar utama</string>
     <string name="widget_button_run">Jalankan Sekarang</string>
     <string name="widget_status_never">Belum pernah dijalankan</string>
-    <string name="widget_status_running">Menjadwalkan…</string>
+    <string name="widget_status_running">Sedang memproses…</string>
     <string name="tile_subtitle_not_ready">Shizuku belum siap</string>
+    <string name="toast_run_ok">fstrim berhasil dijalankan</string>
+    <string name="toast_run_fail">fstrim gagal: %1$s</string>
+    <string name="toast_shizuku_not_ready">Shizuku belum siap, aktifkan dulu lalu coba lagi</string>
 </resources>
+
