@@ -364,6 +364,20 @@ private fun SettingsTab(
                     Text("↗")
                 }
             }
+            // v24 (laporan user: sudah exempt battery optimization tapi jadwal 6 jam TETAP 0 entri
+            // otomatis — dikonfirmasi ini BUKAN cukup di sebagian HP, khususnya Infinix/Tecno/itel
+            // (XOS/HiOS) & Xiaomi/dst: ROM ini punya toggle "Autostart"/"Latar belakang" TERPISAH
+            // di App Management/Phone Master/Security App, DI LUAR API baterai standar Android — 0
+            // API publik utk app pihak ketiga minta ini secara terprogram, cuma bisa dipandu manual,
+            // makanya di sini teks saja, bukan tombol/intent (nebak nama package/activity spesifik
+            // per versi ROM berisiko ActivityNotFoundException, jadi TIDAK dilakukan).
+            Text(
+                "Kalau jadwal otomatis tetap tidak jalan walau sudah diizinkan di atas, cek juga " +
+                    "pengaturan \"Autostart\" / \"Latar belakang\" yang terpisah di App Management " +
+                    "atau Phone Master/Security App bawaan HP (umum di Infinix, Tecno, Xiaomi, dll — " +
+                    "nama menu beda-beda tiap merek & versi).",
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 

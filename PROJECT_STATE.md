@@ -916,3 +916,55 @@ yg MASIH menunggu kabar user (belum berubah/belum ditanya ulang, tetap OPEN terp
 — apakah Riwayat akhirnya dapat entri OTOMATIS (bukan tap manual) stlh battery exempt +1 siklus
 interval; v20 poin 3 — icon tile bulat-biru-putih di layar edit QS, masih blm ada kabar. -> Next
 Action: tunggu hasil test v23 di atas + progres 2 item OPEN lama itu dari user.]
+
+- v24 (hasil test v22 poin (4) MASUK — NEGATIF): user konfirmasi sudah set interval ke 6 jam
+  (sesuai saran percepat test) TAPI 0 entri otomatis tercatat di Riwayat sama sekali setelah lewat
+  6 jam, PADAHAL battery-optimization exemption standar Android SUDAH granted (checkmark v23
+  sudah muncul, dikonfirmasi user sblmnya). Kesimpulan: hipotesis (b) di v21/v22 (OEM battery-kill)
+  BENAR tapi TIDAK CUKUP — dicek lagi (web search, sumber: express.ms/tiktask.ai/salestrail, semua
+  spesifik soal Infinix/XOS): XOS (satu keluarga dgn HiOS Tecno/itel) & ROM sejenis (MIUI/dst) py
+  toggle **"Autostart"/"Latar belakang"** yg TERPISAH dari battery-optimization standar Android —
+  biasanya di App Management, Phone Master, atau Security App bawaan HP (nama & lokasi menu beda2
+  tiap merek/versi, dikonfirmasi berkali2 di semua sumber yg ditemukan). INI TIDAK ADA API PUBLIK
+  Android utk app pihak ketiga minta izin ini secara terprogram (beda dgn
+  `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` yg SUDAH diimplementasi v22 — itu cuma cover Doze/
+  App-Standby, BUKAN toggle Autostart proprietary OEM ini) — jadi TIDAK BISA dibuatkan tombol
+  intent langsung spt v22 (nebak nama package/activity spesifik per versi ROM berisiko
+  ActivityNotFoundException/crash, TIDAK dilakukan, P0 zero-regression). Fix yg dilakukan: 1 baris
+  teks hint baru (BUKAN tombol, BUKAN intent, 0 permission baru) di `MainActivity.kt` SettingsTab,
+  persis di bawah blok battery v22/v23 — arahkan user cek toggle Autostart/Latar belakang terpisah
+  itu manual, plus tips konkret sesuai HP user diberikan LANGSUNG DI CHAT (bukan cuma di app) krn
+  lebih actionable saat ini: Infinix XOS 16 → cek Settings > Apps (atau App Management) > cari
+  "LagFix" > aktifkan "Autostart"/"Auto-start"; cek juga Settings > Battery (atau "Battery Lab"/
+  "Power Marathon") > cari app > pilih "Unrestricted"/"No restrictions"; kalau ada app "Phone
+  Master"/"XManager" bawaan HP, cek App Manager/Autostart Manager di situ juga; opsional: kunci app
+  di panel recent-apps (tarik ke bawah kartu app > tap ikon gembok). Nama menu bisa beda persis di
+  build XOS 16 tertentu — search di kotak pencarian Settings pakai kata "autostart"/"latar
+  belakang"/"baterai" kalau nama di atas tak persis cocok.
+  File diubah: `MainActivity.kt` (1 file, teks hint saja). 0 permission/logic/skema data baru. 0
+  file lain disentuh (dikonfirmasi diff thd ZIP v23).
+- v24 VALIDASI: brace/paren balance OK (mismatch paren cuma di teks komentar prosa, sama spt
+  kasus v22 sebelumnya — dicek isi kode asli, `Text()` & string concat valid). BELUM pernah
+  dicompile/AGP sungguhan. TIDAK ADA validasi behavior yg relevan utk batch ini krn 0 logic
+  berubah — murni teks + dokumentasi. **CATATAN PENTING**: root cause final (toggle Autostart OEM)
+  ADA DI LUAR KENDALI KODE APP INI SEPENUHNYA — tidak ada lagi fix kode yg bisa dilakukan utk
+  masalah "jadwal otomatis tak tercatat" selain guidance manual di atas. Kalau setelah user aktifkan
+  Autostart manual MASIH tetap 0 entri, itu sudah di luar scope yg bisa diperbaiki dari sisi app
+  (kemungkinan device/ROM tsb memang tidak mengizinkan app non-sistem jalan di background sama
+  sekali tanpa root/Magisk module tambahan spt yg dipakai app ini jg utk Shizuku).
+- Docs: `CHANGELOG.md` TIDAK ditambah entri batch ini (hint teks kecil, bukan perubahan
+  behavior/fitur user-facing yg signifikan cukup utk masuk changelog rilis — konsisten dgn
+  konvensi batch v14-v18 yg juga skip changelog utk perubahan non-user-facing/investigasi).
+- Batch: v24 (docs + 1 hint teks; TIDAK ada perubahan logic/permission/skema data)
+
+[RESUME POINT: v24 — root cause "jadwal otomatis tak tercatat" FINAL: toggle Autostart OEM
+terpisah (Infinix XOS), di luar kendali kode (0 API publik utk grant terprogram). Guidance manual
+diberikan di chat + hint teks 1 baris ditambah di app (1 file: MainActivity.kt, 0 logic/permission
+baru). Item lama msh OPEN: v20 poin 3 (icon tile bulat-biru-putih) blm ada kabar -> Remaining: user
+coba aktifkan Autostart manual di Infinix (langkah di atas) lalu tunggu 1 siklus interval lagi, cek
+Riwayat -> Next Action: (a) kalau AKHIRNYA ada entri otomatis -> poin 3/v22-v24 SELESAI total,
+tinggal v20 poin 3 icon tile yg msh OPEN; (b) kalau TETAP 0 stlh Autostart diaktifkan jg -> ini
+sudah di luar scope yg bisa diperbaiki dari kode app (device/ROM-level limitation), sampaikan ke
+user apa adanya, JANGAN dipaksakan bikin "solusi kode" lain yg tidak terverifikasi/beresiko
+(mis. foreground service persisten -> itu scope creep besar, perlu diskusi eksplisit dulu kalau
+user tetap mau opsi itu meski tahu trade-off-nya: notifikasi permanen, dsb).]
