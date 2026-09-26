@@ -968,3 +968,67 @@ sudah di luar scope yg bisa diperbaiki dari kode app (device/ROM-level limitatio
 user apa adanya, JANGAN dipaksakan bikin "solusi kode" lain yg tidak terverifikasi/beresiko
 (mis. foreground service persisten -> itu scope creep besar, perlu diskusi eksplisit dulu kalau
 user tetap mau opsi itu meski tahu trade-off-nya: notifikasi permanen, dsb).]
+
+- v25 (2 laporan user): (1) v20 poin 3 CONFIRMED NEGATIF ke-2x — icon tile TETAP "default putih"
+  walau `onTileAdded()` (v20) sudah ditambah. (2) User eksplisit minta lanjut opsi "foreground
+  service persisten" (nemu dari catatan RESUME POINT sendiri di PROJECT_STATE.md ZIP v24) krn
+  Autostart TIDAK KETEMU sama sekali di pencarian Settings device.
+  1. FIX (best-effort, root-cause dugaan kuat bukan kepastian — P0 NO HALLUCINATION dinyatakan
+     eksplisit): `ic_tile_fstrim.xml` fill putih (`#FFFFFF`) di atas badge tile-picker OEM yg
+     kemungkinan terang/putih & TIDAK selalu re-tint by alpha-mask (beda dari asumsi standar AOSP)
+     -> putih-di-atas-putih = tak kelihatan, match PERSIS laporan "putih aja". Ganti fillColor ke
+     `@color/ic_launcher_background` (warna brand, sama dgn tombol widget, 0 warna baru) — aman utk
+     KEDUA skenario: kalau OS re-tint (mask peduli alpha bukan hue, aman), kalau TIDAK re-tint
+     (warna kini kontras thd badge terang, sebelumnya tidak). 1 file (`ic_tile_fstrim.xml`). Server
+     tidak ada jaminan 100% — rendering picker OEM di luar kendali kode, minta user test ulang.
+  2. AUTO-HALT (BUKAN dieksekusi batch ini — P0 "STABILITY+ZERO-REGRESSION > USER INTENT" scr
+     eksplisit didahulukan di atas permintaan lanjut user, krn ada temuan risiko BARU yg user blm
+     tahu saat minta "lanjut"): riset (web search) sblm eksekusi nemu 2 hal krusial yg BELUM
+     diketahui saat catatan "perlu diskusi eksplisit" ditulis di v24: (a) dokumentasi RESMI Android
+     Developers sendiri (developer.android.com/about/versions/14/changes/fgs-types-required)
+     eksplisit bilang: kalau use-case bisa dicover WorkManager (PERSIS kasus app ini — SUDAH pakai
+     WorkManager dari awal), Google MEREKOMENDASIKAN JANGAN pakai foreground service `specialUse`.
+     (b) app ini targetSdk 35 (Android 15) — ditemukan kasus nyata (PR proyek open-source lain,
+     ActivityWatch/aw-android#190) `startForeground()` TANPA foregroundServiceType yg presisi tepat
+     CRASH di Android 14+/targetSdk 35. Implementasi produksi butuh: +permission
+     `FOREGROUND_SERVICE` & `FOREGROUND_SERVICE_SPECIAL_USE`, `<service>` +`foregroundServiceType=
+     "specialUse"` +`<property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE".../>`
+     PERSIS presisi (salah satu meleset -> crash), +permission runtime `POST_NOTIFICATIONS` (API
+     33+, perlu flow permintaan baru di UI), +`BroadcastReceiver` BOOT_COMPLETED (+permission
+     `RECEIVE_BOOT_COMPLETED`) spy service auto-restart stlh reboot (foreground service TIDAK
+     auto-persist lintas reboot spt WorkManager periodic), + NOTIFIKASI PERMANEN tak bisa
+     disembunyikan selama service jalan. Estimasi ~6 file baru/diubah (Service baru, BootReceiver
+     baru, Manifest, Scheduler start/stop, MainActivity request permission). RISIKO: kalau SATU
+     saja dari kombinasi manifest+kode di atas meleset (sangat presisi & TIDAK BISA dicompile/test
+     di sandbox ini — 0 Android SDK/Gradle/device), app bisa CRASH SETIAP KALI toggle jadwal
+     otomatis dinyalakan — regresi JAUH lebih parah drpd masalah asal (skip 1 kali trim terjadwal).
+     DAN belum tentu menyelesaikan akar masalah jg: kalau XOS device ini memang tak expose Autostart
+     sama sekali (bukan cuma nama beda), OS bisa saja tetap membunuh foreground service jg pada ROM
+     yg SANGAT agresif (tidak ada jaminan). KEPUTUSAN: TIDAK dieksekusi dulu batch ini — 0 file
+     Service/BootReceiver dibuat. Ditawarkan ke user: (i) 1 alternatif RINGAN & ZERO-RISK dulu
+     sblm opsi berat ini — coba cari toggle di Settings > **Battery** (bukan Apps) dgn kata kunci
+     "Protected apps"/"Battery Lab"/"Power Marathon"/"Background restriction" (istilah "Autostart"
+     yg dicari user mungkin memang TIDAK ada persis di build XOS 16 ini, tapi konsepnya kemungkinan
+     ada dgn nama beda — sumber: tiktask.ai/salestrail.io khusus Infinix), ATAU cek app drawer utk
+     ikon "Phone Master"/"XManager" bawaan HP (app terpisah dari Settings, py Autostart Manager
+     sendiri — Settings-search TIDAK selalu mengindeks isi app lain). (ii) kalau tetap 0 hasil &
+     user tetap mau foreground service MESKIPUN sudah tahu risiko crash presisi di atas -> minta
+     konfirmasi eksplisit sekali lagi (bukan menahan-nahan, tapi krn ini benar2 informasi baru yg
+     user blm tahu saat bilang "lanjut").
+  File diubah batch ini: `ic_tile_fstrim.xml` (1 file, poin 1 saja). 0 file lain (poin 2 di-HALT).
+- v25 VALIDASI: xmllint OK (ic_tile_fstrim.xml, termasuk komentar XML baru). 0 brace/paren relevan
+  (bukan Kotlin). BELUM dites device (poin 1, best-effort, minta user test ulang tile).
+- Docs: `CHANGELOG.md` +entry v25 (poin 1 saja, user-facing attempt). Poin 2 (halt) TIDAK masuk
+  changelog (0 kode dieksekusi).
+- Batch: v25
+
+[RESUME POINT: v25 — (1) icon tile diganti warna brand (best-effort, blm pasti akar masalah
+sepenuhnya krn rendering picker OEM di luar kendali kode) MENUNGGU test ulang user. (2) Permintaan
+"foreground service persisten" di-HALT SEMENTARA (bukan ditolak) — P0 stability > user intent
+diterapkan krn nemu risiko crash presisi (targetSdk 35) + Google sendiri menyarankan JANGAN utk
+use-case yg sudah pakai WorkManager (persis app ini) via riset baru yg blm ada saat user minta
+"lanjut". Ditawarkan alternatif ringan dulu (cek Settings>Battery / app Phone Master-XManager
+scr terpisah dari Settings search) + minta konfirmasi ulang eksplisit kalau user TETAP mau opsi
+berat itu -> Next Action: tunggu balasan user: (a) hasil coba alternatif ringan tile Autostart, DAN
+(b) konfirmasi ulang ya/tidak utk lanjut foreground service given risiko yg baru dijelaskan. JANGAN
+mulai bikin Service/BootReceiver/manifest FGS sebelum (b) dikonfirmasi ulang eksplisit.]

@@ -3,7 +3,15 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!-- v25: laporan user icon tile tetap "default putih" (2x dicek, onTileAdded() v20 TIDAK
+         berpengaruh) — dugaan: badge tile-picker OEM ini terang/putih & tidak selalu me-mask ulang
+         warna icon by alpha (beda dari perilaku standar AOSP yg SEHARUSNYA auto-tint apa pun warna
+         aslinya). Fill putih di badge putih = tak kelihatan sama sekali ("putih aja"), match persis
+         laporan. Ganti ke warna brand (sama dgn tombol widget) supaya tetap kelihatan BAIK kalau
+         di-mask sistem (alpha-mask tak peduli hue) MAUPUN kalau tidak di-mask sama sekali. TIDAK
+         ada jaminan 100% krn rendering picker OEM ini di luar kendali kode (P0 NO HALLUCINATION —
+         ini best-effort berdasar mekanisme paling mungkin, bukan kepastian; minta user test ulang). -->
     <path
-        android:fillColor="#FFFFFF"
+        android:fillColor="@color/ic_launcher_background"
         android:pathData="M12.89,5.78 L8.44,12.89 L11.33,12.89 L10.44,18.22 L15.56,10.44 L12.44,10.44 Z" />
 </vector>
