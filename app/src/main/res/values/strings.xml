@@ -4,6 +4,9 @@
     <string name="widget_button_run">Jalankan Sekarang</string>
     <string name="widget_status_never">Belum pernah dijalankan</string>
     <string name="widget_status_running">Sedang memproses…</string>
+    <string name="widget_status_ok">Bersih ✓ · %1$s</string>
+    <string name="widget_status_fail">Gagal ⚠ · %1$s</string>
+    <string name="widget_status_not_ready">Shizuku belum siap · %1$s</string>
     <string name="tile_subtitle_not_ready">Shizuku belum siap</string>
     <string name="toast_run_ok">fstrim berhasil dijalankan</string>
     <string name="toast_run_fail">fstrim gagal: %1$s</string>

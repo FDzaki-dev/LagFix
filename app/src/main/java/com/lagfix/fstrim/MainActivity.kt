@@ -337,11 +337,21 @@ private fun SettingsTab(
                 vm.setIdle(it)
                 onFeedback(if (it) "Hanya saat perangkat idle: aktif." else "Hanya saat perangkat idle: nonaktif.")
             }
-            // v21 (root cause laporan user: jadwal otomatis tak tercatat di beberapa HP — toggle
+            // v22 (root cause laporan user: jadwal otomatis tak tercatat di beberapa HP — toggle
             // sudah ON tapi OS/OEM (mis. XOS/MIUI/ColorOS) diam-diam membunuh job background kalau
-            // app tak dikecualikan dari optimasi baterai). Tombol cuma tampil kalau BELUM
-            // dikecualikan — tidak nagging kalau sudah aman.
-            if (!ui.batteryUnrestricted) {
+            // app tak dikecualikan dari optimasi baterai). v23 (laporan user: sblmnya tombol cuma
+            // LENYAP diam-diam stlh diizinkan — "tanpa kepastian"): sekarang ada baris konfirmasi
+            // checkmark sbg pengganti, bukan cuma menghilang tanpa jejak.
+            if (ui.batteryUnrestricted) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text("Baterai: berjalan tanpa batas", Modifier.weight(1f))
+                    Text("✓")
+                }
+            } else {
                 Text(
                     "Jadwal otomatis bisa meleset di HP ini kalau baterai masih dioptimasi sistem.",
                     style = MaterialTheme.typography.bodySmall

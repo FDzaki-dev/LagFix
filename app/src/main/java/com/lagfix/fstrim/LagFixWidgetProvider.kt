@@ -7,16 +7,21 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
- * Widget home screen (fitur baru, prioritas user atas widget+QS tile). Tampilkan baris status
- * terakhir apa adanya dari `Prefs.log` (sudah diformat oleh `Prefs.record()` — "dd/MM HH:mm
- * OK/FAIL <ms>ms <pesan>", 0 duplikasi format tanggal baru di sini) + tombol "Jalankan Sekarang".
- * Tombol memicu `Scheduler.runOnce()` (TrimWorker via WorkManager) — jalur yang sama persis
- * dengan run manual di MainViewModel & jadwal otomatis, 0 logic Shizuku baru ditulis. Widget tidak
- * bisa menunggu hasil fstrim secara sinkron (broadcast onReceive tidak boleh blocking lama), jadi
- * setelah tombol ditekan status ditampilkan "Menjadwalkan…" dulu; hasil riil (OK/FAIL) muncul saat
- * widget refresh berikutnya (updatePeriodMillis 30 menit) atau saat app dibuka lagi.
+ * Widget home screen (fitur baru, prioritas user atas widget+QS tile). Status ditampilkan sbg
+ * ringkasan ramah (v23: "Bersih ✓ · dd/MM HH:mm" dst — BUKAN lagi baris `Prefs.log` mentah "dd/MM
+ * HH:mm OK/FAIL <ms>ms exit=0 <output shell>", yg dilaporkan user "kelihatan teknis banget").
+ * Detail teknis (durasi ms, exit code, output shell mentah) TETAP ada, hanya di Riwayat dalam app
+ * (MainActivity, tidak diubah) — widget cuma utk sekilas lihat, bukan debugging. + tombol
+ * "Jalankan Sekarang". Tombol memicu `Scheduler.runOnce()` (TrimWorker via WorkManager) — jalur
+ * yang sama persis dengan run manual di MainViewModel & jadwal otomatis, 0 logic Shizuku baru
+ * ditulis. Widget tidak bisa menunggu hasil fstrim secara sinkron (broadcast onReceive tidak boleh
+ * blocking lama), jadi setelah tombol ditekan status ditampilkan "Sedang memproses…" dulu; hasil
+ * riil didorong balik segera stlh selesai lewat `Scheduler.notifyChanged()` (lihat TrimWorker.kt).
  */
 class LagFixWidgetProvider : AppWidgetProvider() {
 
@@ -35,11 +40,7 @@ class LagFixWidgetProvider : AppWidgetProvider() {
     }
 
     private fun updateWidget(context: Context, manager: AppWidgetManager, id: Int, running: Boolean) {
-        val status = if (running) {
-            context.getString(R.string.widget_status_running)
-        } else {
-            Prefs(context).log.firstOrNull() ?: context.getString(R.string.widget_status_never)
-        }
+        val status = if (running) context.getString(R.string.widget_status_running) else friendlyStatus(context)
         val views = RemoteViews(context.packageName, R.layout.widget_lagfix).apply {
             setTextViewText(R.id.widget_title, context.getString(R.string.app_name))
             setTextViewText(R.id.widget_status, status)
@@ -48,6 +49,22 @@ class LagFixWidgetProvider : AppWidgetProvider() {
             setOnClickPendingIntent(R.id.widget_root, openAppPendingIntent(context))
         }
         manager.updateAppWidget(id, views)
+    }
+
+    // v23: sumber data TETAP Prefs.lastRunMs/lastOk/log yg sudah ada (0 perubahan skema
+    // penyimpanan) — cuma cara TAMPILKANNYA di widget yg dibikin ramah. Deteksi "dilewati" pakai
+    // teknik yg SAMA persis dgn yg sudah dipakai MainActivity.kt baris ~276 (cek prefix log),
+    // konsisten dgn konvensi existing, bukan bikin cara baru.
+    private fun friendlyStatus(context: Context): String {
+        val prefs = Prefs(context)
+        if (prefs.lastRunMs == 0L) return context.getString(R.string.widget_status_never)
+        val stamp = SimpleDateFormat("dd/MM HH:mm", Locale.US).format(Date(prefs.lastRunMs))
+        val skipped = prefs.log.firstOrNull()?.contains("dilewati") == true
+        return when {
+            skipped -> context.getString(R.string.widget_status_not_ready, stamp)
+            prefs.lastOk -> context.getString(R.string.widget_status_ok, stamp)
+            else -> context.getString(R.string.widget_status_fail, stamp)
+        }
     }
 
     private fun runNowPendingIntent(context: Context): PendingIntent {

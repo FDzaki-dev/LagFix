@@ -60,3 +60,7 @@
 
 ## v22
 - Baru: tombol "Izinkan berjalan tanpa batas" di tab Pengaturan (khusus HP yang baterainya masih dioptimasi sistem) — biar jadwal otomatis fstrim lebih diandalkan, terutama di HP dengan ROM yang agresif mematikan aplikasi latar belakang (mis. XOS, MIUI, ColorOS). Tombol otomatis hilang begitu sudah diizinkan.
+
+## v23
+- Tab Pengaturan sekarang menampilkan tanda centang "Baterai: berjalan tanpa batas ✓" setelah izin diberikan — sebelumnya tombolnya cuma hilang tanpa keterangan apa-apa.
+- Tampilan status di widget dirapikan jadi lebih mudah dibaca: "Bersih ✓ · tanggal jam" / "Gagal ⚠ · tanggal jam" / "Shizuku belum siap · tanggal jam" — sebelumnya menampilkan baris log teknis mentah. Detail lengkap (durasi, exit code, dll) tetap bisa dilihat di Riwayat dalam aplikasi.

@@ -869,3 +869,50 @@ dapat entri OTOMATIS (bukan dari tap manual)? Kalau (4) MASIH nihil setelah exem
 XOS punya toggle "Autostart"/App Management terpisah yg perlu diaktifkan manual juga (di luar
 kendali kode app) -> Next Action: tunggu hasil 4 poin test di atas dari user; v20 poin 3 (icon tile
 bulat-biru-putih, lihat batch v20) MASIH belum ada kabar dari user, tetap OPEN terpisah.]
+
+- v23 (2 laporan UX baru user atas v22 — "v22 bekerja dengan baik" dikonfirmasi dulu, lalu 2
+  perbaikan tampilan diminta, root-cause minimum, 0 logic inti disentuh):
+  1. "Tombol lenyap tanpa kepastian setelah diizinkan" — sebelumnya `SettingsTab` cuma
+     `if (!ui.batteryUnrestricted) { ...tombol... }` — begitu granted, blok itu HILANG total, 0
+     jejak konfirmasi. Fix: ditambah cabang `else`/`if (ui.batteryUnrestricted)` — baris baru
+     "Baterai: berjalan tanpa batas ✓" muncul sbg GANTI tombol (bukan cuma menghilang). 0 logic
+     baru (`ui.batteryUnrestricted` sudah ada dari v22), murni tampilan.
+  2. "Widget kelihatan teknis banget" — akar masalah: `updateWidget()` pakai
+     `Prefs.log.firstOrNull()` APA ADANYA sbg teks status, yaitu baris mentah "dd/MM HH:mm OK/FAIL
+     <ms>ms exit=0 <output shell>" — persis format debug log, bukan ramah-pengguna. Fix: fungsi
+     baru `friendlyStatus()` di `LagFixWidgetProvider.kt`, PAKAI DATA YANG SAMA (`Prefs.lastRunMs`/
+     `lastOk`/`log`, 0 skema penyimpanan baru) tapi TAMPILKAN ringkas: "Bersih ✓ · dd/MM HH:mm" /
+     "Gagal ⚠ · dd/MM HH:mm" / "Shizuku belum siap · dd/MM HH:mm" (deteksi "dilewati" pakai teknik
+     SAMA persis dgn yg sudah dipakai `MainActivity.kt` baris ~276 utk kasus serupa — konsisten,
+     bukan cara baru). Detail teknis (ms/exit code/output shell mentah) TETAP ada apa adanya di
+     Riwayat dalam app (`MainActivity`, 0 diubah) — widget cuma sekilas-lihat, bukan tempat
+     debugging; pemisahan ini yang jadi solusi root-cause-nya (bukan cuma ganti kata-kata).
+  File diubah: `MainActivity.kt`, `LagFixWidgetProvider.kt`, `strings.xml` (+3 string baru:
+  widget_status_ok/fail/not_ready, 0 string lama diubah/dihapus). 3 file, 1 batch UX-fix logis. 0
+  file lain disentuh, 0 skema Prefs/TrimWorker/Scheduler disentuh (dikonfirmasi diff thd v22).
+  Koreksi kecil sekalian: komentar di `MainActivity.kt` yg salah label "v21" utk fitur battery
+  exemption (harusnya v22, sesuai riwayat batch di atas) — diperbaiki jadi "v22" biar histori akurat
+  (P0 NO HALLUCINATION jalan juga ke arah dokumentasi sendiri, bukan cuma ke user).
+- v23 VALIDASI: xmllint OK (strings.xml). Brace/paren balance OK (LagFixWidgetProvider.kt,
+  MainActivity.kt). Cross-check: `R.string.widget_status_ok/fail/not_ready` dipanggil dgn 1 format
+  arg (`stamp`), match placeholder `%1$s` di masing-masing definisi strings.xml. `friendlyStatus()`
+  dipanggil persis 1 tempat (`updateWidget()`, cabang non-running). Battery checkmark row pakai
+  komponen Compose yg SUDAH diimport semua (`Row`/`Alignment`/`Arrangement`/`Text`) — 0 import baru
+  di MainActivity.kt. BELUM pernah dicompile/AGP sungguhan & BELUM dites device asli (sandbox) —
+  WAJIB test: (1) Pengaturan tampil "Baterai: berjalan tanpa batas ✓" (bukan kosong) di device yg
+  sudah exempt; (2) widget skrng nunjukin "Bersih ✓ · <tanggal>" (bukan lagi baris teknis) setelah
+  run OK; kalau ada entri "dilewati"/gagal di Riwayat, cek widget nunjukin varian yg sesuai juga.
+- Docs: `CHANGELOG.md` +entry v23.
+- Batch: v23
+
+[RESUME POINT: v23 UX polish atas 2 laporan user (checkmark konfirmasi battery-exempt pengganti
+tombol yg lenyap; widget status jadi ringkas ramah pengguna, bukan log teknis mentah) — 3 file
+diubah, validasi statis only (xmllint+brace OK, cross-check format-string & import OK), 0 logic
+inti (Prefs/TrimWorker/Scheduler/manifest) disentuh batch ini -> Remaining: user test di device: (1)
+Pengaturan tampil checkmark "Baterai: berjalan tanpa batas ✓" (device user kemungkinan besar SUDAH
+exempt dari v22 kemarin, jadi harusnya langsung kelihatan checkmark-nya, BUKAN baris tombol lagi);
+(2) widget tampilkan ringkasan ramah stlh run berikutnya (bukan baris "exit=0 dst" lagi). Item lama
+yg MASIH menunggu kabar user (belum berubah/belum ditanya ulang, tetap OPEN terpisah): v22 poin (4)
+— apakah Riwayat akhirnya dapat entri OTOMATIS (bukan tap manual) stlh battery exempt +1 siklus
+interval; v20 poin 3 — icon tile bulat-biru-putih di layar edit QS, masih blm ada kabar. -> Next
+Action: tunggu hasil test v23 di atas + progres 2 item OPEN lama itu dari user.]
