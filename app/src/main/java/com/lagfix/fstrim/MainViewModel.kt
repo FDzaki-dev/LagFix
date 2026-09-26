@@ -2,7 +2,10 @@ package com.lagfix.fstrim
 
 import android.app.Application
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -24,6 +27,7 @@ data class UiState(
     val lastRunMs: Long = 0L,
     val lastOk: Boolean = false,
     val log: List<String> = emptyList(),
+    val batteryUnrestricted: Boolean = true,
     val updateChecking: Boolean = false,
     val updateResult: UpdateResult? = null,
     val downloading: Boolean = false,
@@ -55,8 +59,29 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         running = running,
         lastRunMs = prefs.lastRunMs,
         lastOk = prefs.lastOk,
-        log = prefs.log
+        log = prefs.log,
+        batteryUnrestricted = isBatteryUnrestricted()
     )
+
+    // v21: root cause laporan user "jadwal otomatis tak tercatat" — confirmed toggle sudah ON dari
+    // awal + device Infinix XOS, salah satu ROM yg dikenal agresif membunuh background job WorkManager
+    // kalau app tak dikecualikan dari optimasi baterai. Ini bukan bug logic (Prefs.record()/Riwayat
+    // sudah dicek unconditional, 0 filter) — ini restriksi OS/OEM di luar kendali kode.
+    private fun isBatteryUnrestricted(): Boolean {
+        val app = getApplication<Application>()
+        val pm = app.getSystemService(PowerManager::class.java) ?: return true
+        return pm.isIgnoringBatteryOptimizations(app.packageName)
+    }
+
+    /** Intent standar Android utk minta dikecualikan dari optimasi baterai (0 permission dialog
+     * custom — sistem yg tampilkan dialog konfirmasi bawaan). Dipanggil dari SettingsTab. */
+    fun batteryOptimizationIntent(): Intent {
+        val app = getApplication<Application>()
+        return Intent(
+            Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+            Uri.parse("package:${app.packageName}")
+        )
+    }
 
     fun refresh() {
         ui = read(ui.running).copy(

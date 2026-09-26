@@ -816,3 +816,56 @@ background app yg jarang dibuka)? -> Next Action: tunggu jawaban 2 pertanyaan it
 & (B), baru lanjut (kalau toggle OFF -> bukan bug, cukup edukasi; kalau ON tapi tetap 0 entri
 otomatis & device masuk daftar OEM agresif -> baru pertimbangkan fix spt WorkManager
 setExpedited()/panduan battery-optimization-exemption, TIDAK menebak duluan).]
+
+- v22 (jawaban user thd 2 pertanyaan v21 diterima — root cause poin 3 CONFIRMED, bukan lagi
+  dugaan): (1) toggle "Jadwal otomatis" MEMANG sudah ON dari awal pakai (bukan penyebabnya,
+  hipotesis (a) di v21 GUGUR). (2) HP: Infinix, XOS 16 — XOS (Transsion/Infinix, satu keluarga dgn
+  HiOS Tecno & itel) SUDAH DIKONFIRMASI PUBLIK sbg salah satu ROM paling agresif membunuh proses
+  background/job WorkManager kalau app tak dikecualikan dari App Management/optimasi baterai
+  (sekelas MIUI/ColorOS/FuntouchOS di dontkillmyapp.com). Hipotesis (b) di v21 JADI root cause
+  terkonfirmasi. Juga dikonfirmasi: v21 (sinkronisasi widget/tile/app) bekerja baik di 3 sektor —
+  TIDAK perlu fix ulang, tutup poin itu SELESAI (behavior, bukan cuma build, terkonfirmasi user).
+  Fix root-cause poin 3 (standar resmi Android utk kelas masalah ini, BUKAN redesign/foreground
+  service — itu scope creep, ini official Android API): tombol "Izinkan berjalan tanpa batas" baru
+  di tab Pengaturan (card "Jadwal", di bawah toggle idle), HANYA muncul kalau app BELUM
+  dikecualikan dari optimasi baterai (`PowerManager.isIgnoringBatteryOptimizations`, dicek di
+  `MainViewModel.read()`, otomatis refresh via `onResume() -> vm.refresh()` yang SUDAH ADA —
+  0 lifecycle plumbing baru) — tap -> buka dialog sistem resmi
+  `Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` (`MainViewModel.batteryOptimizationIntent
+  ()`). +1 permission normal (`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, auto-grant install-time, 0
+  dialog izin custom) di Manifest — permission BARU krn genuinely dibutuhkan utk root-cause yg baru
+  dikonfirmasi user, BUKAN scope creep sembarangan (P0 "preserve permission" = jangan HAPUS/lemahkan
+  yg ada tanpa alasan, bukan larangan mutlak nambah kalau memang perlu & sudah dikonfirmasi akar
+  masalahnya). 0 string baru di strings.xml — teks UI Compose di app ini SUDAH konvensinya hardcode
+  literal langsung di Kotlin (dicek: MainActivity.kt 0 referensi R.string sama sekali sebelum batch
+  ini), ikut konvensi existing bukan bikin pola baru.
+  File diubah: `AndroidManifest.xml`, `MainViewModel.kt`, `MainActivity.kt` (3 file, 1 fitur logis
+  — entry point pengecualian baterai). 0 file lain disentuh (dikonfirmasi diff thd ZIP v21).
+- v22 VALIDASI: xmllint OK (Manifest). Brace/paren balance OK (MainViewModel.kt, MainActivity.kt
+  — sempat ada "mismatch" paren dari teks komentar prosa, BUKAN kode; dirapikan, dikonfirmasi ulang
+  balance OK). Cross-check: `PowerManager::class.java`/`isIgnoringBatteryOptimizations`/
+  `Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` semua API resmi Android sejak API 23, aman
+  di minSdk 26. `ui.batteryUnrestricted` dipakai persis di 1 tempat (SettingsTab), dialirkan dari
+  `read()` yg sudah ada. BELUM pernah dicompile/AGP sungguhan & BELUM dites device asli (sandbox) —
+  WAJIB test di device Infinix milik user: tombol muncul (krn kemungkinan besar XOS ini memang
+  belum exempt) -> tap -> dialog sistem muncul -> user pilih "Izinkan" -> kembali ke app -> tombol
+  HILANG (tanda `batteryUnrestricted` terbaca true) -> setelah itu tunggu 1 siklus interval jadwal
+  (atau pendekkan interval ke 6 jam sementara utk test cepat) -> cek Riwayat, apakah entri OTOMATIS
+  (bukan hasil tap manual) akhirnya muncul. Kalau XOS PUNYA pengaturan tambahan di luar
+  battery-optimization standar Android (mis. toggle "Autostart"/"Background Activity" terpisah di
+  App Management XOS sendiri — umum di ROM Transsion), tombol ini SAJA mungkin BELUM cukup;
+  user perlu cek manual App Management XOS jika Riwayat masih kosong setelah exempt +1 siklus.
+- Docs: `CHANGELOG.md` +entry v22.
+- Batch: v22
+
+[RESUME POINT: v22 root cause poin 3 CONFIRMED (Infinix XOS = ROM agresif battery-kill, BUKAN bug
+kode) + fix resmi ditambah (tombol exempt battery optimization di Pengaturan, 3 file) — v21 sync
+CONFIRMED user bekerja baik (closed, behavior-verified). Validasi statis only (xmllint+brace OK,
+cross-check API level OK), BELUM compile/device test -> Remaining: user test di Infinix: (1) tombol
+"Izinkan berjalan tanpa batas" muncul di Pengaturan? (2) tap -> dialog sistem muncul & bisa pilih
+Izinkan? (3) tombol hilang setelah itu (state ke-refresh benar)? (4) PALING PENTING — setelah
+exempt, tunggu min. 1 siklus interval (atau pendekkan ke 6 jam sementara), apakah Riwayat akhirnya
+dapat entri OTOMATIS (bukan dari tap manual)? Kalau (4) MASIH nihil setelah exempt -> kemungkinan
+XOS punya toggle "Autostart"/App Management terpisah yg perlu diaktifkan manual juga (di luar
+kendali kode app) -> Next Action: tunggu hasil 4 poin test di atas dari user; v20 poin 3 (icon tile
+bulat-biru-putih, lihat batch v20) MASIH belum ada kabar dari user, tetap OPEN terpisah.]

@@ -337,6 +337,23 @@ private fun SettingsTab(
                 vm.setIdle(it)
                 onFeedback(if (it) "Hanya saat perangkat idle: aktif." else "Hanya saat perangkat idle: nonaktif.")
             }
+            // v21 (root cause laporan user: jadwal otomatis tak tercatat di beberapa HP — toggle
+            // sudah ON tapi OS/OEM (mis. XOS/MIUI/ColorOS) diam-diam membunuh job background kalau
+            // app tak dikecualikan dari optimasi baterai). Tombol cuma tampil kalau BELUM
+            // dikecualikan — tidak nagging kalau sudah aman.
+            if (!ui.batteryUnrestricted) {
+                Text(
+                    "Jadwal otomatis bisa meleset di HP ini kalau baterai masih dioptimasi sistem.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                TextButton(
+                    onClick = { runCatching { ctx.startActivity(vm.batteryOptimizationIntent()) } },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Izinkan berjalan tanpa batas", Modifier.weight(1f))
+                    Text("↗")
+                }
+            }
         }
     }
 
