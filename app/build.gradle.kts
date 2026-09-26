@@ -51,18 +51,6 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
-
-    // v16 (PENDING_ROADMAP C4, kandidat a): fail-log-16 nunjukin mockStatic(Shizuku) gagal
-    // di-intercept Mockito inline mock maker di JVM unit-test worker CI nyata. Dugaan: agent
-    // ByteBuddy Mockito gagal self-attach di JDK 17 tanpa flag ini (restriksi Attach API sejak
-    // JDK 9, default JVM worker Gradle sering tidak set ini). Scope: config test task doang, 0
-    // production code disentuh. BELUM terverifikasi — kandidat lain (b: seam/interface, c:
-    // Robolectric) tetap di PENDING_ROADMAP.md kalau ini juga gagal.
-    testOptions {
-        unitTests.all {
-            it.jvmArgs("-Djdk.attach.allowAttachSelf=true")
-        }
-    }
 }
 
 dependencies {
@@ -77,6 +65,8 @@ dependencies {
     implementation("dev.rikka.shizuku:provider:13.1.5")
 
     // v7: unit test murni (JVM, tanpa device) — Prefs.record() + FstrimExecutor.state()
+    // v17 (C4 kandidat b): FstrimExecutorTest.kt pindah dari mockStatic ke mock interface biasa
+    // (ShizukuGateway) — mockito-core tetap dipakai utk mock() non-static ini.
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.mockito:mockito-core:5.23.0") // 5.x: inline mock maker default (mockStatic tanpa artifact tambahan)
+    testImplementation("org.mockito:mockito-core:5.23.0")
 }

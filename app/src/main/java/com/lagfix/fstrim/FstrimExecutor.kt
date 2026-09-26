@@ -7,17 +7,42 @@ import rikka.shizuku.Shizuku
 
 enum class ShizukuState { NOT_INSTALLED, NOT_RUNNING, NEED_PERMISSION, READY }
 
+/**
+ * Seam non-static di sekitar 3 pemanggilan Shizuku yang dipakai `state()` (C4 kandidat b).
+ * Root cause C4: `mockStatic(Shizuku::class.java)` gagal di-intercept Mockito inline mock maker
+ * di worker JVM CI nyata (fail-log-16 & fail-log-18, `MissingMethodInvocationException` identik,
+ * kandidat a JVM self-attach TERBUKTI tidak menyelesaikan). Interface ini di-mock biasa (non-static,
+ * proxy subclass) di unit test — tidak butuh instrumentasi/self-attach sama sekali.
+ */
+internal interface ShizukuGateway {
+    fun pingBinder(): Boolean
+    fun isPreV11(): Boolean
+    fun checkSelfPermission(): Int
+}
+
+/** Implementasi produksi — delegasi murni ke Shizuku asli, 0 perubahan behavior vs sebelum v17. */
+internal object RealShizukuGateway : ShizukuGateway {
+    override fun pingBinder(): Boolean = Shizuku.pingBinder()
+    override fun isPreV11(): Boolean = Shizuku.isPreV11()
+    override fun checkSelfPermission(): Int = Shizuku.checkSelfPermission()
+}
+
 /** Menjalankan `sm fstrim` sebagai shell UID lewat Shizuku (tanpa root). */
 object FstrimExecutor {
     const val SHIZUKU_PKG = "moe.shizuku.privileged.api"
 
+    // Var internal khusus test (C4 kandidat b) — production selalu RealShizukuGateway (default
+    // ini), test unit ganti dgn mock non-static lalu WAJIB dikembalikan di @After (lihat
+    // FstrimExecutorTest.kt) supaya tidak bocor antar test/run. Tidak ada API publik baru.
+    internal var gateway: ShizukuGateway = RealShizukuGateway
+
     fun state(ctx: Context): ShizukuState = runCatching {
-        if (!Shizuku.pingBinder()) {
+        if (!gateway.pingBinder()) {
             val installed = runCatching { ctx.packageManager.getPackageInfo(SHIZUKU_PKG, 0) }.isSuccess
             if (installed) ShizukuState.NOT_RUNNING else ShizukuState.NOT_INSTALLED
-        } else if (Shizuku.isPreV11()) {
+        } else if (gateway.isPreV11()) {
             ShizukuState.NOT_RUNNING
-        } else if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+        } else if (gateway.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
             ShizukuState.READY
         } else {
             ShizukuState.NEED_PERMISSION

@@ -53,19 +53,21 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    (bukan pengganti verifikasi behavior nyata, cuma nangkep compile-error/regresi test lebih awal
    drpd nunggu build APK penuh). Ditaruh sebelum "Decode keystore" (test tak butuh signing), 0
    step lain (keystore/build/release) disentuh sama sekali.
-4. 🔄 KANDIDAT (a) SEDANG DICOBA (v16, belum terbukti) — histori: v15 men-`@Ignore` 6 test
-   `FstrimExecutorTest.kt` (v7) krn FAILED nyata di CI (fail-log-16): `mockStatic(Shizuku::class.java)`
-   tidak berhasil di-intercept Mockito inline mock maker di JVM unit-test worker sungguhan (real
-   method Shizuku pihak-ketiga yg jalan, bukan stub). v16: `@Ignore` DICABUT + kandidat (a) dicoba
-   — JVM arg `-Djdk.attach.allowAttachSelf=true` ditambah ke test task (`app/build.gradle.kts`,
-   `testOptions.unitTests.all`), dugaan agent ByteBuddy Mockito gagal self-attach tanpa flag ini.
-   BELUM ada evidence CI nyata (sandbox tanpa SDK/Gradle) — status ini TETAP OPEN sampai run CI
-   berikutnya konfirmasi 6 test PASS beneran. Kalau kandidat (a) gagal (error sama persis muncul
-   lagi): (b) suntik-dependensi (seam/interface) di sekitar pemanggilan Shizuku di
-   `FstrimExecutor.kt` biar bisa di-mock non-static (paling robust, tapi ini REFACTOR produksi —
-   butuh approval eksplisit user dulu, bukan otomatis), (c) pindah ke Robolectric/instrumented test
-   kalau (b) juga tidak diambil. `PrefsTest.kt` (4 test, tidak pakai Shizuku) TETAP aktif & tidak
-   terdampak. File v16: `app/build.gradle.kts` + `FstrimExecutorTest.kt` (+ dokumen ini).
+4. 🔄 KANDIDAT (b) DIIMPLEMENTASI (v17, belum ditutup — nunggu evidence CI) — histori: v15
+   men-`@Ignore` 6 test `FstrimExecutorTest.kt` (v7) krn FAILED nyata di CI (fail-log-16):
+   `mockStatic(Shizuku::class.java)` tidak berhasil di-intercept Mockito inline mock maker di JVM
+   unit-test worker sungguhan. v16 coba kandidat (a) — JVM arg `-Djdk.attach.allowAttachSelf=true`
+   — TERBUKTI GAGAL (fail-log-18, error IDENTIK), dihentikan. v17 (approval eksplisit user): kandidat
+   (b) — seam/interface `ShizukuGateway` di sekitar 3 pemanggilan Shizuku dlm `FstrimExecutor.kt`
+   (`pingBinder`/`isPreV11`/`checkSelfPermission`), production pakai `RealShizukuGateway` (delegasi
+   murni, 0 perubahan behavior), test pakai `mock(ShizukuGateway::class.java)` non-static + `@After`
+   reset. JVM arg kandidat (a) di-revert dari `app/build.gradle.kts` (tidak relevan lagi). Root
+   cause static-mock-tak-ter-intercept sudah tidak berlaku scr desain (mock sekarang non-static).
+   BELUM ada evidence CI nyata (sandbox tanpa SDK/Gradle) — status TETAP OPEN sampai run CI
+   berikutnya konfirmasi 6 test PASS beneran (bukan skipped, bukan error mocking). Kalau ini pun
+   entah kenapa masih gagal: (c) pindah ke Robolectric/instrumented test. `PrefsTest.kt` (4 test,
+   tidak pakai Shizuku) TETAP aktif & tidak terdampak. File v17: `FstrimExecutor.kt` +
+   `FstrimExecutorTest.kt` + `app/build.gradle.kts` (+ dokumen ini).
 
 ## D. Technical debt (dicatat sebagai risiko, backlog — bukan refactor sekarang)
 1. ✅ SELESAI (v9): `FstrimExecutor.sh()` panggil `Shizuku.newProcess` (method private) via
@@ -130,6 +132,12 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
   arg self-attach + un-skip test. 2 file: `app/build.gradle.kts`, `FstrimExecutorTest.kt`. BELUM
   ada evidence CI nyata, C4 TETAP OPEN sampai konfirmasi run berikutnya. Sisa backlog kalau C4
   belum tuntas: kandidat (b)/(c); kalau C4 tuntas: D2, F1, F2.
+- v17 (atas laporan user: kandidat (a) TERBUKTI gagal 2x — fail-log-16 & fail-log-18, error
+  identik — + approval eksplisit user utk kandidat (b)): refactor seam/interface `ShizukuGateway`
+  diimplementasi, JVM arg kandidat (a) di-revert. 3 file: `FstrimExecutor.kt`,
+  `FstrimExecutorTest.kt`, `app/build.gradle.kts`. BELUM ada evidence CI nyata, C4 TETAP OPEN
+  sampai konfirmasi run berikutnya. Sisa backlog kalau C4 tuntas: D2, F1, F2; kalau kandidat (b)
+  entah kenapa masih gagal: kandidat (c) (Robolectric/instrumented).
 
 ## Eksplisit DI LUAR SCOPE
 Tidak ada rencana ganti arsitektur, ganti dependency utama (Shizuku/WorkManager/Compose), migrasi

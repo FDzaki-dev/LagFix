@@ -459,3 +459,57 @@ tetap PASS & step Build/Release lanjut normal, C4 SELESAI beneran (bukan cuma di
 PENDING_ROADMAP.md, lanjut ke D2/F1/F2 kalau user eksplisit minta. Kalau masih gagal dgn error
 sama (`MissingMethodInvocationException`), JANGAN ulangi kandidat (a) — laporkan fail-log baru ke
 user, evaluasi kandidat (b) (butuh approval refactor eksplisit) atau (c) (Robolectric/instrumented).]
+
+- v17 (PENDING_ROADMAP C4, kandidat b — approval eksplisit user setelah kandidat (a) TERBUKTI
+  gagal 2x: fail-log-16 (v14/v15) & fail-log-18 (v16), error IDENTIK
+  `MissingMethodInvocationException` di 5/6 test yg sama; user pilih lanjut kandidat (b), bukan
+  (c)): 3 file source diubah —
+  - `FstrimExecutor.kt`: seam baru `internal interface ShizukuGateway` (3 method: `pingBinder()`,
+    `isPreV11()`, `checkSelfPermission()` — persis 3 static call Shizuku yg dipakai `state()`) +
+    `internal object RealShizukuGateway` (impl produksi, delegasi murni ke `Shizuku` asli, 0
+    perubahan behavior) + `internal var gateway: ShizukuGateway = RealShizukuGateway` di dalam
+    `object FstrimExecutor`. Body `state()` diubah dari `Shizuku.xxx()` jadi `gateway.xxx()` — pure
+    mapping logic 4 cabang TIDAK diubah sama sekali, cuma titik panggilnya dialihkan lewat seam.
+    `run()`/`sh()` (reflection `Shizuku.newProcess`, sudah eksplisit out-of-scope unit test sejak
+    v7/PENDING_ROADMAP D1) TIDAK disentuh — konsisten "logic minimum".
+  - `FstrimExecutorTest.kt`: `mockStatic(Shizuku::class.java)` DIHAPUS TOTAL, diganti
+    `mock(ShizukuGateway::class.java)` (interface mock biasa, non-static — tidak butuh
+    instrumentasi/self-attach). Ditambah `@After tearDown()` yg reset `FstrimExecutor.gateway =
+    RealShizukuGateway` tiap test selesai (WAJIB — `gateway` itu var singleton bersama, kalau tak
+    direset bisa bocor antar test). Body & ekspektasi ke-6 test method TIDAK diubah — murni ganti
+    mekanisme mock, bukan ganti apa yang diuji. `PrefsTest.kt` tidak disentuh.
+  - `app/build.gradle.kts`: revert `testOptions.unitTests.all { jvmArgs(...) }` (JVM arg
+    `-Djdk.attach.allowAttachSelf=true`, kandidat a v16) — dihapus krn TERBUKTI tidak menyelesaikan
+    masalah (fail-log-18 sama persis) dan tidak relevan lagi utk kandidat (b) (mock interface biasa
+    tak butuh self-attach). Komentar dependency `mockito-core` diperbarui (tak lagi sebut
+    mockStatic). 0 dependency baru/dihapus, 0 versi diubah.
+- v17 VALIDASI: brace/paren balance ketiga file (`FstrimExecutor.kt` 19/19+47/47,
+  `FstrimExecutorTest.kt` 8/8+96/96, `app/build.gradle.kts` 13/13+38/38) OK via script python. Grep
+  cross-check: 0 `mockStatic`/`MockedStatic`/import static Shizuku tersisa di test (selain teks KDoc
+  historis), 0 `allowAttachSelf` tersisa di gradle, seluruh 5 call-site
+  `FstrimExecutor.state()/run()/SHIZUKU_PKG` di `TrimWorker.kt`/`MainViewModel.kt`/
+  `MainActivity.kt` TIDAK berubah signature (0 regresi caller). BELUM pernah dijalankan
+  compiler/CI sungguhan (sandbox tanpa Android SDK/Gradle/jaringan, sama spt semua batch
+  sebelumnya) — WAJIB `./gradlew testDebugUnitTest` CI/lokal utk konfirmasi: (1) 6 test
+  `FstrimExecutorTest` jalan BENERAN & PASS (bukan skipped, bukan error mocking), (2) 4 test
+  `PrefsTest` tetap PASS, (3) step Build & Release lanjut normal spt sebelum v16 (assembleRelease/
+  Debug + GitHub Release, tidak ada regresi pipeline established). Root cause C4 (static mock tak
+  ter-intercept) sudah tidak relevan scr desain krn mock sekarang non-static — risiko tersisa cuma
+  typo Mockito API biasa, bukan kelas masalah yg sama.
+- Docs: `PENDING_ROADMAP.md` — C4 status diupdate jadi "kandidat (b) diimplementasi (v17), belum
+  ditutup — nunggu evidence CI nyata", urutan eksekusi ditambah entri v17. `CHANGELOG.md` TIDAK
+  ditambah entri (0 perubahan behavior user-facing — `state()` menghasilkan output identik utk
+  input Shizuku real yg sama, murni seam internal utk testability, konsisten pola v7/v14/v15/v16).
+- Batch: v17
+
+[RESUME POINT: v16 kandidat (a) TERBUKTI GAGAL 2x (fail-log-16 & fail-log-18, error identik
+`MissingMethodInvocationException`) — dihentikan atas laporan user. v17: user approve eksplisit
+kandidat (b), diimplementasi — seam `ShizukuGateway` di `FstrimExecutor.kt`, test pindah ke mock
+interface non-static (`FstrimExecutorTest.kt`, + `@After` reset gateway), JVM arg self-attach v16
+di-revert (`app/build.gradle.kts`). Validasi statis only (brace/paren balance OK, grep 0 leftover
+static-mock/JVM-arg, 0 regresi call-site), BELUM pernah dijalankan compiler sungguhan (sandbox
+tanpa SDK/Gradle/jaringan) -> Remaining: jalankan DAILY UPDATE, push ke main -> Next Action: amati
+run CI berikutnya — kalau 6 test `FstrimExecutorTest` PASS beneran & 4 test Prefs tetap PASS &
+step Build/Release lanjut normal, C4 SELESAI beneran -> tutup di PENDING_ROADMAP.md, lanjut ke
+D2/F1/F2 kalau user eksplisit minta. Kalau masih gagal (harusnya tidak, akar masalah sudah beda
+kelas), laporkan fail-log baru ke user, evaluasi kandidat (c) (Robolectric/instrumented).]
