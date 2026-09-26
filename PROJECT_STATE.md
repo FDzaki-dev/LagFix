@@ -582,3 +582,109 @@ berikutnya — kalau step "Lint & detekt" jalan (pass/fail non-blocking, keduany
 test/Build/Release TETAP lanjut normal & artifact report ke-upload, F1 VERIFIED beneran (bukan
 cuma statis) -> lanjut D2/F2 kalau user eksplisit minta. Kalau plugin gagal resolve/apply (skenario
 risiko tersisa di atas), laporkan fail-log baru ke user, evaluasi turunkan versi Detekt.]
+
+- v18 EVIDENCE PARSIAL (user unggah artifact asli `LagFix-lint-detekt-report-20.zip` dari run CI
+  #20 — bukan cuma laporan chat, file report sungguhan): isi cuma `detekt/detekt.html`, TIDAK ada
+  `lint-results-debug.html`.
+  - `detekt.html` CONFIRMED real GitHub Actions run — path finding di dalam report
+    `/home/runner/work/LagFix/LagFix/app/src/main/java/...` (path runner asli, bukan path
+    lokal/sandbox) -> plugin Detekt 1.23.8 TERBUKTI resolve+apply+jalan nyata di CI (risiko versi
+    yg dicatat di VALIDASI v18 TIDAK terjadi utk detekt). Temuan asli (91 code smell total,
+    dihitung ulang cocok dgn ringkasan Metrics report): style 66 (`MagicNumber` 60, `MaxLineLength`
+    5, `LoopWithTooManyJumpStatements` 1), naming 11 (`FunctionNaming` 11 — kemungkinan besar
+    false-positive thd fungsi `@Composable` PascalCase, konvensi Compose standar yg tidak dikenal
+    ruleset default Detekt, BELUM dikonfirmasi baris per baris), complexity 8 (`LongMethod` 2,
+    `LongParameterList` 2, `NestedBlockDepth` 2, `TooManyFunctions` 2), exceptions 4
+    (`TooGenericExceptionCaught` 4), empty-blocks 2 (`EmptyFunctionBlock` 2). 0 finding disentuh/
+    di-fix di batch ini (di luar scope F1 — F1 cuma "tambah tooling ke CI", bukan "fix semua
+    temuan"; itu backlog terpisah kalau user eksplisit minta).
+  - `lint-results-debug.html` TIDAK ADA di artifact -> BELUM bisa disimpulkan kenapa (root-cause
+    minimum, no hallucination): bisa (a) task `lintDebug` gagal/exception sebelum sempat nulis
+    report, (b) `lintDebug` tidak sempat jalan krn Gradle berhenti duluan stlh error di task lain
+    dlm command gabungan `gradle lintDebug detekt` (tanpa `--continue`), atau (c) sebab lain yg
+    cuma kelihatan dari log mentah step tsb. Path `app/build/reports/lint-results-debug.html` yg
+    dipakai di `build.yml` v18 dicek ulang via web — itu path default AGP yg benar, BUKAN salah
+    path. TIDAK diubah apa-apa di source sampai root cause jelas (cegah fix asal tebak / scope
+    creep).
+  - Belum ada konfirmasi eksplisit dari user soal step Unit test/Build/Release sesudahnya (APK
+    artifact / GitHub Release run #20) — kriteria F1 VERIFIED penuh (PROJECT_STATE resume
+    sebelumnya) msh belum terpenuhi seluruhnya.
+- Docs: `PENDING_ROADMAP.md` — F1 ditambah catatan evidence run-20 (rincian breakdown detekt +
+  status lint msh pending). `CHANGELOG.md` tidak disentuh (evidence/docs-only, 0 source diubah).
+- Batch: v18 (evidence parsial run-20 — docs-only, 0 source diubah lagi di update ini)
+
+[RESUME POINT: v18 evidence run CI #20 masuk (artifact asli, bukan laporan chat) — `detekt.html`
+ADA & CONFIRMED real runner GitHub Actions (91 code smell, breakdown di atas), TAPI
+`lint-results-debug.html` TIDAK ADA di artifact yg sama -> root cause BELUM diketahui (butuh log
+mentah step "Lint & detekt", bukan cuma report html-nya) & status Build/Release sesudahnya (run
+#20) BELUM dikonfirmasi user -> Remaining: user perlu share log mentah step "Lint & detekt" (atau
+seluruh job log run #20) + konfirmasi apakah step Build/Release run #20 tetap sukses -> Next
+Action: setelah log/konfirmasi didapat, root-cause kenapa lintDebug tak hasilkan report (baru
+putuskan perlu fix source atau tidak — TIDAK menebak/mengubah source sebelum root cause jelas).
+Kalau user malah mau lanjut ke D2/F2 dulu drpd root-cause ini, tanya eksplisit dulu (P0
+zero-regression: F1 blm 100% closed, jangan diklaim SELESAI penuh sampai lint terkonfirmasi).]
+
+- v19 (fitur baru, dipilih eksplisit oleh user via prompt "priority: widget home screen+Quick
+  Settings tile, sisanya masuk pending list" — root-cause F1 (lint-results-debug.html hilang, lihat
+  batch v18 di atas) SENGAJA tidak dilanjutkan batch ini, bukan lupa, karena user eksplisit pivot ke
+  fitur baru; F1 tetap OPEN, belum ditutup): 8 file diubah/ditambah, semua 1 fitur logis (2
+  entry-point baru ke jalur run-manual yang sudah ada & teruji — `Scheduler.runOnce()` ->
+  `TrimWorker` -> `FstrimExecutor`/`Prefs.record()`, 0 logic Shizuku baru ditulis):
+  - `LagFixWidgetProvider.kt` (baru) — widget home screen: `onUpdate()` render RemoteViews dari
+    `Prefs.log.firstOrNull()` (baris status apa adanya, format timestamp sudah jadi dari
+    `Prefs.record()`, tidak diformat ulang) + tombol "Jalankan Sekarang". Tombol kirim broadcast
+    custom action `WIDGET_RUN_NOW` ke provider sendiri -> `onReceive()` panggil
+    `Scheduler.runOnce(context)` lalu refresh RemoteViews jadi "Menjadwalkan…" (hasil OK/FAIL riil
+    baru kelihatan pas refresh berikutnya, updatePeriodMillis 30 menit — batasan wajar RemoteViews
+    broadcast, bukan dihilangkan, hanya delay tampilan). Tap area lain widget -> buka MainActivity.
+  - `LagFixTileService.kt` (baru) — QS tile: `onClick()` panggil `Scheduler.runOnce()` (jalur sama
+    persis dgn widget/tombol app). Tile selalu `STATE_ACTIVE` (tap tidak diblokir walau Shizuku
+    belum siap — konsisten dgn jadwal otomatis yg tetap mencatat "dilewati", bukan silent-block).
+    Subtitle (API 29+, guard `Build.VERSION_CODES.Q`) tampilkan `Prefs.log` terbaru / status
+    Shizuku belum siap / "Menjadwalkan…".
+  - `widget_lagfix.xml` (layout, baru) + `widget_lagfix_info.xml` (xml, baru, updatePeriodMillis
+    1800000/30menit, resizeMode horizontal|vertical, widgetCategory home_screen) +
+    `ic_tile_fstrim.xml` (drawable vector, baru — bentuk kilat diskalakan dari
+    `ic_launcher_foreground.xml` yg sudah ada, konsisten brand, monokrom sesuai konvensi ikon QS
+    tile yg di-tint sistem otomatis).
+  - `AndroidManifest.xml` — +`<receiver>` LagFixWidgetProvider (exported=true, intent-filter
+    APPWIDGET_UPDATE + WIDGET_RUN_NOW, meta-data appwidget-provider) & +`<service>`
+    LagFixTileService (exported=true, permission BIND_QUICK_SETTINGS_TILE, intent-filter
+    QS_TILE). PendingIntent widget pakai FLAG_IMMUTABLE (wajib, targetSdk 35). 0 permission lain
+    ditambah/dihapus (BIND_QUICK_SETTINGS_TILE bukan uses-permission app, itu permission yg
+    di-declare di service sendiri, standar QS tile).
+  - `strings.xml` — +5 string baru (widget_description, widget_button_run, widget_status_never,
+    widget_status_running, tile_subtitle_not_ready). 0 string existing diubah.
+  - `TrimWorker.kt` — 1 baris: `@Suppress("unused")` di `Scheduler.runOnce()` dihapus (fungsi ini
+    sekarang benar-benar dipakai widget+tile). 0 baris logic lain di file ini disentuh (diff
+    dikonfirmasi 1 baris only).
+- v19 VALIDASI: xmllint --noout semua 5 file XML (Manifest, layout, widget info, drawable,
+  strings) -> OK, well-formed. Brace/paren balance 3 file Kotlin (2 baru + TrimWorker.kt) -> OK.
+  Cross-check referensi: semua `R.id`/`R.layout`/`R.string`/`R.drawable`/`R.xml` yg dipakai di
+  Kotlin/Manifest match persis dgn resource yg didefinisikan (id widget_root/widget_title/
+  widget_status/widget_button, layout widget_lagfix, xml widget_lagfix_info, drawable
+  ic_tile_fstrim, string 5 baru + app_name existing). Diff thd ZIP v18: persis 8 file (5 baru + 3
+  ubah: AndroidManifest.xml, strings.xml, TrimWorker.kt 1 baris) — 0 file production lain
+  (Prefs/FstrimExecutor/MainViewModel/MainActivity/TrimWorker logic/UpdateChecker/AppLinks/
+  CrashLogger/LagFixApp) tersentuh, konfirmasi via `diff -rq` thd ZIP asli. BELUM pernah dicompile
+  compiler/AGP sungguhan (sandbox tanpa Android SDK/Gradle/jaringan, sama spt semua batch
+  sebelumnya) — WAJIB `gradle assembleDebug` (atau lint) jalan di CI/lokal utk konfirmasi resource
+  linking (aapt2) valid & 0 error compile riil, DAN test manual add-widget-to-homescreen +
+  add-QS-tile via device/emulator asli utk konfirmasi behavior (compile hijau bukan bukti perilaku
+  runtime benar — widget/tile terutama rawan salah di resource-linking & manifest-registration yg
+  cuma ketahuan runtime, bukan cuma static check).
+- Batch: v19
+
+[RESUME POINT: v19 widget home screen + QS tile ditambah (8 file: 5 baru + 3 diubah, detail di
+atas), validasi statis only (xmllint OK, brace balance OK, cross-check R.* match, diff pure vs ZIP
+v18 confirmed 8 file) — BELUM pernah dijalankan compiler/AGP sungguhan & BELUM pernah dites device
+asli (sandbox tanpa SDK/Gradle/jaringan) -> Remaining: jalankan DAILY UPDATE, push ke main, CI
+build jalan (assembleRelease/Debug) -> kalau hijau, test manual di device: (1) tambah widget ke
+home screen — cek render awal + tombol "Jalankan Sekarang" + tap area buka app, (2) tambah tile
+LagFix ke Quick Settings — cek tap trigger run + subtitle update. F1 (lint-results-debug.html
+hilang, batch v18) TETAP OPEN, sengaja belum dilanjutkan batch ini (pivot eksplisit user ke fitur
+baru) — bukan ditutup, bukan dilupakan. "Sisanya masuk pending list" (kutipan user) BELUM
+ditambahkan ke PENDING_ROADMAP.md karena user belum sebut fitur baru lain secara konkret — jangan
+ditebak/dikarang, tunggu user spesifikkan -> Next Action: tunggu evidence CI + hasil test device
+widget/tile dari user; kalau ada fitur baru lain yg dimaksud "sisanya", user perlu sebutkan
+konkret dulu baru masuk PENDING_ROADMAP.md.]

@@ -101,8 +101,10 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
 1. ✅ SELESAI (v18, non-blocking): `build.yml` sekarang punya step "Lint & detekt" (Android Lint
    bawaan AGP + `io.gitlab.arturbosch.detekt` 1.23.8) setelah step "Unit test". `continue-on-error:
    true` — batch pertama, blm ada baseline/triase temuan lama, jadi tidak (belum) menggagalkan
-   pipeline. Report HTML diunggah sbg artifact. Evidence CI nyata masih ditunggu (validasi statis
-   only sejauh ini — lihat PROJECT_STATE.md batch v18).
+   pipeline. Report HTML diunggah sbg artifact. Evidence run CI #20 (artifact asli): `detekt.html`
+   CONFIRMED real runner GitHub Actions (91 code smell — rincian di PROJECT_STATE.md batch v18).
+   `lint-results-debug.html` TIDAK ada di artifact yg sama — root cause belum diketahui, butuh log
+   mentah step tsb + konfirmasi status Build/Release run #20 sebelum F1 dianggap VERIFIED penuh.
 2. Belum ada dependency-update check otomatis (mis. Dependabot) utk `dev.rikka.shizuku`.
 
 ## Urutan eksekusi disarankan

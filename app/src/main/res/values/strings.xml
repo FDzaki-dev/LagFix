@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">LagFix (fstrim)</string>
+    <string name="widget_description">Jalankan fstrim manual dari layar utama</string>
+    <string name="widget_button_run">Jalankan Sekarang</string>
+    <string name="widget_status_never">Belum pernah dijalankan</string>
+    <string name="widget_status_running">Menjadwalkan…</string>
+    <string name="tile_subtitle_not_ready">Shizuku belum siap</string>
 </resources>

@@ -59,7 +59,7 @@ object Scheduler {
         wm.enqueueUniquePeriodicWork(NAME, ExistingPeriodicWorkPolicy.UPDATE, req)
     }
 
-    @Suppress("unused")
+    /** Dipakai widget (LagFixWidgetProvider) & QS tile (LagFixTileService) untuk trigger manual. */
     fun runOnce(ctx: Context) {
         WorkManager.getInstance(ctx.applicationContext).enqueue(OneTimeWorkRequestBuilder<TrimWorker>().build())
     }

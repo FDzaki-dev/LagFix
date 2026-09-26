@@ -45,3 +45,7 @@
 - Pesan error "Cek pembaruan"/"Update sekarang" sekarang lebih jelas untuk kasus tanpa koneksi internet dan rate-limit GitHub (bukan pesan teknis mentah).
 - Kalau unduhan update APK putus di tengah jalan, file rusaknya otomatis dibersihkan.
 - Riwayat sekarang membedakan entri "dilewati" (Shizuku belum siap, warna kuning) dari entri "gagal" beneran (warna merah).
+
+## v19
+- Baru: widget home screen — tampilkan status fstrim terakhir + tombol "Jalankan Sekarang" langsung dari layar utama, tanpa buka app.
+- Baru: tile Quick Settings "LagFix" — tap untuk trigger fstrim manual dari panel Quick Settings (swipe dari atas layar).
