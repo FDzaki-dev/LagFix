@@ -1,6 +1,8 @@
 package com.lagfix.fstrim
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -60,7 +62,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.app.NotificationManagerCompat
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -444,6 +448,11 @@ private fun SettingsTab(
         }
     }
 
+    // v31 (laporan user: fix v30 blm cukup — folder Download/LagFix/ tetap 0 muncul di file
+    // manager HP ini). Pembaca log LANGSUNG di dalam aplikasi (lepas dari ketergantungan file
+    // manager/OS pihak lain menampilkan folder baru) + tombol salin teks.
+    LogReaderCard(ctx = ctx, onFeedback = onFeedback)
+
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Tema", style = MaterialTheme.typography.titleMedium)
@@ -472,6 +481,107 @@ private fun SettingsTab(
             LinkRow("Laporkan masalah") { openUrl(ctx, AppLinks.newIssue) }
             AboutRow("Tentang aplikasi") { onAboutClick() } // v9 (E2): konsolidasi info app
         }
+    }
+}
+
+// v31: pembaca log diagnostik/crash LANGSUNG di dalam aplikasi (CrashLogger.listLogs()) — dibuat
+// krn laporan user file Download/LagFix/ tetap 0 muncul di file manager HP walau v30 sudah
+// perbaiki penulisannya. App baca lewat ContentResolver miliknya sendiri, lepas total dari
+// ketergantungan indexing/tampilan file manager OS/OEM pihak lain. Kalau daftar di sini tetap
+// kosong stlh "Muat ulang", itu bukti kuat penulisannya sendiri yg gagal (beda diagnosis dari
+// soal visibility saja). IO (query MediaStore + baca file) dijalankan di Dispatchers.IO, state
+// dialog/isi log yg sedang dibuka pakai rememberSaveable spy bertahan dari rotasi layar.
+@Composable
+private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
+    var loading by remember { mutableStateOf(false) }
+    var logs by remember { mutableStateOf<List<CrashLogger.LogFile>>(emptyList()) }
+    var loadError by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedName by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedContent by rememberSaveable { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val clipboard = remember { ctx.getSystemService(ClipboardManager::class.java) }
+
+    fun load() {
+        loading = true
+        loadError = null
+        scope.launch(Dispatchers.IO) {
+            val result = runCatching { CrashLogger.listLogs(ctx) }
+            withContext(Dispatchers.Main) {
+                loading = false
+                result.onSuccess { logs = it }.onFailure { loadError = it.message ?: "Gagal memuat daftar log." }
+            }
+        }
+    }
+    LaunchedEffect(Unit) { load() }
+
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Log Diagnostik", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Baca langsung dari dalam aplikasi — tidak bergantung file manager/folder Download " +
+                    "yang mungkin tidak menampilkan file baru di sebagian HP.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            TextButton(onClick = { load() }) { Text(if (loading) "Memuat…" else "Muat ulang") }
+            when {
+                loadError != null -> Text(
+                    "Error: $loadError",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                !loading && logs.isEmpty() -> Text(
+                    "Belum ada file log ditemukan (baik di Download/LagFix maupun cadangan internal app).",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            logs.forEach { log ->
+                TextButton(
+                    onClick = {
+                        scope.launch(Dispatchers.IO) {
+                            val text = runCatching { log.readText() }.getOrElse { "(gagal baca: ${it.message})" }
+                            withContext(Dispatchers.Main) {
+                                selectedName = log.displayName
+                                selectedContent = text
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        "${log.displayName} · ${log.source}",
+                        Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+    }
+
+    val currentLogContent = selectedContent
+    if (currentLogContent != null) {
+        AlertDialog(
+            onDismissRequest = { selectedContent = null; selectedName = null },
+            confirmButton = {
+                TextButton(onClick = {
+                    clipboard?.setPrimaryClip(ClipData.newPlainText("LagFix log", currentLogContent))
+                    onFeedback("Isi log disalin ke clipboard.")
+                }) { Text("Salin") }
+            },
+            dismissButton = {
+                TextButton(onClick = { selectedContent = null; selectedName = null }) { Text("Tutup") }
+            },
+            title = { Text(selectedName ?: "Log") },
+            text = {
+                Text(
+                    currentLogContent,
+                    modifier = Modifier
+                        .heightIn(max = 400.dp)
+                        .verticalScroll(rememberScrollState()),
+                    fontFamily = FontFamily.Monospace,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        )
     }
 }
 

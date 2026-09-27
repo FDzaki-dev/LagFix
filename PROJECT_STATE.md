@@ -344,3 +344,59 @@ folder mana pun) — dari situ baru bisa dipastikan akar masalah notifikasi v27/
 opsi a/b/c di RESUME POINT v29 di atas, msh berlaku sama). JANGAN ubah kode lagi sebelum evidence
 ini didapat — kalau user lapor MASIH 0 file sama sekali di KEDUA lokasi setelah fix ini, itu sinyal
 kuat penyebabnya di luar kode (device/OS/storage), bukan lagi di `CrashLogger.kt`.]
+
+- v31 (laporan user lanjutan: "Gak ada yang muncul" — folder tetap 0 kelihatan; minta dibuatkan
+  pembaca log LANGSUNG di tab Pengaturan + bisa disalin teksnya di dalam aplikasi). CATATAN P0 NO
+  HALLUCINATION: TIDAK ada kepastian dari laporan user apakah ini sudah di build v30 yg ter-install
+  (v30 blm dikonfirmasi lewat DAILY UPDATE/push/CI sblm laporan ini masuk) atau msh build lama —
+  tapi permintaan user (pembaca in-app) SUDAH memecahkan ambiguitas itu jg: begitu user pakai build
+  v31, hasil query lewat `ContentResolver` sendiri jadi bukti definitif terlepas dari apakah file
+  manager OS/OEM menampilkannya atau tidak.
+  1. FITUR BARU: Card "Log Diagnostik" di tab Pengaturan (`SettingsTab`, komposabel baru
+     `LogReaderCard`) — tombol "Muat ulang" (auto-load sekali saat tab dibuka via
+     `LaunchedEffect(Unit)`) menampilkan daftar semua file log (crash + diagnostic) dari KEDUA
+     lokasi (Download/LagFix via MediaStore query, DAN app files dir cadangan v30) — dibaca lewat
+     `ContentResolver`/`File` API app sendiri, 0 tergantung file manager pihak lain. Tap 1 entri ->
+     dialog isi log penuh (scroll, monospace, sama pola dgn dialog changelog `UpdateCard` yg sudah
+     ada) + tombol "Salin" (clipboard, `ClipboardManager`). Semua IO (query MediaStore, baca file)
+     dijalankan di `Dispatchers.IO` (P0 Thread Safety — 0 blocking Main thread), state
+     dialog/isi-log-terpilih pakai `rememberSaveable` (P0 UI State — bertahan dari rotasi), daftar
+     mentah pakai `remember` biasa (cukup di-reload ulang, murah, non-user-input).
+  2. `CrashLogger.kt`: fungsi baca baru `listLogs(ctx): List<LogFile>` (+ nested class `LogFile`)
+     — query MediaStore Downloads (filter `RELATIVE_PATH LIKE '%LagFix%'` + `DISPLAY_NAME LIKE
+     'LagFix_%.txt'`, guard `SDK_INT >= 29` sama spt jalur tulis) DAN scan app files dir cadangan,
+     digabung + dibatasi `take(50)` (cegah daftar membengkak tanpa batas). 0 permission baru
+     dibutuhkan (app selalu boleh query/baca entri MediaStore miliknya sendiri). 0 perubahan pada
+     fungsi tulis (`install()`/`logDiagnostic()`/`writeToFile()` v30 tetap identik) — REUSE murni,
+     bukan sistem logging baru.
+  3. TIDAK ada perubahan ke `PersistentTrimService.kt`, jadwal fstrim, atau lokasi folder tujuan.
+  File diubah: `CrashLogger.kt`, `MainActivity.kt` — 2 file, 1 fitur logis (pembaca log in-app).
+- v31 VALIDASI: brace/paren `CrashLogger.kt` OK (44/44 `{}`, 103/103 `()`). `MainActivity.kt`:
+  delta 0 dari edit ini (60 `{}` & 60 `()` ditambah, seimbang di kedua sisi) — 1 mismatch paren
+  pre-existing yg sama dari v27/v28 msh ada (dikonfirmasi: file original v29 pun sudah 421/420
+  sblm batch ini disentuh), BUKAN baru. Cross-check manual: smart-cast `selectedContent` (var,
+  nullable) TIDAK dipakai langsung di dalam lambda bersarang (rawan compile-error Kotlin) —
+  ditangani dgn capture ke `val currentLogContent` lokal dulu sebelum dipakai di
+  `AlertDialog`/`onClick`. Import baru dicek: `ClipData`, `ClipboardManager`, `ContentUris`,
+  `Dispatchers`, `withContext` — 0 duplikat/konflik dgn import lama. Diff penuh thd ZIP v30
+  dikonfirmasi: HANYA `CrashLogger.kt` + `MainActivity.kt` berubah, 0 file lain. **BELUM
+  compile/device test** (0 Android SDK/Gradle/device di sandbox ini) — terutama fungsi Compose
+  baru (`LogReaderCard`) blm pernah lewat compiler Kotlin/Compose sungguhan, jadi ada risiko
+  typo/type-mismatch kecil yg cuma ketahuan saat build asli (CI) — root-cause-analysis & review
+  manual sudah seteliti mungkin tapi bukan pengganti compiler.
+- Docs: `CHANGELOG.md` +entry v31 (fitur baru user-facing: Log Diagnostik + salin teks).
+- Batch: v31
+
+[RESUME POINT: v31 — Card "Log Diagnostik" baru di tab Pengaturan (`LogReaderCard` di
+`MainActivity.kt`) baca log via `CrashLogger.listLogs()` (baru) dari Download/LagFix (MediaStore)
++ app files dir cadangan, tampil dialog isi lengkap + tombol salin clipboard — full bypass dari
+ketergantungan file manager OS/OEM. -> Remaining: jalankan DAILY UPDATE, push, tunggu CI hijau
+(BELUM pernah dicompile compiler sungguhan batch v30 MAUPUN v31 — 2 batch build sekaligus blm
+lolos verifikasi CI) -> Next Action: minta user (a) pasang APK hasil CI terbaru (build v31), (b)
+buka tab Pengaturan -> card "Log Diagnostik" -> tekan "Muat ulang", (c) laporkan: muncul entri log
+atau tidak? Kalau MUNCUL -> tap salah satu, salin isinya, kirim ke sini (evidence definitif utk
+investigasi notifikasi v27/28 yg masih pending). Kalau TETAP 0 entri sama sekali stlh build v31
+terpasang & CI hijau -> itu bukti KUAT penulisan log memang gagal total di device ini (bukan lagi
+soal visibility/file-manager), prioritas berikutnya jadi investigasi kenapa `writeViaMediaStore()`
+DAN `writeToAppFilesDir()` v30 berdua gagal (mis. storage penuh, restriksi OEM lain di luar kode).
+JANGAN ubah kode `CrashLogger.kt` lagi sebelum hasil test build v31 ini didapat.]

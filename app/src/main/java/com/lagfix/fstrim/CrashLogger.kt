@@ -1,5 +1,6 @@
 package com.lagfix.fstrim
 
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.os.Build
@@ -92,5 +93,50 @@ object CrashLogger {
     private fun writeToAppFilesDir(ctx: Context, name: String, body: String) {
         val dir = ctx.getExternalFilesDir(null) ?: ctx.filesDir
         File(dir, name).writeText(body)
+    }
+
+    /** v31 (laporan user: setelah fix v30 pun folder Download/LagFix/ TETAP tidak kelihatan sama
+     * sekali — dipahami sbg minta pembaca log LANGSUNG di dalam aplikasi, supaya lepas total dari
+     * ketergantungan file manager/OS yg mungkin tidak menampilkan folder baru di sebagian HP).
+     * Baca lewat `ContentResolver` milik app sendiri (0 tergantung indexing/tampilan file manager
+     * pihak lain) + app files dir. Kalau daftar ini tetap kosong, itu bukti kuat penulisannya
+     * sendiri yg gagal (bukan cuma soal visibility) — beda diagnosis dari kalau daftar ini muncul
+     * isi tapi file managernya yg tak menampilkan. IO — WAJIB dipanggil dari luar Main thread. */
+    class LogFile(val displayName: String, val source: String, private val reader: () -> String) {
+        fun readText(): String = reader()
+    }
+
+    fun listLogs(ctx: Context): List<LogFile> {
+        val result = mutableListOf<LogFile>()
+        if (Build.VERSION.SDK_INT >= 29) {
+            runCatching {
+                val projection = arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME)
+                val selection = "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ? AND " +
+                    "${MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?"
+                val args = arrayOf("%LagFix%", "LagFix_%.txt")
+                ctx.contentResolver.query(
+                    MediaStore.Downloads.EXTERNAL_CONTENT_URI, projection, selection, args,
+                    "${MediaStore.MediaColumns.DATE_ADDED} DESC"
+                )?.use { c ->
+                    val idCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+                    val nameCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
+                    while (c.moveToNext()) {
+                        val uri = ContentUris.withAppendedId(MediaStore.Downloads.EXTERNAL_CONTENT_URI, c.getLong(idCol))
+                        val name = c.getString(nameCol)
+                        result += LogFile(name, "Download/LagFix") {
+                            ctx.contentResolver.openInputStream(uri)?.bufferedReader()?.use { r -> r.readText() }
+                                ?: "(gagal buka isi file — openInputStream() return null)"
+                        }
+                    }
+                }
+            }.onFailure { Log.e(TAG, "Gagal query log dari MediaStore", it) }
+        }
+        runCatching {
+            val dir = ctx.getExternalFilesDir(null) ?: ctx.filesDir
+            dir.listFiles { f -> f.isFile && f.name.startsWith("LagFix_") && f.name.endsWith(".txt") }
+                ?.sortedByDescending { it.lastModified() }
+                ?.forEach { f -> result += LogFile(f.name, "App files (cadangan)") { f.readText() } }
+        }.onFailure { Log.e(TAG, "Gagal baca app files dir", it) }
+        return result.take(50) // cegah daftar membengkak tanpa batas kalau ada banyak entri lama
     }
 }
