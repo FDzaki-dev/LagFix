@@ -613,3 +613,74 @@ ini didapat — kalau notifikasi TETAP tak tampil & KEDUA file diagnostik tetap 
 `startForeground() SUKSES tanpa exception` + `areNotificationsEnabled()=true`, itu confirmed bukan
 lagi soal kode (4 poin panduan semua sudah sesuai) — kemungkinan besar restriksi OS/OEM di luar API
 publik (spesifik device SDK 36 ini), butuh diskusi opsi lain dgn user (bukan lagi coba-coba kode).]
+
+- v36 (laporan user: v35 TETAP tidak menyelesaikan — notifikasi masih tak tampil; user eksplisit
+  minta pindah ke "plan user facing lainnya", tanpa menyebut yang mana). CATATAN P0 NO
+  HALLUCINATION: laporan ini TIDAK menyebutkan apakah sudah reinstall APK v35 (stlh CI hijau)
+  sebelum menilai "masih gak muncul", atau evidence file diagnostik `toggle_pressed`/
+  `persistent_service` yg diminta v34/v35 — TIDAK diasumsikan salah satu, bisect tsb msh 100%
+  terbuka/belum tertutup.
+  1. AUTO-HALT: investigasi notifikasi/foreground-service (v25-v35, 11 batch beruntun) DIJEDA atas
+     permintaan eksplisit user (P0 USER INTENT dihormati — 0 kode diubah batch ini shg 0 risiko
+     regresi baru dari jeda ini sendiri). BUKAN ditutup sbg gagal permanen (blm ada evidence
+     definitif), cuma dijeda sesuai arah user.
+  2. "Plan user facing lainnya" DICEK ke `PENDING_ROADMAP.md` (bagian wajib cold-start) — isinya
+     rencana LAMA (v6-v18), SEMUA item A-F sudah ✅ SELESAI kecuali D2 (R8/minify, eksplisit
+     "Prioritas rendah", bukan user-facing) & F2 (Dependabot, tooling CI, bukan user-facing). 0
+     match ditemukan dgn permintaan user. P0 NO SCOPE CREEP + NO HALLUCINATION: 0 dieksekusi/
+     ditebak tanpa scope pasti (PENDING_ROADMAP.md sendiri mewajibkan "approval eksplisit sebelum
+     dieksekusi" utk tiap item).
+  3. 0 file kode diubah (docs-only, `PROJECT_STATE.md`).
+- Docs: `CHANGELOG.md` tidak ditambah (0 perubahan user-facing/kode).
+- Batch: v36 (docs-only; APK terpasang tetap hasil build v35, TIDAK perlu instal ulang)
+
+[RESUME POINT: v36 — investigasi notifikasi/foreground-service (v25-v35) DIJEDA atas permintaan
+eksplisit user krn v35 belum menyelesaikan masalah & user minta pindah fokus ke "plan user facing
+lainnya" yg BELUM disebutkan spesifik. BELUM ditutup permanen (bisect v34/v35 msh 100% terbuka, 0
+evidence file diagnostik diterima) — kalau user mau lanjut lagi nanti, resume dari RESUME POINT v35
+di atas. `PENDING_ROADMAP.md` dicek: 2 item sisa (D2/F2) BUKAN user-facing, jadi TIDAK match
+permintaan ini. -> Remaining: TUNGGU user sebutkan scope plan/fitur yg dimaksud. -> Next Action:
+minta user sebutkan SECARA SPESIFIK fitur/plan user-facing apa yg dimaksud sebelum kode apapun
+disentuh (P0 NO SCOPE CREEP — PENDING_ROADMAP.md sendiri wajib approval eksplisit per item).]
+
+- v37 (user menjawab v36: "grafik statistik, dll — yang bikin project ini hidup, gak teknis
+  banget"). Investigasi notifikasi/foreground-service (v25-v35) TETAP DIJEDA (0 disentuh batch
+  ini), fokus resmi pindah ke fitur user-facing sesuai arah user.
+  1. FITUR BARU: kartu "Statistik" di tab Utama (`MainTab`), tepat di bawah kartu Riwayat yg sudah
+     ada — ringkasan teks (jumlah berhasil/dilewati/gagal + rata-rata durasi run berhasil) + grafik
+     batang (`RunHistoryChart`, `Canvas`) durasi tiap run, kiri=terlama kanan=terbaru, warna
+     konsisten dgn dot Riwayat (hijau=OK/amber=dilewati/merah=gagal, reuse `successGreen`/
+     `skippedAmber`/`MaterialTheme.colorScheme.error` yg SUDAH ADA, 0 warna baru).
+  2. DESAIN sengaja PARSE-ONLY di sisi UI, pola SAMA PERSIS dgn `LogLine` (v8/v13): reuse
+     `logLineRegex` yg sudah ada (0 pola regex baru/beda), 0 perubahan ke `Prefs.kt` (format baris
+     log & `record()` TIDAK disentuh sama sekali -> `PrefsTest.kt` tetap valid, 0 risiko regresi ke
+     data/jadwal fstrim inti). 0 dependency baru (Canvas dari `androidx.compose.foundation`, bagian
+     Compose yg SUDAH jadi dependency project, bukan library chart pihak ketiga — sesuai larangan
+     dependency swap). Kartu tidak tampil kalau riwayat masih kosong (hindari tampilan statistik
+     kosong yg membingungkan sebelum ada data run apa pun).
+  3. TIDAK ada perubahan ke `MainViewModel.kt` (`ui.log` sudah cukup, tidak perlu state baru),
+     `TrimWorker.kt`, `PersistentTrimService.kt`, atau manifest.
+  File diubah: `MainActivity.kt` — 1 file, 1 fitur logis baru (0 file lain disentuh).
+- v37 VALIDASI: brace balance OK (224/224 `{}`, delta +16/+16 seimbang dari baseline v36
+  208/208). Paren: 568/567 — delta murni dari batch ini +61/+61 (seimbang); 1 mismatch tetap ada
+  tapi PERSIS mismatch pre-existing yg sama sejak v27 (baseline v36 507/506), dikonfirmasi BUKAN
+  baru dari batch ini. Cross-check manual: `StatsCard(ui.log)` dipanggil dgn tipe yg cocok
+  (`List<String>`), `RunStat`/`parseRunStats`/`RunHistoryChart` 0 konflik nama dgn deklarasi lain
+  di file, import baru (`Canvas`, `height`, `Offset`, `Size`) 0 duplikat/konflik. Diff penuh thd
+  ZIP v36 (dikonfirmasi via `diff -rq`): HANYA `MainActivity.kt` berubah. **BELUM compile/device
+  test** (0 SDK/Gradle/device di sandbox ini) — fitur UI murni (0 sentuh logic fstrim/jadwal/
+  service), risiko regresi ke fitur inti RENDAH, tapi tetap butuh verifikasi compile CI sebelum
+  device test spt biasa (akumulasi batch blm-verified msh berlanjut dari v30-v36).
+- Docs: `CHANGELOG.md` +entry v37 (fitur baru user-facing).
+- Batch: v37
+
+[RESUME POINT: v37 — kartu "Statistik" baru di tab Utama (`StatsCard`+`RunHistoryChart` di
+`MainActivity.kt`): ringkasan berhasil/dilewati/gagal + rata-rata durasi, plus grafik batang durasi
+per run (parse-only dari `ui.log` yg sama, 0 perubahan `Prefs.kt`/data/jadwal). Investigasi
+notifikasi/foreground-service (v25-v35) TETAP DIJEDA, belum ditutup, resume dari RESUME POINT v35
+kalau user mau lanjut lagi nanti. -> Remaining: jalankan DAILY UPDATE, push, tunggu CI hijau (masih
+ada akumulasi batch v30-v37 blm terverifikasi compile sungguhan) -> baru user install & lihat tab
+Utama: kartu "Statistik" harus muncul di bawah Riwayat (kalau riwayat sudah ada minimal 1 entri) dgn
+angka ringkasan + grafik batang berwarna. -> Next Action: minta user (a) pasang APK v37 setelah CI
+hijau, (b) buka tab Utama, cek kartu "Statistik" muncul & datanya masuk akal (cocok dgn Riwayat di
+atasnya), (c) laporkan kalau ada yang aneh/tidak sesuai (grafik kosong, angka tak cocok, dll).]

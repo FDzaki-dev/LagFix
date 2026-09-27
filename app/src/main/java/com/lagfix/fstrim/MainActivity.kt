@@ -15,17 +15,21 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -292,6 +296,10 @@ private fun MainTab(
             ui.log.forEach { LogLine(it) }
         }
     }
+
+    // v37 (fitur user-facing baru, permintaan eksplisit user): kartu "Statistik" — ringkasan +
+    // grafik batang durasi dari Riwayat yang sama persis (0 data baru, 0 perubahan Prefs.kt).
+    StatsCard(ui.log)
 
     UpdateCard(
         checking = ui.updateChecking,
@@ -707,6 +715,77 @@ private fun LogLine(line: String) {
             fontFamily = FontFamily.Monospace,
             color = tint
         )
+    }
+}
+
+// v37 (fitur user-facing baru, permintaan eksplisit user "grafik statistik ... bikin project ini
+// hidup, gak teknis banget"): kartu "Statistik" di tab Utama, tepat di bawah Riwayat. PARSE-ONLY
+// di sisi UI, pola SAMA persis dgn LogLine (v8/v13) — reuse `logLineRegex`/`successGreen`/
+// `skippedAmber` yang sudah ada, 0 perubahan ke Prefs.kt/TrimWorker.kt/format baris log
+// (PrefsTest.kt tidak tersentuh sama sekali). Kalau riwayat kosong, kartu tidak ditampilkan
+// (hindari kartu statistik kosong yang membingungkan sebelum ada data apa pun).
+private data class RunStat(val ok: Boolean, val skipped: Boolean, val durationMs: Long)
+
+private fun parseRunStats(log: List<String>): List<RunStat> =
+    log.mapNotNull { line ->
+        val match = logLineRegex.find(line) ?: return@mapNotNull null
+        val (_, status, rest) = match.destructured
+        val ok = status == "OK"
+        val skipped = !ok && rest.contains("dilewati")
+        val durationMs = Regex("""^(\d+)ms""").find(rest)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
+        RunStat(ok, skipped, durationMs)
+    }
+
+@Composable
+private fun StatsCard(log: List<String>) {
+    val stats = remember(log) { parseRunStats(log) }
+    if (stats.isEmpty()) return
+
+    val okCount = stats.count { it.ok }
+    val skippedCount = stats.count { it.skipped }
+    val failCount = stats.size - okCount - skippedCount
+    val avgOkMs = stats.filter { it.ok }.map { it.durationMs }
+        .let { d -> if (d.isEmpty()) 0L else d.average().toLong() }
+
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Statistik", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "$okCount berhasil · $skippedCount dilewati · $failCount gagal" +
+                    if (avgOkMs > 0) " · rata-rata ${avgOkMs}ms" else "",
+                style = MaterialTheme.typography.bodySmall
+            )
+            // Kiri = riwayat terlama, kanan = terbaru (alur waktu wajar); ui.log sendiri urutannya
+            // terbaru-dulu (dipakai apa adanya oleh LogLine di atas), jadi dibalik cuma utk grafik.
+            RunHistoryChart(stats.reversed())
+        }
+    }
+}
+
+@Composable
+private fun RunHistoryChart(stats: List<RunStat>) {
+    val maxDuration = (stats.maxOfOrNull { it.durationMs } ?: 0L).coerceAtLeast(1L)
+    val errorColor = MaterialTheme.colorScheme.error // resolve di scope Composable (bukan di DrawScope)
+    Canvas(Modifier.fillMaxWidth().height(64.dp)) {
+        val barGapPx = 4f
+        val n = stats.size.coerceAtLeast(1)
+        val barWidth = ((size.width - barGapPx * (n - 1)) / n).coerceAtLeast(1f)
+        stats.forEachIndexed { i, s ->
+            val tint = when {
+                s.ok -> successGreen
+                s.skipped -> skippedAmber
+                else -> errorColor
+            }
+            // Tinggi minimum kecil biar durasi 0 (dilewati) tetap kelihatan sbg bar tipis, bukan
+            // hilang total — murni visual, 0 pengaruh ke data asli.
+            val ratio = (s.durationMs.toFloat() / maxDuration).coerceIn(0f, 1f)
+            val barHeight = (size.height * ratio).coerceAtLeast(4f)
+            drawRect(
+                color = tint,
+                topLeft = Offset(i * (barWidth + barGapPx), size.height - barHeight),
+                size = Size(barWidth, barHeight)
+            )
+        }
     }
 }
 

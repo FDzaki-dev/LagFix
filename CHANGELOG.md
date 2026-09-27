@@ -77,6 +77,9 @@
 ## v30
 - Fix: catatan crash/diagnostik (folder Download/LagFix/) sebelumnya bisa gagal total tanpa jejak apa pun — foldernya tidak pernah muncul. Sekarang penulisan file dijamin diselesaikan dengan benar sesuai mekanisme resmi Android, dan kalau tetap gagal karena kondisi HP tertentu, catatannya otomatis disimpan sebagai cadangan di penyimpanan internal aplikasi supaya tidak pernah hilang tanpa jejak.
 
+## v37
+- Baru: kartu "Statistik" di tab Utama, di bawah Riwayat — ringkasan jumlah berhasil/dilewati/gagal, rata-rata durasi, dan grafik batang kecil yang menunjukkan durasi tiap proses fstrim dari waktu ke waktu (warna hijau/kuning/merah sesuai hasilnya).
+
 ## v35
 - Percobaan perbaikan notifikasi "Layanan latar depan persisten" yang belum pernah tampil: layanan sekarang langsung menampilkan notifikasinya di baris kode paling pertama begitu dimulai (sebelumnya ada 2 pengecekan kecil yang jalan duluan). Belum tentu ini akar masalah sepenuhnya — investigasi masih berlanjut menunggu hasil test dari perangkat Anda.
 
