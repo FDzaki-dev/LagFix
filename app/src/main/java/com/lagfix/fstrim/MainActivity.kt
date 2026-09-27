@@ -319,6 +319,7 @@ private fun SettingsTab(
     onFeedback: (String) -> Unit,
     onAboutClick: () -> Unit
 ) {
+    val scope = rememberCoroutineScope()
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Jadwal", style = MaterialTheme.typography.titleMedium)
@@ -408,6 +409,24 @@ private fun SettingsTab(
                 vm.setPersistentService(true)
             }
             ToggleRow("Layanan latar depan persisten", ui.persistentServiceEnabled) { turnOn ->
+                // v34 (investigasi lanjutan) — user sudah toggle ON, tapi 0 entri
+                // diag_persistent_service baru muncul sama sekali di Log Diagnostik — beda dari
+                // sekedar dugaan, ini instrumentasi utk BISECT 2 kemungkinan: handler toggle Compose
+                // ini sendiri yg 0 pernah tereksekusi (masalah UI), ATAU handler jalan normal tapi
+                // `PersistentTrimService.onStartCommand()` yg 0 pernah ke-trigger OS (masalah
+                // service/OS). File `diag_toggle_pressed_*` ini ditulis SEGERA saat toggle ditekan,
+                // 0 tergantung apapun stlh ini — kalau file ini ADA tapi
+                // `diag_persistent_service_*` TETAP 0 ada, itu bukti kuat masalahnya di level
+                // OS/service (`PersistentTrimService` 0 pernah benar2 di-start OS meski
+                // `ContextCompat.startForegroundService()` dipanggil). Kalau file toggle_pressed
+                // ini SENDIRI 0 ada, masalahnya malah di level UI (toggle 0 ke-trigger).
+                scope.launch(Dispatchers.IO) {
+                    CrashLogger.logDiagnostic(
+                        ctx, "toggle_pressed",
+                        "Toggle 'Layanan latar depan persisten' ditekan -> target=$turnOn " +
+                            "(state sebelumnya=${ui.persistentServiceEnabled}, SDK ${Build.VERSION.SDK_INT})"
+                    )
+                }
                 if (turnOn &&
                     Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                     ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) !=

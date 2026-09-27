@@ -456,3 +456,88 @@ atau tidak (kalau BERHASIL tapi tetap 0 di daftar -> ada bug lain lg di `listLog
 lagi diagnosisnya); "Tes tulis GAGAL: <pesan>" -> kirim PERSIS pesan errornya ke sini, itu bukti
 definitif jalur tulis (MediaStore+fallback) berdua gagal & pesannya kasih tahu kenapa. JANGAN ubah
 kode `CrashLogger.kt` lagi sebelum hasil tombol "Tes tulis log" ini didapat.]
+
+- v33 (docs-only, 0 perubahan kode): user kirim ISI file `LagFix_test_*.txt` hasil tombol "Tes
+  tulis log" v32 — **KONFIRMASI DEFINITIF, bukan lagi dugaan**: penulisan file (MediaStore atau
+  fallback, `writeToFile()`) **BERHASIL** di device ini (SDK 36, Infinix X6855 — Android 16).
+  Kesimpulan: kemungkinan (a) dari v32 (jalur tulis rusak total) **GUGUR**. Yang benar kemungkinan
+  (b): `logDiagnostic()` sejauh ini 0 pernah kepanggil dari `PersistentTrimService` krn toggle
+  "Layanan latar depan persisten" 0 pernah di-ON-kan (atau di-ON-kan tapi service gagal start SEBELUM
+  sempat manggil `logDiagnostic()`) SEJAK pasang build yg ada fiturnya — BUKAN bug penulisan file.
+  Root cause "crash logger tidak mencatat apa-apa" (keluhan ASLI dari awal thread ini) kini
+  terjawab: bukan crash-nya yg tak tercatat (blm ada crash yg dilaporkan sama sekali sejauh ini),
+  dan bukan pula soal file gagal ditulis (v30-v32 sudah buktikan itu OK) — cuma BELUM ada trigger
+  (crash ATAU toggle servis) yg sungguh terjadi. 0 file diubah, 0 perlu repack ZIP baru scr kode
+  (versi app tetap v32) — PROJECT_STATE.md diupdate murni sbg evidence log utk lanjut investigasi
+  v27/28 (notifikasi servis latar depan tak muncul) yg dari awal jadi alasan `logDiagnostic()`
+  dibuat.
+- Docs: `PROJECT_STATE.md` diupdate (evidence test-write confirmed OK). `CHANGELOG.md` tetap
+  (0 perubahan user-facing baru).
+- Batch: v33 (docs-only; APK terpasang tetap hasil build v32, TIDAK perlu instal ulang)
+
+[RESUME POINT: v33 — Test-write CrashLogger v32 KONFIRMASI BERHASIL di device user (SDK 36, Infinix
+X6855) -> jalur tulis file TERBUKTI OK, bukan lagi tersangka. Investigasi kini kembali ke tujuan ASLI
+`logDiagnostic()` (v29): kenapa notifikasi "Layanan latar depan persisten" tak pernah kelihatan (lihat
+detail opsi a/b/c di RESUME POINT v29, msh berlaku penuh: (a) `areNotificationsEnabled()=false` ->
+toggle OS/OEM level, (b) `true` tapi `startForeground()` exception -> bug kode nyata, (c) `true` &
+sukses tanpa exception -> penyebab lebih dalam di luar API publik). -> Remaining: 0 kode berubah,
+APK v32 yg sudah terpasang SUDAH cukup (jangan minta user install ulang) -> Next Action: minta user
+(a) buka tab Pengaturan, toggle ON "Layanan latar depan persisten" (kalau blm pernah/msh OFF), (b)
+buka card Log Diagnostik, tekan "Muat ulang", cari entri `LagFix_diag_persistent_service_*.txt`
+(TERBARU, beda dari `LagFix_test_*.txt` yg td), (c) tap entri itu, tekan "Salin", kirim isinya PERSIS
+ke sini — itu evidence definitif utk nutup investigasi notifikasi v27/28 yg sudah pending sejak lama.
+JANGAN ubah kode apapun sebelum isi file diagnostic_persistent_service ini didapat.]
+
+- v34 (laporan user: sudah toggle ON "Layanan latar depan persisten" + tekan "Muat ulang" di Log
+  Diagnostik, tapi yg muncul CUMA file `LagFix_test_*.txt` lama — 0 entri `diag_persistent_service`
+  baru sama sekali). Review kode `PersistentTrimService.kt` + `MainViewModel.setPersistentService()`
+  + manifest (`foregroundServiceType="specialUse"` + `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` + permission
+  `FOREGROUND_SERVICE`/`FOREGROUND_SERVICE_SPECIAL_USE`/`POST_NOTIFICATIONS` — SEMUA sudah benar &
+  lengkap, 0 bug jelas ketemu scr static review) — `CrashLogger.logDiagnostic()` letaknya SEGERA di
+  awal `onStartCommand()` (SEBELUM apapun yg berisiko lain), jadi KALAU `onStartCommand()` benar2
+  ke-invoke OS, `logDiagnostic()` PASTI kepanggil (0 exception plausible di baris² sebelumnya).
+  1. KESIMPULAN SEMENTARA (P0 NO HALLUCINATION — 2 lapis kemungkinan msh terbuka, BUKAN 1 kepastian):
+     (a) UI: handler `onChange` toggle ini sendiri yg 0 pernah benar2 tereksekusi (mis. user pencet
+     bagian yg salah, atau state re-render aneh) — PALING SEDERHANA tapi blm bisa dibuktikan/
+     disingkirkan dari laporan user; (b) SERVICE/OS: handler jalan normal & `PersistentTrimService.
+     start()` (`ContextCompat.startForegroundService()`) dipanggil, TAPI OS 0 pernah benar2
+     meng-invoke `onCreate()`/`onStartCommand()` service-nya (mis. dibatasi restriksi background-
+     start OEM/Android versi baru di luar kontrol kode aplikasi — device user SDK 36/Android 16,
+     versi BARU yg riwayat restriksinya blm sepenuhnya diketahui dari dokumentasi publik saat ini).
+  2. INSTRUMENTASI BARU (bisect (a) vs (b) tanpa perlu nebak lagi, `MainActivity.kt` — `SettingsTab`
+     dpt `scope = rememberCoroutineScope()` baru): setiap toggle ditekan (ON MAUPUN OFF), LANGSUNG
+     tulis log `diag_toggle_pressed` (via `CrashLogger.logDiagnostic()`, `Dispatchers.IO`, SEBELUM
+     baris `vm.setPersistentService()` dipanggil) — independen total dari apakah service-nya
+     berhasil start atau tidak. Diagnosis selanjutnya: file `toggle_pressed` ADA tapi
+     `persistent_service` TETAP 0 -> confirmed (b) [masalah service/OS, bukan UI]; file
+     `toggle_pressed` SENDIRI 0 ada -> confirmed (a) [masalah UI, toggle 0 ke-trigger].
+  3. TIDAK ada perubahan ke `PersistentTrimService.kt`/`CrashLogger.kt`/manifest — 0 ada bug
+     konkret ketemu di situ scr review, jadi 0 ada yg "diperbaiki" di sana (P0 NO SCOPE CREEP —
+     jangan ubah kode yg blm terbukti salah cuma krn nebak).
+  File diubah: `MainActivity.kt` — 1 file (instrumentasi kecil, feature yg sama: investigasi
+  notifikasi/servis latar depan, kelanjutan v29/v31/v32).
+- v34 VALIDASI: brace/paren `MainActivity.kt` — 208/208 `{}` OK; `()` 507/506 (delta 0 dari batch
+  ini vs baseline v33: 1 mismatch pre-existing yg sama msh ada, dikonfirmasi ULANG bukan baru — SAAT
+  edit ini SEMPAT ke-introduce 1 mismatch BARU dari komentar prosa ada kurung buka tak tertutup,
+  KETAHUAN & DIPERBAIKI sebelum batch ini di-finalisasi, bukti proses validasi delta-check ini
+  benar2 dijalankan bukan formalitas). Diff penuh thd ZIP v33: HANYA `MainActivity.kt` berubah.
+  **BELUM compile/device test.** **CI utk v30-v34 (5 batch) MASIH BELUM ada satupun yg dikonfirmasi
+  hijau ke user** — akumulasi risiko makin besar, SANGAT disarankan cek CI sblm lanjut batch baru.
+- Docs: `CHANGELOG.md` — TIDAK ditambah entry (instrumentasi diagnostic internal, sama pola v28/29/32).
+- Batch: v34
+
+[RESUME POINT: v34 — instrumentasi baru `diag_toggle_pressed` (di `SettingsTab`, `MainActivity.kt`)
+nulis log SEGERA saat toggle "Layanan latar depan persisten" ditekan (arah apapun), independen dari
+apakah service-nya berhasil start — dipakai BISECT laporan "toggle sudah di-ON-kan tapi 0 entri
+diag_persistent_service sama sekali": (a) kalau `toggle_pressed` ADA tapi `persistent_service` TETAP
+0 -> masalah di level service/OS (`PersistentTrimService` 0 pernah di-invoke OS meski di-start), (b)
+kalau `toggle_pressed` SENDIRI 0 ada -> masalah di level UI (handler toggle 0 ke-trigger). ->
+Remaining: **5 batch (v30-v34) numpuk TANPA satupun terverifikasi compile CI** — jalankan DAILY
+UPDATE, push, dan kali ini BENAR2 tunggu hasil CI sblm minta/kerjakan perubahan lain (risiko
+akumulasi compile-error tersembunyi makin tinggi tiap batch ditambah tanpa verifikasi). -> Next
+Action: minta user (a) pasang APK v34 stlh CI hijau, (b) toggle "Layanan latar depan persisten"
+sekali lagi (ON kalau msh OFF, atau OFF-lalu-ON kalau msh ON dari sebelumnya — pastikan ada
+PERUBAHAN state biar handler pasti kepanggil), (c) buka Log Diagnostik, Muat ulang, cari KEDUA:
+`LagFix_diag_toggle_pressed_*.txt` (baru) DAN `LagFix_diag_persistent_service_*.txt` (baru, kalau
+ada), (d) kirim isi KEDUANYA (atau laporkan kalau salah satu/keduanya tetap tak muncul) — itu bukti
+definitif bisect (a) vs (b) di atas. JANGAN ubah kode apapun sebelum hasil ini didapat.]
