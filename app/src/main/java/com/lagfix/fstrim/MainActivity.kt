@@ -494,6 +494,7 @@ private fun SettingsTab(
 @Composable
 private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
     var loading by remember { mutableStateOf(false) }
+    var testing by remember { mutableStateOf(false) }
     var logs by remember { mutableStateOf<List<CrashLogger.LogFile>>(emptyList()) }
     var loadError by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedName by rememberSaveable { mutableStateOf<String?>(null) }
@@ -522,7 +523,31 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
                     "yang mungkin tidak menampilkan file baru di sebagian HP.",
                 style = MaterialTheme.typography.bodySmall
             )
-            TextButton(onClick = { load() }) { Text(if (loading) "Memuat…" else "Muat ulang") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = { load() }) { Text(if (loading) "Memuat…" else "Muat ulang") }
+                TextButton(
+                    onClick = {
+                        testing = true
+                        scope.launch(Dispatchers.IO) {
+                            val result = CrashLogger.testWrite(ctx)
+                            withContext(Dispatchers.Main) {
+                                testing = false
+                                if (result.isSuccess) {
+                                    onFeedback("Tes tulis BERHASIL — daftar log dimuat ulang otomatis.")
+                                    load()
+                                } else {
+                                    onFeedback("Tes tulis GAGAL: ${result.exceptionOrNull()?.message ?: "error tidak diketahui"}")
+                                }
+                            }
+                        }
+                    }
+                ) { Text(if (testing) "Menguji…" else "Tes tulis log") }
+            }
+            Text(
+                "\"Tes tulis log\" langsung menulis 1 file percobaan — tanpa perlu toggle apa pun — " +
+                    "untuk memastikan penulisan file bisa berhasil di HP ini.",
+                style = MaterialTheme.typography.bodySmall
+            )
             when {
                 loadError != null -> Text(
                     "Error: $loadError",

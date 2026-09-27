@@ -58,13 +58,41 @@ object CrashLogger {
         }.onFailure { Log.e(TAG, "Gagal tulis diagnostic log ($tag)", it) }
     }
 
+    /** v32 (laporan user: sudah pasang build v31 + spam "Muat ulang" di Log Diagnostik, 0 entri
+     * sama sekali — beda dari sebelumnya krn kali ini BUKAN soal visibility file manager lagi,
+     * app sendiri via ContentResolver pun 0 nemu apa-apa). Root cause paling mungkin (P0 NO
+     * HALLUCINATION — dugaan, bukan pasti): `logDiagnostic()` CUMA dipanggil dari
+     * `PersistentTrimService.onStartCommand()`, yg CUMA jalan kalau toggle "Layanan latar depan
+     * persisten" di Pengaturan di-ON-kan; `install()` cuma jalan kalau app CRASH. Kalau user belum
+     * pernah toggle ON fitur itu (atau app belum pernah crash) SEJAK pasang build ini, ya WAJAR 0
+     * entri — bukan berarti penulisan filenya rusak, tapi jalur tulisnya memang belum pernah
+     * dipanggil sama sekali. Fungsi ini MEMISAHKAN 2 kemungkinan itu: nulis 1 file tes LANGSUNG,
+     * TANPA precondition apa pun (0 butuh toggle servis/crash) — hasilnya dilaporkan balik sbg
+     * `Result` supaya UI bisa kasih tahu user LANGSUNG (bukan cuma Log.e/logcat yg tak kelihatan
+     * tanpa ADB): sukses -> jalur tulis TERBUKTI berfungsi di HP ini (berarti 0 entri sebelumnya
+     * krn toggle/crash memang belum pernah terjadi); gagal -> BARU itu bukti nyata jalur tulis
+     * (MediaStore MAUPUN fallback app files dir) berdua bermasalah di HP ini, dgn pesan error
+     * eksplisit dari keduanya (lihat `writeToFile()`). */
+    fun testWrite(ctx: Context): Result<Unit> = runCatching {
+        val body = "SDK: ${Build.VERSION.SDK_INT}\nDevice: ${Build.MANUFACTURER} ${Build.MODEL}\n\n" +
+            "Ini file TES manual dari tombol \"Tes tulis log\" — kalau file ini kebaca, penulisan " +
+            "log (MediaStore atau fallback) BERHASIL di HP ini."
+        writeToFile(ctx.applicationContext, "test", body)
+    }
+
     private fun writeToFile(ctx: Context, prefix: String, body: String) {
         val name = "LagFix_${prefix}_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".txt"
         if (Build.VERSION.SDK_INT >= 29) {
             val mediaError = runCatching { writeViaMediaStore(ctx, name, body) }.exceptionOrNull()
             if (mediaError == null) return
             Log.e(TAG, "MediaStore write ke Download/LagFix gagal, fallback ke app files dir", mediaError)
-            writeToAppFilesDir(ctx, name, body + "\n\n[MediaStore GAGAL, fallback ke app files dir: $mediaError]")
+            val fallbackError = runCatching {
+                writeToAppFilesDir(ctx, name, body + "\n\n[MediaStore GAGAL, fallback ke app files dir: $mediaError]")
+            }.exceptionOrNull()
+            if (fallbackError != null) {
+                Log.e(TAG, "Fallback app files dir JUGA gagal", fallbackError)
+                throw IOException("MediaStore gagal ($mediaError) DAN fallback app files dir juga gagal ($fallbackError)")
+            }
         } else {
             writeToAppFilesDir(ctx, name, body)
         }

@@ -400,3 +400,59 @@ terpasang & CI hijau -> itu bukti KUAT penulisan log memang gagal total di devic
 soal visibility/file-manager), prioritas berikutnya jadi investigasi kenapa `writeViaMediaStore()`
 DAN `writeToAppFilesDir()` v30 berdua gagal (mis. storage penuh, restriksi OEM lain di luar kode).
 JANGAN ubah kode `CrashLogger.kt` lagi sebelum hasil test build v31 ini didapat.]
+
+- v32 (laporan user: build v31 SUDAH terpasang — dikonfirmasi via screenshot, teks card cocok
+  persis — "spam pencet Muat ulang", 0 entri sama sekali. INI BEDA dari v29/v30: kali ini BUKAN lagi
+  soal visibility file manager, app sendiri via `ContentResolver` juga 0 nemu apa-apa).
+  1. ROOT CAUSE (P0 NO HALLUCINATION — 2 kemungkinan, BELUM bisa dibedakan dari laporan user saja):
+     (a) jalur tulis (`writeViaMediaStore()` DAN `writeToAppFilesDir()`, v30) BERDUA gagal total di
+     HP ini, ATAU (b) — LEBIH MUNGKIN scr Occam's razor — `logDiagnostic()` cuma pernah dipanggil
+     dari `PersistentTrimService.onStartCommand()` (jalan CUMA kalau toggle "Layanan latar depan
+     persisten" di-ON-kan) dan `install()` cuma jalan kalau app CRASH; kalau user BELUM pernah
+     toggle ON fitur itu (atau app blm pernah crash) SEJAK pasang build v31, 0 entri itu WAJAR —
+     bukan bug, krn jalur tulisnya memang belum pernah dipanggil sama sekali. Laporan user TIDAK
+     menyebutkan apakah toggle itu sudah dicoba di build v31 ini.
+  2. FITUR BARU (memisahkan 2 kemungkinan di atas tanpa perlu nebak): tombol "Tes tulis log" baru
+     di card Log Diagnostik, di sebelah "Muat ulang" — manggil `CrashLogger.testWrite()` (baru,
+     `CrashLogger.kt`) yg nulis 1 file tes LANGSUNG, 0 precondition (0 butuh toggle servis/crash).
+     Hasil (`Result<Unit>`) dilaporkan LANGSUNG ke UI via Snackbar (`onFeedback`) — BUKAN cuma
+     Log.e/logcat yg tak kelihatan tanpa ADB: sukses -> "Tes tulis BERHASIL" + daftar auto-reload
+     (artinya jalur tulis TERBUKTI OK, 0 entri sebelumnya krn kemungkinan (b) di atas); gagal ->
+     "Tes tulis GAGAL: <pesan error>" (BARU itu bukti nyata kemungkinan (a)).
+  3. `writeToFile()` diperkuat (`CrashLogger.kt`): kalau fallback `writeToAppFilesDir()` JUGA gagal
+     stlh MediaStore gagal (dulu exception fallback mentah lgs propagate, pesan MediaStore-nya
+     hilang), sekarang keduanya digabung jadi 1 `IOException` eksplisit berisi PESAN ERROR
+     KEDUANYA — supaya `testWrite()` bisa laporkan diagnosis lengkap ke user kalau device ini
+     benar2 pathological (0 perubahan perilaku observable di `install()`/`logDiagnostic()` — msh
+     sama2 di-`Log.e` diam2 spt v30/v31, cuma `testWrite()` yg baru dpt manfaat pesan gabungan ini).
+  4. TIDAK ada perubahan ke `PersistentTrimService.kt`, `listLogs()`, jadwal fstrim, atau lokasi
+     folder tujuan.
+  File diubah: `CrashLogger.kt`, `MainActivity.kt` — SAMA 2 file dgn v31 (1 fitur logis lanjutan:
+  tooling diagnosa jalur tulis log).
+- v32 VALIDASI: brace/paren `CrashLogger.kt` OK (50/50 `{}`, 124/124 `()`). `MainActivity.kt`:
+  205/205 `{}`, 496/495 `()` — delta 0 dari batch ini (1 mismatch paren pre-existing yg sama msh
+  ada, terus dikonfirmasi bukan baru sejak v27). Diff penuh thd ZIP v31: HANYA `CrashLogger.kt` +
+  `MainActivity.kt` berubah. **BELUM compile/device test** (0 SDK/Gradle/device di sandbox ini).
+  **PERINGATAN AKUMULASI RISIKO:** per catatan v31, batch v30 DAN v31 BELUM pernah dikonfirmasi
+  lolos compile CI sungguhan sblm laporan bug ini masuk — v32 ini jadi BATCH KE-3 beruntun yg
+  ditumpuk di atas kode yg blm terverifikasi compile. Kalau ternyata ada 1 typo/type-mismatch kecil
+  tersembunyi di v30 atau v31 yg baru ketahuan compiler asli, itu akan blokir v32 ini juga. SANGAT
+  disarankan jalankan DAILY UPDATE + cek CI SEKARANG (sebelum minta perubahan lain) drpd terus
+  menumpuk batch di atas fondasi yg blm certain buildable.
+- Docs: `CHANGELOG.md` — TIDAK ditambah entry baru (v32 ini tooling diagnosa internal utk
+  developer/investigasi, bukan fitur user-facing baru yg berdiri sendiri — sama pola dgn v28/v29).
+- Batch: v32
+
+[RESUME POINT: v32 — tombol "Tes tulis log" baru (`CrashLogger.testWrite()` + `LogReaderCard`) di
+card Log Diagnostik, nulis 1 file tes tanpa precondition & lapor sukses/gagal LANGSUNG ke Snackbar
+(bukan cuma logcat). Tujuan: pisahkan "jalur tulis rusak" vs "logger blm pernah dipanggil krn toggle
+servis/crash blm pernah terjadi" — 2 kemungkinan yg msh sama2 terbuka dari laporan "0 entri" v31.
+-> Remaining: **CI utk v30+v31+v32 BELUM ada satupun yg dikonfirmasi hijau** — jalankan DAILY
+UPDATE, push, WAJIB tunggu & cek CI hijau dulu sblm lanjut apapun (3 batch numpuk tanpa build
+confirm = risiko makin besar). -> Next Action: minta user (a) pasang APK v32 stlh CI hijau, (b)
+buka Log Diagnostik, tekan "Tes tulis log" (BUKAN "Muat ulang" dulu), (c) laporkan hasil Snackbar-
+nya persis: "Tes tulis BERHASIL" -> lanjut tekan "Muat ulang", cek muncul 1 entri `LagFix_test_...`
+atau tidak (kalau BERHASIL tapi tetap 0 di daftar -> ada bug lain lg di `listLogs()`/query, beda
+lagi diagnosisnya); "Tes tulis GAGAL: <pesan>" -> kirim PERSIS pesan errornya ke sini, itu bukti
+definitif jalur tulis (MediaStore+fallback) berdua gagal & pesannya kasih tahu kenapa. JANGAN ubah
+kode `CrashLogger.kt` lagi sebelum hasil tombol "Tes tulis log" ini didapat.]
