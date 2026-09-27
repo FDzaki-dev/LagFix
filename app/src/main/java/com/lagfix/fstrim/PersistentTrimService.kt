@@ -10,6 +10,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 
 /**
@@ -46,10 +47,21 @@ class PersistentTrimService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // v29: kumpulkan BUKTI KONKRET (bukan tebakan) langsung ke Download/LagFix/ — dipakai
+        // investigasi laporan "notifikasi tak pernah kelihatan": rekam status
+        // areNotificationsEnabled(), importance channel asli, & hasil startForeground() (sukses
+        // atau exception apa) SEBELUM & SESUDAH dipanggil.
+        val notifMgrCompat = NotificationManagerCompat.from(this)
+        val preCheck = "areNotificationsEnabled() = ${notifMgrCompat.areNotificationsEnabled()}\n" +
+            "channel importance (getNotificationChannelCompat) = " +
+            "${notifMgrCompat.getNotificationChannelCompat(CHANNEL_ID)?.importance}"
         // Wajib dipanggil SEGERA (bukan di onCreate) supaya promosi foreground tidak telat
         // (Android modern lempar exception kalau startForeground() telat dipanggil stlh
         // startForegroundService()).
-        startForeground(NOTIF_ID, buildNotification())
+        val result = runCatching { startForeground(NOTIF_ID, buildNotification()) }
+        val outcome = if (result.isSuccess) "startForeground() SUKSES tanpa exception" else
+            "startForeground() GAGAL: ${result.exceptionOrNull()}"
+        CrashLogger.logDiagnostic(this, "persistent_service", "$preCheck\n$outcome")
         return START_STICKY
     }
 

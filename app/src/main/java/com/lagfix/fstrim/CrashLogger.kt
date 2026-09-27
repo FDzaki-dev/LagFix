@@ -11,21 +11,38 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Menangkap force close → Download/LagFix/ (MediaStore API 29+, fallback app files dir). */
+/**
+ * Menangkap force close → Download/LagFix/ (MediaStore API 29+, fallback app files dir).
+ * v29: `write()` diekstrak jadi `writeToFile()` (0 perubahan perilaku jalur crash — body/nama file
+ * crash tetap identik) + `logDiagnostic()` baru dipakai investigasi (mis. notifikasi service tak
+ * tampil) — REUSE mekanisme yang sudah ada, BUKAN sistem logging baru (larangan eksplisit di
+ * constitution: "jangan tambah sistem logging baru kecuali task memang membutuhkannya").
+ */
 object CrashLogger {
     fun install(ctx: Context) {
         val app = ctx.applicationContext
         val prev = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { t, e ->
-            runCatching { write(app, t, e) }
+            runCatching {
+                val body = "Thread: ${t.name}\nSDK: ${Build.VERSION.SDK_INT}\n" +
+                    "Device: ${Build.MANUFACTURER} ${Build.MODEL}\n\n" + Log.getStackTraceString(e)
+                writeToFile(app, "crash", body)
+            }
             prev?.uncaughtException(t, e)
         }
     }
 
-    private fun write(ctx: Context, t: Thread, e: Throwable) {
-        val name = "LagFix_crash_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".txt"
-        val body = "Thread: ${t.name}\nSDK: ${Build.VERSION.SDK_INT}\n" +
-            "Device: ${Build.MANUFACTURER} ${Build.MODEL}\n\n" + Log.getStackTraceString(e)
+    /** v29: log evidence non-crash ke file (sama folder/mekanisme dgn crash), dipanggil manual dari
+     * titik yg diinvestigasi (bukan otomatis tiap event — cegah membanjiri Download/LagFix/). */
+    fun logDiagnostic(ctx: Context, tag: String, message: String) {
+        runCatching {
+            val body = "SDK: ${Build.VERSION.SDK_INT}\nDevice: ${Build.MANUFACTURER} ${Build.MODEL}\n\n$message"
+            writeToFile(ctx.applicationContext, "diag_$tag", body)
+        }
+    }
+
+    private fun writeToFile(ctx: Context, prefix: String, body: String) {
+        val name = "LagFix_${prefix}_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".txt"
         if (Build.VERSION.SDK_INT >= 29) {
             val v = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, name)

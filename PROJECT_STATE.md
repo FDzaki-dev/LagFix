@@ -245,3 +245,46 @@ Notifikasi scr langsung di HP (apakah ada toggle master/channel yg mati), (b) li
 peringatan baru muncul di app kalau itu penyebabnya, (c) tetap lanjutkan 5 poin test device v27
 yg blm pernah dikonfirmasi (toggle ON/force-close/restart HP/toggle OFF/tunggu 1 siklus jadwal) —
 JANGAN ubah lagi kode `PersistentTrimService.kt` tanpa evidence baru dari (a)/(b) dulu.]
+
+- v29 (permintaan user: "buatkan crash logger biar langsung ke bukti masalahnya" — dipahami sbg
+  minta EVIDENCE KONKRET, bukan tebakan lagi, utk investigasi notifikasi v27/v28 yg msh belum
+  pasti). ANDROID VITAL GUARDS eksplisit larang bikin sistem logging baru tanpa perlu -> REUSE
+  `CrashLogger.kt` yang sudah ada (0 sistem baru):
+  1. `CrashLogger.kt` DIREFAKTOR (0 perubahan perilaku jalur crash existing — dicek line-by-line,
+     nama file/isi body crash TETAP IDENTIK): logic tulis-file diekstrak jadi `writeToFile()`
+     private, dipakai ULANG oleh crash handler (`install()`) MAUPUN fungsi baru `logDiagnostic(ctx,
+     tag, message)` (nama file beda prefix `LagFix_diag_<tag>_...` vs `LagFix_crash_...`, jadi
+     gampang dibedakan user di folder Download/LagFix/).
+  2. `PersistentTrimService.onStartCommand()`: SEBELUM `startForeground()` dipanggil, rekam
+     `NotificationManagerCompat.areNotificationsEnabled()` + importance channel asli
+     (`getNotificationChannelCompat().importance`); `startForeground()` sendiri dibungkus
+     `runCatching` (BUKAN menyembunyikan error — TUJUANNYA justru menangkap exception exact-nya
+     kalau ada, ditulis ke file yg sama). Semua 3 data itu ditulis 1 file lewat
+     `CrashLogger.logDiagnostic()` tiap kali service start.
+  3. TIDAK dibuat sistem logging terpisah/baru, TIDAK ada permission baru (folder Download/LagFix/
+     sudah dipakai crash logger sejak awal), TIDAK ada perubahan ke jadwal fstrim/WorkManager.
+  File diubah: `CrashLogger.kt`, `PersistentTrimService.kt` — 2 file, 1 fitur logis (instrumentasi
+  diagnostik, bukan fitur baru).
+- v29 VALIDASI: brace/paren balance OK kedua file (0/0 masing2). Cross-check: `logDiagnostic`
+  dipanggil dgn signature yg cocok persis definisinya, `NotificationManagerCompat` sudah diimport.
+  0 file lain disentuh (dikonfirmasi diff vs ZIP v28). **BELUM compile/device test** — file bukti
+  (`LagFix_diag_persistent_service_*.txt`) baru akan MUNCUL NYATA di Download/LagFix/ setelah user
+  toggle ON di device asli; isinya itulah yg akan jadi evidence definitif utk nutup investigasi
+  v27/v28 (bukan dugaan lagi).
+- Docs: `CHANGELOG.md` TIDAK ditambah (instrumentasi diagnostik internal, konsisten konvensi
+  v14-v18/v24/v28 skip changelog utk investigasi belum tuntas/non-user-facing).
+- Batch: v29
+
+[RESUME POINT: v29 — `CrashLogger.kt` direfaktor (0 regresi jalur crash, dicek line-by-line) +
+`logDiagnostic()` baru, dipanggil dari `PersistentTrimService.onStartCommand()` utk rekam
+`areNotificationsEnabled()` + channel importance asli + hasil `startForeground()` (sukses/exception
+exact) ke file `Download/LagFix/LagFix_diag_persistent_service_<timestamp>.txt` tiap toggle ON.
+Ini GANTI dugaan v28 jadi EVIDENCE KONKRET begitu user toggle ON di device -> Remaining: jalankan
+DAILY UPDATE, push, CI hijau dulu -> Next Action: minta user toggle ON layanan latar depan sekali
+lagi di device, lalu AMBIL/BUKA file `LagFix_diag_persistent_service_*.txt` terbaru di folder
+Download/LagFix/ & kirim isinya (bukan cuma laporan tekstual) — dari situ baru bisa dipastikan:
+(a) kalau `areNotificationsEnabled()=false` -> CONFIRMED toggle OS/OEM level yg jadi penyebab
+(user tinggal diarahkan ke Setelan), (b) kalau `true` tapi `startForeground()` GAGAL dgn exception
+-> ada bug kode nyata yg baru ketahuan, prioritas fix berikutnya, (c) kalau `true` & SUKSES tanpa
+exception -> penyebab lebih dalam lagi (rendering OEM di luar API publik), butuh diskusi lanjutan
+dgn user apa langkah berikutnya. JANGAN ubah kode lagi sebelum isi file diagnostik ini didapat.]
