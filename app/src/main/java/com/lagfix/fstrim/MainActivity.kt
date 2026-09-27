@@ -59,6 +59,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.app.NotificationManagerCompat
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -420,6 +421,26 @@ private fun SettingsTab(
                     "selama aktif. Coba dulu opsi baterai & Autostart di atas sebelum ini.",
                 style = MaterialTheme.typography.bodySmall
             )
+            // v28 (investigasi laporan "toggle aktif, izin POST_NOTIFICATIONS muncul, tapi
+            // notifikasi permanen tak pernah kelihatan"): izin runtime POST_NOTIFICATIONS BEDA dari
+            // toggle "Izinkan notifikasi" di level OS/Setelan HP (mis. XOS/MIUI kadang punya toggle
+            // sendiri per app terpisah dari izin Android) — service TETAP jalan di kedua kasus
+            // (`startForeground()` tidak butuh notifikasi benar2 tampil, cuma butuh izin utk boleh
+            // MENCOBA menampilkan), makanya proses bisa hidup tanpa user pernah lihat notifnya.
+            // `ui` sbg key: re-check tiap `vm.refresh()` (mis. balik dari Setelan HP via onResume).
+            if (ui.persistentServiceEnabled) {
+                val notifEnabled = remember(ui) { NotificationManagerCompat.from(ctx).areNotificationsEnabled() }
+                if (!notifEnabled) {
+                    Text(
+                        "Terdeteksi: notifikasi App LagFix nonaktif di Setelan HP ini — makanya " +
+                            "notifikasi permanen tidak kelihatan meski izinnya sudah diberikan. " +
+                            "Layanan tetap berjalan di latar belakang, cuma indikatornya tersembunyi. " +
+                            "Aktifkan lewat Setelan > Aplikasi > LagFix > Notifikasi kalau mau terlihat.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
         }
     }
 
