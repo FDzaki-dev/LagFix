@@ -47,18 +47,26 @@ class PersistentTrimService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // v29: kumpulkan BUKTI KONKRET (bukan tebakan) langsung ke Download/LagFix/ — dipakai
-        // investigasi laporan "notifikasi tak pernah kelihatan": rekam status
-        // areNotificationsEnabled(), importance channel asli, & hasil startForeground() (sukses
-        // atau exception apa) SEBELUM & SESUDAH dipanggil.
+        // v35: startForeground() SEKARANG BENAR2 baris pertama yang dieksekusi (sebelumnya ada 2
+        // pemanggilan Binder IPC ringan - areNotificationsEnabled()/getNotificationChannelCompat()
+        // - yang jalan LEBIH DULU). Sesuai poin 4 panduan notifikasi yang diberikan user: jangan
+        // ada operasi apa pun sebelum startForeground(), termasuk yang "ringan", karena window 5
+        // detik OS ini ketat & device ini (OEM agresif, lihat riwayat v20-v25) sudah terbukti tak
+        // selalu berperilaku standar. P0 NO HALLUCINATION: ini pengetatan defensif thd 1 deviasi
+        // nyata yang ditemukan dari audit ulang, BUKAN kepastian ini akar masalah tunggal — 3 poin
+        // panduan lainnya (channel ID match, smallIcon valid, foregroundServiceType+property
+        // manifest) sudah dicek & SESUAI, 0 perubahan di situ.
+        val result = runCatching { startForeground(NOTIF_ID, buildNotification()) }
+
+        // v29 (0 berubah dari sisi DATA yang direkam, cuma dibaca SESUDAH startForeground() skrg):
+        // kumpulkan BUKTI KONKRET langsung ke Download/LagFix/ — status areNotificationsEnabled(),
+        // importance channel asli, & hasil startForeground() (sukses/exception apa). Channel itu
+        // sendiri dibuat di onCreate() (sebelum onStartCommand() ini pernah jalan), jadi nilainya
+        // identik dibaca sebelum atau sesudah startForeground() — aman dipindah ke sini.
         val notifMgrCompat = NotificationManagerCompat.from(this)
         val preCheck = "areNotificationsEnabled() = ${notifMgrCompat.areNotificationsEnabled()}\n" +
             "channel importance (getNotificationChannelCompat) = " +
             "${notifMgrCompat.getNotificationChannelCompat(CHANNEL_ID)?.importance}"
-        // Wajib dipanggil SEGERA (bukan di onCreate) supaya promosi foreground tidak telat
-        // (Android modern lempar exception kalau startForeground() telat dipanggil stlh
-        // startForegroundService()).
-        val result = runCatching { startForeground(NOTIF_ID, buildNotification()) }
         val outcome = if (result.isSuccess) "startForeground() SUKSES tanpa exception" else
             "startForeground() GAGAL: ${result.exceptionOrNull()}"
         CrashLogger.logDiagnostic(this, "persistent_service", "$preCheck\n$outcome")

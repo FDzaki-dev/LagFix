@@ -77,5 +77,8 @@
 ## v30
 - Fix: catatan crash/diagnostik (folder Download/LagFix/) sebelumnya bisa gagal total tanpa jejak apa pun — foldernya tidak pernah muncul. Sekarang penulisan file dijamin diselesaikan dengan benar sesuai mekanisme resmi Android, dan kalau tetap gagal karena kondisi HP tertentu, catatannya otomatis disimpan sebagai cadangan di penyimpanan internal aplikasi supaya tidak pernah hilang tanpa jejak.
 
+## v35
+- Percobaan perbaikan notifikasi "Layanan latar depan persisten" yang belum pernah tampil: layanan sekarang langsung menampilkan notifikasinya di baris kode paling pertama begitu dimulai (sebelumnya ada 2 pengecekan kecil yang jalan duluan). Belum tentu ini akar masalah sepenuhnya — investigasi masih berlanjut menunggu hasil test dari perangkat Anda.
+
 ## v31
 - Baru: card "Log Diagnostik" di tab Pengaturan — baca catatan crash/diagnostik langsung di dalam aplikasi (tidak perlu buka file manager atau folder Download sama sekali). Tap salah satu untuk lihat isinya lengkap, plus tombol "Salin" untuk menyalin teksnya langsung dari aplikasi.

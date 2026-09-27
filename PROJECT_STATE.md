@@ -541,3 +541,75 @@ PERUBAHAN state biar handler pasti kepanggil), (c) buka Log Diagnostik, Muat ula
 `LagFix_diag_toggle_pressed_*.txt` (baru) DAN `LagFix_diag_persistent_service_*.txt` (baru, kalau
 ada), (d) kirim isi KEDUANYA (atau laporkan kalau salah satu/keduanya tetap tak muncul) — itu bukti
 definitif bisect (a) vs (b) di atas. JANGAN ubah kode apapun sebelum hasil ini didapat.]
+
+- v35 (user kirim panduan eksternal `solusi_notifikasi_android.md` — 4 penyebab umum notifikasi
+  persisten tak tampil di Android — minta debug ulang berdasarkan itu, di luar alur bisect
+  toggle_pressed v34 yg msh menunggu evidence user). AUDIT PENUH kode aktual thd KEEMPAT poin
+  panduan (dibaca langsung, bukan diasumsikan):
+  1. Poin 1 (Channel dibuat & ID cocok sebelum startForeground()): SESUAI — `CHANNEL_ID =
+     "lagfix_keep_alive"` sama persis dipakai di `onCreate()` (createNotificationChannel) MAUPUN
+     `buildNotification()` (NotificationCompat.Builder), 0 mismatch. Channel dibuat di `onCreate()`
+     yg SELALU jalan sebelum `onStartCommand()` pertama kali. 0 perubahan dibutuhkan.
+  2. Poin 2 (SmallIcon wajib ada, tidak null): SESUAI scr literal — `R.drawable.ic_tile_fstrim`
+     valid & ada di `res/drawable/`, path vector opaque (fillColor solid `#0F62FE`, 0 transparansi
+     parsial), jadi TIDAK match kondisi "null/tidak ditemukan" yg dijelaskan panduan. Dicatat sbg
+     observasi (BUKAN bug per definisi panduan): icon ini didesain utk QS tile (v20/v25, warna
+     brand), dipakai ulang apa adanya sbg smallIcon notifikasi — Android me-masking smallIcon jadi
+     siluet putih dari channel alpha (fillColor diabaikan sistem utk notifikasi/status bar,
+     beda dari QS tile), jadi scr teknis TETAP tampil (bukan kosong), cuma bukan aset yg didesain
+     khusus utk itu. 0 diubah (0 bug konkret, P0 NO SCOPE CREEP — tidak menebak ganti aset tanpa
+     bukti ini penyebabnya).
+  3. Poin 3 (foregroundServiceType wajib API 34+): SESUAI — `AndroidManifest.xml` sudah py
+     `foregroundServiceType="specialUse"` + `<property PROPERTY_SPECIAL_USE_FGS_SUBTYPE>` lengkap +
+     4 permission terkait (FOREGROUND_SERVICE/_SPECIAL_USE/POST_NOTIFICATIONS/RECEIVE_BOOT_COMPLETED),
+     dikonfirmasi sejak v27, tidak berubah. Kode manggil `startForeground(id, notification)` versi
+     2-argumen — scr resmi Android ini otomatis pakai TYPE yg dideklarasikan manifest kalau cuma 1
+     type terdaftar (persis kasus ini), jadi 0 bug. 0 diubah.
+  4. Poin 4 (startForeground() WAJIB baris pertama onStartCommand(), sebelum operasi apa pun): 1
+     DEVIASI NYATA ditemukan — kode SEBELUMNYA menjalankan 2 Binder IPC ringan
+     (`areNotificationsEnabled()`, `getNotificationChannelCompat()`) LEBIH DULU sebelum
+     `startForeground()` (dipakai utk isi log diagnostik v29). Biasanya cepat (skala ms) & bukan
+     "heavy I/O" spt contoh panduan (network/Okio), TAPI tetap melanggar aturan literal panduan &
+     device ini (OEM sudah terbukti agresif/tak standar di riwayat v20-v25) — P0 stability: lebih
+     aman dihilangkan preventif drpd dibiarkan. FIX: `startForeground()` dipindah jadi BENAR2 baris
+     pertama; 2 pemanggilan diagnostik dipindah ke SESUDAHNYA (0 perubahan DATA yg direkam — channel
+     dibuat di `onCreate()` jauh sebelumnya, jadi nilai importance/enabled identik dibaca sebelum
+     atau sesudah startForeground()). 1 file: `PersistentTrimService.kt`.
+  5. P0 NO HALLUCINATION eksplisit: poin 4 di atas adalah pengetatan DEFENSIF thd 1 deviasi literal
+     yg ditemukan scr audit statis, BUKAN klaim kepastian ini akar masalah tunggal — investigasi
+     bisect v34 (toggle_pressed vs persistent_service) TETAP berlaku penuh & msh perlu evidence
+     device yg sama (belum ada perubahan di situ).
+  File diubah: `PersistentTrimService.kt` — 1 file (reorder eksekusi, 0 perubahan logic/isi
+  notifikasi/data diagnostik).
+- v35 VALIDASI: brace/paren balance OK (13/13 `{}`, 65/65 `()`). Diff penuh thd ZIP v34
+  (dikonfirmasi via `diff -rq`): HANYA `PersistentTrimService.kt` berubah, 0 file lain (termasuk 0
+  perubahan ke `MainActivity.kt`/`CrashLogger.kt`/manifest — instrumentasi bisect v34 msh utuh apa
+  adanya). Cross-check: `getString(R.string.persistent_service_notif_text)` & `R.string.app_name`
+  dikonfirmasi ada di `strings.xml`, `@color/ic_launcher_background` ada di `colors.xml` (solid
+  opaque). **BELUM compile/device test** (0 SDK/Gradle/device di sandbox ini) — DITAMBAH di atas 5
+  batch (v30-v34) yg JUGA belum terverifikasi CI hijau, jadi v35 ini BATCH KE-6 beruntun tanpa
+  konfirmasi build sungguhan. SANGAT prioritas: jalankan CI SEKARANG sebelum batch berikutnya.
+- Docs: `CHANGELOG.md` +entry v35 (percobaan perbaikan, framing best-effort spt v25 — bukan fix
+  yg dikonfirmasi pasti, konsisten P0 NO HALLUCINATION).
+- Batch: v35
+
+[RESUME POINT: v35 — audit statis PENUH kode aktual thd 4 poin panduan notifikasi eksternal dari
+user: 3 poin (channel ID match, smallIcon valid-non-null, foregroundServiceType+property manifest)
+SUDAH SESUAI sejak batch2 sebelumnya, 0 diubah. 1 poin (startForeground() harus baris pertama)
+ditemukan deviasi nyata (2 Binder IPC ringan jalan duluan) -> DIPERBAIKI, `startForeground()`
+sekarang benar2 baris pertama `onStartCommand()`, 0 perubahan pada data diagnostik yg direkam
+(cuma urutan baca). Investigasi bisect v34 (`diag_toggle_pressed` vs `diag_persistent_service`)
+TETAP BERLAKU PENUH, belum ada evidence device sama sekali dari user. -> Remaining: **6 batch
+(v30-v35) numpuk TANPA satupun terverifikasi compile CI** — jalankan DAILY UPDATE, push, dan WAJIB
+tunggu CI hijau sblm kerjakan/minta perubahan lain apa pun (akumulasi risiko compile-error
+tersembunyi sudah cukup tinggi). -> Next Action: minta user (a) pasang APK v35 SETELAH CI hijau
+dikonfirmasi, (b) toggle "Layanan latar depan persisten" OFF lalu ON lagi (pastikan ada perubahan
+state), (c) buka Log Diagnostik, Muat ulang, cari & kirim isi KEDUA file terbaru:
+`LagFix_diag_toggle_pressed_*.txt` DAN `LagFix_diag_persistent_service_*.txt` (bisect v34 msh
+berlaku: kalau toggle_pressed ada tapi persistent_service tetap 0 -> masalah service/OS level di
+luar kode; kalau toggle_pressed sendiri 0 -> masalah UI), (d) laporkan apakah notifikasi permanen
+AKHIRNYA kelihatan atau tidak stlh fix reorder v35 ini. JANGAN ubah kode apapun sebelum evidence
+ini didapat — kalau notifikasi TETAP tak tampil & KEDUA file diagnostik tetap muncul normal dgn
+`startForeground() SUKSES tanpa exception` + `areNotificationsEnabled()=true`, itu confirmed bukan
+lagi soal kode (4 poin panduan semua sudah sesuai) — kemungkinan besar restriksi OS/OEM di luar API
+publik (spesifik device SDK 36 ini), butuh diskusi opsi lain dgn user (bukan lagi coba-coba kode).]
