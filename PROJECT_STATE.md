@@ -288,3 +288,59 @@ Download/LagFix/ & kirim isinya (bukan cuma laporan tekstual) — dari situ baru
 -> ada bug kode nyata yg baru ketahuan, prioritas fix berikutnya, (c) kalau `true` & SUKSES tanpa
 exception -> penyebab lebih dalam lagi (rendering OEM di luar API publik), butuh diskusi lanjutan
 dgn user apa langkah berikutnya. JANGAN ubah kode lagi sebelum isi file diagnostik ini didapat.]
+
+- v30 (laporan user: "crash logger tidak mencatat apa-apa, bahkan foldernya sendiri gak nampak" —
+  evidence v29 yg ditunggu TIDAK PERNAH muncul sama sekali, 0 file, 0 folder). Bug = root-cause
+  minimum: dibaca ulang `writeToFile()` (dipakai BERSAMA oleh jalur crash `install()` DAN
+  `logDiagnostic()` — 1 root cause utk 2 gejala sekaligus).
+  1. ROOT CAUSE (P0 NO HALLUCINATION — dugaan TERKUAT dari review kode, BUKAN kepastian 100% krn 0
+     device di sandbox ini): versi lama BISA "sukses" (0 exception, ketangkep `runCatching` luar)
+     padahal 0 byte tertulis & folder Download/LagFix/ TIDAK PERNAH benar2 dibuat, di 2 titik: (a)
+     `contentResolver.openOutputStream(uri)?.use { }` diam2 SKIP nulis kalau return null (bisa
+     terjadi di sejumlah ROM/kondisi) — 0 exception, jadi tak pernah ketahuan penyebabnya; (b) file
+     diinsert TANPA siklus `IS_PENDING` resmi (insert pending -> tulis -> clear pending, pola resmi
+     Android utk Downloads collection) — tanpa ini sejumlah OEM (mis. Infinix XOS, sudah terbukti
+     agresif/beda perilaku di riwayat v22-v25 kasus Autostart/baterai) bisa menahan file/folder dari
+     file-manager/MediaStore query sampai tak pernah "nampak", match PERSIS laporan user.
+  2. FIX (`CrashLogger.kt`, 0 perubahan titik panggil — signature `install()`/`logDiagnostic()`
+     tetap identik, 0 file lain disentuh): (i) siklus `IS_PENDING` resmi ditambahkan
+     (`writeViaMediaStore()` baru, private). (ii) null/gagal di titik mana pun kini MELEMPAR
+     exception eksplisit (bukan diam2 no-op). (iii) kalau jalur MediaStore gagal total (exception
+     apapun), fallback otomatis ke app-specific external files dir (`writeToAppFilesDir()` baru,
+     0 permission dibutuhkan, dijamin ada) + pesan error MediaStore asli ikut ditulis di body-nya —
+     jadi SELALU ada bukti tertulis di suatu tempat, bukan diam total lagi. (iv) `Log.e` ditambah
+     di tiap titik gagal sbg lapis observability terakhir (logcat) — sejalan tujuan ANDROID VITAL
+     GUARDS (bug jadi observable & diagnosable). ini JUGA otomatis memperbaiki evidence v29 yg
+     ditunggu (`PersistentTrimService.kt` 0 diubah — dia cuma pemanggil, root cause ada di fungsi
+     tulis file bersama).
+  3. TIDAK dibuat sistem logging baru (REUSE `CrashLogger.kt` yg sudah ada, sesuai larangan
+     eksplisit constitution), TIDAK ada permission baru, TIDAK ada perubahan folder tujuan (tetap
+     Download/LagFix/ sbg primary).
+  File diubah: `CrashLogger.kt` — 1 file, 1 bug root-cause fix (dikonfirmasi via diff penuh thd ZIP
+  v29: 0 file lain berubah).
+- v30 VALIDASI: brace/paren balance OK (26 buka/26 tutup `{}`, 67/67 `()`). Cross-check manual:
+  `ContentValues.clear()`+`put()` valid, `contentResolver.update(uri, values, null, null)` cocok
+  signature (where/selectionArgs nullable), `MediaStore.MediaColumns.IS_PENDING` tersedia di
+  compileSdk 35 (constant int, aman direferensi dlm blok `SDK_INT >= 29`), import `IOException`
+  ditambah. **BELUM compile/device test** (0 Android SDK/Gradle/device di sandbox ini, sama spt
+  batch2 sebelumnya) — root cause dinyatakan sbg dugaan terkuat berbasis kode, BUKAN kepastian,
+  krn tidak menutup kemungkinan device/OS ini punya restriksi lain di luar kode (mis. storage
+  penuh, kebijakan OEM lain) yg baru kelihatan setelah user test ulang.
+- Docs: `CHANGELOG.md` +entry v30 (user-facing bug fix, beda dari v28/v29 yg diagnostik internal
+  murni — ini fix nyata atas laporan bug konkret user).
+- Batch: v30
+
+[RESUME POINT: v30 — `CrashLogger.kt` (`writeToFile()`) diperbaiki: siklus `IS_PENDING` resmi +
+exception eksplisit (bukan diam2 no-op) + fallback ke app files dir + `Log.e` observability. Ini
+target root cause paling mungkin (dugaan terkuat via review kode, BELUM device-confirmed) dari 2
+gejala sekaligus: crash logger 0 pernah mencatat & folder Download/LagFix/ 0 pernah nampak. Investigasi
+notifikasi v27/v28 yg masih pending JUGA akan terbantu otomatis (evidence v29 yg dulu tak pernah
+muncul, sekarang seharusnya muncul di Download/LagFix/ ATAU fallback-nya) -> Remaining: jalankan
+DAILY UPDATE, push, CI hijau dulu -> Next Action: minta user (a) toggle ON layanan latar depan
+sekali lagi di device, (b) cek folder Download/LagFix/ — kalau msh 0 file, cek fallback
+Android/data/com.lagfix.fstrim/files/ (app files dir, mungkin butuh file manager yg bisa akses
+folder app), (c) kirim isi file `LagFix_diag_persistent_service_*.txt` terbaru yg ditemukan (dari
+folder mana pun) — dari situ baru bisa dipastikan akar masalah notifikasi v27/28 (lihat detail
+opsi a/b/c di RESUME POINT v29 di atas, msh berlaku sama). JANGAN ubah kode lagi sebelum evidence
+ini didapat — kalau user lapor MASIH 0 file sama sekali di KEDUA lokasi setelah fix ini, itu sinyal
+kuat penyebabnya di luar kode (device/OS/storage), bukan lagi di `CrashLogger.kt`.]

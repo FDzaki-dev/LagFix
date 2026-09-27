@@ -73,3 +73,6 @@
 
 ## v27
 - Baru (opsional, nonaktif secara default): toggle "Layanan latar depan persisten" di tab Pengaturan — buat HP yang sangat agresif mematikan aplikasi latar belakang (mis. Infinix XOS) dan sudah dicoba opsi baterai/Autostart tapi jadwal otomatis masih belum jalan sendiri. Kalau diaktifkan, muncul notifikasi permanen (tak bisa disembunyikan selama aktif) yang menjaga aplikasi tetap hidup, dan otomatis menyala lagi setelah HP di-restart.
+
+## v30
+- Fix: catatan crash/diagnostik (folder Download/LagFix/) sebelumnya bisa gagal total tanpa jejak apa pun — foldernya tidak pernah muncul. Sekarang penulisan file dijamin diselesaikan dengan benar sesuai mekanisme resmi Android, dan kalau tetap gagal karena kondisi HP tertentu, catatannya otomatis disimpan sebagai cadangan di penyimpanan internal aplikasi supaya tidak pernah hilang tanpa jejak.
