@@ -99,3 +99,53 @@ jobs:
           name: "LagFix build ${{ github.run_number }}"
           make_latest: true
           files: dist/*.apk
+
+      # Pathway APK debug -> artifact GitHub (v41, utk diagnosis logcat): SENGAJA di PALING AKHIR
+      # & terpisah total dari jalur rilis (dir dist_debug, BUKAN dist; 0 masuk GitHub Release, jadi
+      # updater in-app yg baca releases/latest tak pernah kena APK debug). continue-on-error true:
+      # kegagalan build debug tak boleh merusak jalur rilis yg sudah selesai di atas.
+      # run_number sama dgn rilis -> versionCode sama (0 masalah downgrade saat install).
+      - name: Build APK debug (pathway artefak debug)
+        id: debug_build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          gradle --no-daemon --stacktrace assembleDebug 2>&1 | tee debug_build_output.log
+      # Kalau release.keystore ada, APK debug ditandatangani ULANG dgn kunci yg sama dgn rilis
+      # (apksigner) supaya bisa di-install menimpa app rilis TANPA uninstall (uninstall = hapus
+      # pengaturan & izin Shizuku). Kunci debug bawaan Gradle dibuat baru di tiap runner -> tak
+      # bisa dipakai menimpa apa pun. Secret cuma lewat env (0 dicetak, 0 masuk file/log).
+      - name: Siapkan APK debug (nama unik)
+        id: debug_pack
+        if: steps.debug_build.outcome == 'success'
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          mkdir -p dist_debug
+          SRC="app/build/outputs/apk/debug/app-debug.apk"
+          OUT="dist_debug/LagFix_build-${{ github.run_number }}_debug.apk"
+          if [ -f release.keystore ]; then
+            SDK_DIR="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+            APKSIGNER="$(ls -d "$SDK_DIR"/build-tools/*/apksigner | sort -V | tail -n 1)"
+            "$APKSIGNER" sign --ks release.keystore --ks-key-alias "$KEY_ALIAS" \
+              --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEY_PASSWORD --out "$OUT" "$SRC"
+            "$APKSIGNER" verify "$OUT"
+          else
+            cp "$SRC" "$OUT"
+          fi
+      - name: Unggah APK debug (artifact)
+        if: steps.debug_pack.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: LagFix-debug-apk-${{ github.run_number }}
+          path: dist_debug/LagFix_build-${{ github.run_number }}_debug.apk
+          if-no-files-found: error
+      - name: Unggah log gagal build debug
+        if: steps.debug_build.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: LagFix-debug-fail-log-${{ github.run_number }}
+          path: debug_build_output.log
+          if-no-files-found: ignore
