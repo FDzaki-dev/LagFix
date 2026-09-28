@@ -64,9 +64,13 @@ class LagFixWidgetProvider : AppWidgetProvider() {
     // sama seperti sebelumnya).
     private fun friendlyStatus(context: Context): String {
         val prefs = Prefs(context)
-        val intervalLine = context.getString(R.string.widget_interval_line, formatInterval(prefs.intervalMinutes))
+        // v46 (permintaan user: constraint charging/idle "gimmick" krn 0 jejak — jawab LANGSUNG
+        // di baris ke-2 widget saat memang sedang ditahan; kalau tidak, baris ke-2 tetap interval
+        // spt v45 (0 baris ke-3 -> `maxLines="2"` layout TETAP tak diubah, 0 risiko terpotong).
+        val waitLabel = scheduleWaitLabel(computeScheduleWait(context, prefs))
+        val line2 = waitLabel ?: context.getString(R.string.widget_interval_line, formatInterval(prefs.intervalMinutes))
         if (prefs.lastRunMs == 0L) {
-            return "${context.getString(R.string.widget_status_never)}\n$intervalLine"
+            return "${context.getString(R.string.widget_status_never)}\n$line2"
         }
         val stamp = SimpleDateFormat("dd/MM HH:mm", Locale.US).format(Date(prefs.lastRunMs))
         val parsed = prefs.log.firstOrNull()?.let(::parseLogLine)
@@ -84,7 +88,7 @@ class LagFixWidgetProvider : AppWidgetProvider() {
                 context.getString(R.string.widget_status_fail, stamp)
             }
         }
-        return "$line1\n$intervalLine"
+        return "$line1\n$line2"
     }
 
     private fun runNowPendingIntent(context: Context): PendingIntent {

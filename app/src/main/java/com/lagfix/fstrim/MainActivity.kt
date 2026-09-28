@@ -312,6 +312,12 @@ private fun MainTab(
             if (lastTriggerLabel != null) {
                 Text("Dipicu oleh: $lastTriggerLabel", style = MaterialTheme.typography.bodySmall)
             }
+            // v46 (permintaan user: constraint charging/idle terasa gimmick krn 0 jejak jelas
+            // kapan ditahan): dicek LANGSUNG dari sistem tiap refresh, bukan menebak dari
+            // WorkManager (lihat computeScheduleWait() di Prefs.kt utk kenapa).
+            if (ui.scheduleWaitLabel != null) {
+                Text(ui.scheduleWaitLabel, style = MaterialTheme.typography.bodySmall, color = skippedAmber)
+            }
             ui.log.forEach { LogLine(it) }
         }
     }
@@ -441,6 +447,17 @@ private fun SettingsTab(
             ToggleRow("Hanya saat perangkat idle", ui.requireIdle) {
                 vm.setIdle(it)
                 onFeedback(if (it) "Hanya saat perangkat idle: aktif." else "Hanya saat perangkat idle: nonaktif.")
+            }
+            // v46: status LIVE constraint charging/idle (dicek langsung dari sistem tiap refresh) —
+            // ini yg menjawab laporan user "kayak gimmick, gak pernah kelihatan lagi nungguin apa".
+            if (ui.scheduleWaitLabel != null) {
+                Text(ui.scheduleWaitLabel, style = MaterialTheme.typography.bodySmall, color = skippedAmber)
+            } else if (ui.enabled && (ui.requireCharging || ui.requireIdle)) {
+                Text(
+                    "Syarat terpenuhi — jadwal akan jalan sesuai interval.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             // v22 (root cause laporan user: jadwal otomatis tak tercatat di beberapa HP — toggle
             // sudah ON tapi OS/OEM (mis. XOS/MIUI/ColorOS) diam-diam membunuh job background kalau

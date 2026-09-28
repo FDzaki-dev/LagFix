@@ -1,6 +1,8 @@
 package com.lagfix.fstrim
 
 import android.content.Context
+import android.os.BatteryManager
+import android.os.PowerManager
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -76,4 +78,45 @@ class Prefs(context: Context) {
 object TriggerSource {
     const val MANUAL = "Manual"     // user sendiri: tombol di app, widget, atau QS tile
     const val AUTO = "Otomatis"     // jadwal periodik WorkManager (interval)
+}
+
+// v46 (permintaan user: "Hanya saat mengisi daya/idle" terasa gimmick krn 0 jejak jelas kapan
+// sedang ditahan — root cause: `TrimWorker.doWork()` & `Prefs.record()` baru dipanggil WorkManager
+// SETELAH constraint terpenuhi, jadi selama ditahan literally 0 kode kita yang jalan utk dicatat).
+// Fix: baca kondisi charging/idle SAAT INI langsung dari sistem (bukan nebak dari WorkManager,
+// yg tak expose alasan blokir secara publik) & bandingkan ke toggle constraint yg aktif -> tunjukkan
+// "Menunggu: ..." di app & widget. Satu sumber logic di sini, dipakai MainViewModel (app) DAN
+// LagFixWidgetProvider (widget) — 0 duplikasi. Pola cek "saat ini" (bukan listener terus-menerus)
+// SENGAJA konsisten dgn `isBatteryUnrestricted()` yg sudah ada (MainViewModel.kt) — refresh saat
+// app dibuka/onResume/event Shizuku utk app, saat widget update utk widget; bukan setengah2, ini
+// pola yg SUDAH established di project ini utk info kondisi sistem serupa.
+internal fun isCurrentlyCharging(context: Context): Boolean =
+    context.getSystemService(BatteryManager::class.java)?.isCharging ?: false
+
+internal fun isCurrentlyDeviceIdle(context: Context): Boolean =
+    context.getSystemService(PowerManager::class.java)?.isDeviceIdleMode ?: false
+
+internal data class ScheduleWait(val waitingCharging: Boolean, val waitingIdle: Boolean) {
+    val isWaiting: Boolean get() = waitingCharging || waitingIdle
+}
+
+/** Constraint mana (kalau ada) yg SAAT INI menahan jadwal otomatis dari jalan. Selalu 0/false
+ * kalau jadwal otomatis mati (`Prefs.enabled == false`) — cocok dgn `Scheduler.apply()` yang
+ * langsung `cancelUniqueWork` saat itu. */
+internal fun computeScheduleWait(context: Context, prefs: Prefs): ScheduleWait {
+    if (!prefs.enabled) return ScheduleWait(waitingCharging = false, waitingIdle = false)
+    return ScheduleWait(
+        waitingCharging = prefs.requireCharging && !isCurrentlyCharging(context),
+        waitingIdle = prefs.requireIdle && !isCurrentlyDeviceIdle(context)
+    )
+}
+
+/** null kalau tak sedang menunggu apa pun (constraint terpenuhi / jadwal otomatis mati). */
+internal fun scheduleWaitLabel(wait: ScheduleWait): String? {
+    if (!wait.isWaiting) return null
+    val parts = buildList {
+        if (wait.waitingCharging) add("mengisi daya")
+        if (wait.waitingIdle) add("perangkat idle")
+    }
+    return "Menunggu: " + parts.joinToString(" & ")
 }

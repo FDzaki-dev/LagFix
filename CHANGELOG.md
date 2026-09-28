@@ -104,3 +104,7 @@
 ## v45
 - Widget layar utama: baris kedua kini menampilkan interval jadwal yang aktif (mis. "Tiap 15 menit"), dan baris status menyebut apakah proses terakhir dari jadwal Otomatis atau dijalankan Manual.
 - Kartu "Statistik" di app: ringkasan kini merinci berapa dari proses terakhir yang Otomatis vs Manual, dan grafik menandai batang hasil "Manual" dengan titik kecil di atasnya (kalau ada campuran keduanya) supaya jelas kedua jenis pemicu sama-sama terhitung.
+
+## v46
+- Jadwal otomatis: saat toggle "Hanya saat mengisi daya" / "Hanya saat perangkat idle" aktif dan jadwal sedang ditahan, sekarang tertulis jelas "Menunggu: mengisi daya" / "menunggu: perangkat idle" — di kartu Riwayat (tab Utama), tab Pengaturan, dan baris kedua widget.
+- Kalau syaratnya sudah terpenuhi, tab Pengaturan menegaskan "Syarat terpenuhi — jadwal akan jalan sesuai interval." supaya jelas fiturnya memang bekerja, bukan diam tanpa keterangan.

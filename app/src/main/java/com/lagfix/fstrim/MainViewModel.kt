@@ -32,7 +32,8 @@ data class UiState(
     val updateResult: UpdateResult? = null,
     val downloading: Boolean = false,
     val downloadError: String? = null,
-    val persistentServiceEnabled: Boolean = false
+    val persistentServiceEnabled: Boolean = false,
+    val scheduleWaitLabel: String? = null // v46: alasan jadwal otomatis SAAT INI ditahan constraint
 )
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
@@ -62,7 +63,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         lastOk = prefs.lastOk,
         log = prefs.log,
         batteryUnrestricted = isBatteryUnrestricted(),
-        persistentServiceEnabled = prefs.persistentServiceEnabled
+        persistentServiceEnabled = prefs.persistentServiceEnabled,
+        scheduleWaitLabel = scheduleWaitLabel(computeScheduleWait(getApplication(), prefs))
     )
 
     // v21: root cause laporan user "jadwal otomatis tak tercatat" — confirmed toggle sudah ON dari
