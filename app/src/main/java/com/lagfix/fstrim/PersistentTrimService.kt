@@ -9,9 +9,13 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * v27 (fitur opsional, dipilih eksplisit user setelah paham trade-off-nya via dialog konfirmasi
@@ -69,7 +73,13 @@ class PersistentTrimService : Service() {
             "${notifMgrCompat.getNotificationChannelCompat(CHANNEL_ID)?.importance}"
         val outcome = if (result.isSuccess) "startForeground() SUKSES tanpa exception" else
             "startForeground() GAGAL: ${result.exceptionOrNull()}"
-        CrashLogger.logDiagnostic(this, "persistent_service", "$preCheck\n$outcome")
+        // v40: tulis log ke MediaStore di Dispatchers.IO, BUKAN di Main thread — servis kini juga
+        // bisa distart tiap cold start proses (`startIfEnabled()`), jadi IO ini tak boleh menahan
+        // Main thread di jendela sempit sebelum OS sempat membunuh proses lagi.
+        val appCtx = applicationContext
+        CoroutineScope(Dispatchers.IO).launch {
+            CrashLogger.logDiagnostic(appCtx, "persistent_service", "$preCheck\n$outcome")
+        }
         return START_STICKY
     }
 
@@ -86,6 +96,10 @@ class PersistentTrimService : Service() {
             .setContentText(getString(R.string.persistent_service_notif_text))
             .setOngoing(true)
             .setSilent(true)
+            // v40: Android 12+ MENUNDA tampilnya notifikasi foreground service ~10 detik kecuali
+            // diminta langsung. Di ROM yang membunuh proses dalam hitungan detik (XOS, lihat v39),
+            // jeda itu = notifikasi tak pernah sempat muncul sebelum proses dibunuh.
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setContentIntent(openIntent)
             .build()
     }
@@ -94,9 +108,25 @@ class PersistentTrimService : Service() {
         private const val CHANNEL_ID = "lagfix_keep_alive"
         private const val NOTIF_ID = 42
 
+        private const val TAG = "PersistentTrimService"
+
         fun start(ctx: Context) {
             val app = ctx.applicationContext
             ContextCompat.startForegroundService(app, Intent(app, PersistentTrimService::class.java))
+        }
+
+        /**
+         * v40: nyalakan lagi servis kalau toggle persisten aktif — dipanggil dari
+         * `LagFixApp.onCreate()` (tiap cold start proses). Root cause: XOS membunuh proses saat
+         * swipe-Recents & sengaja tak me-restart servis (v39), sedangkan servis sebelumnya cuma
+         * distart dari toggle/BootReceiver, jadi setelah app dibuka lagi notifikasi tak pernah
+         * kembali. Proses baru dari sumber background (worker/tile/widget) bisa ditolak OS
+         * (Android 12+ `ForegroundServiceStartNotAllowedException`) — itu ditangkap, bukan crash.
+         */
+        fun startIfEnabled(ctx: Context) {
+            if (!Prefs(ctx).persistentServiceEnabled) return
+            runCatching { start(ctx) }
+                .onFailure { Log.w(TAG, "Start servis persisten ditolak OS (proses dari background)", it) }
         }
 
         fun stop(ctx: Context) {

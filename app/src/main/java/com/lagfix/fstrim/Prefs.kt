@@ -49,16 +49,28 @@ class Prefs(context: Context) {
     val log: List<String>
         get() = (sp.getString("log", "") ?: "").split("\n").filter { it.isNotBlank() }
 
-    fun record(r: TrimResult) {
+    // v38 (permintaan user: tampilkan run ini dipicu oleh apa — Manual/Otomatis): parameter
+    // `trigger` WAJIB diisi eksplisit di semua call site (sengaja tanpa default value, biar tak
+    // ada yang kelewat diam-diam — compiler yang memaksa). Perubahan format baris log CUMA satu:
+    // token "[trigger]" disisipkan di antara status & durasi; stamp/status/durasi/pesan sisanya
+    // identik persis. Baris LAMA (tanpa token) tetap terbaca di sisi UI (regex backward-compat,
+    // 0 migrasi data).
+    fun record(r: TrimResult, trigger: String) {
         val now = System.currentTimeMillis()
         val stamp = SimpleDateFormat("dd/MM HH:mm", Locale.US).format(Date(now))
         val status = if (r.ok) "OK" else "FAIL"
         val msg = r.message.replace('\n', ' ').take(120)
-        val lines = (listOf("$stamp $status ${r.durationMs}ms $msg") + log).take(30)
+        val lines = (listOf("$stamp $status [$trigger] ${r.durationMs}ms $msg") + log).take(30)
         sp.edit()
             .putLong("lastRun", now)
             .putBoolean("lastOk", r.ok)
             .putString("log", lines.joinToString("\n"))
             .apply()
     }
+}
+
+/** v38: nilai `trigger` yang sah untuk [Prefs.record] — satu sumber kebenaran, bukan string liar. */
+object TriggerSource {
+    const val MANUAL = "Manual"     // user sendiri: tombol di app, widget, atau QS tile
+    const val AUTO = "Otomatis"     // jadwal periodik WorkManager (interval)
 }

@@ -28,6 +28,9 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
         // (Scheduler.apply()) tidak pernah set input data ini -> default false -> toast TIDAK
         // pernah muncul utk run otomatis, 0 perubahan perilaku jadwal existing.
         val manual = inputData.getBoolean(KEY_MANUAL, false)
+        // v38: asal pemicu run ini utk Riwayat — manual (widget/tile via Scheduler.runOnce) vs
+        // otomatis (jadwal periodik). Memakai flag `manual` yang SUDAH ada, 0 logic baru.
+        val trigger = if (manual) TriggerSource.MANUAL else TriggerSource.AUTO
         var waited = 0
         while (!Shizuku.pingBinder() && waited < 5000) {
             delay(500)
@@ -41,7 +44,7 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             // WorkManager coba lagi dgn backoff bawaan (tak perlu setBackoffCriteria manual).
             // TIDAK retry kalau fstrim SUDAH dicoba tapi gagal (exit code non-0) — itu beda kelas
             // masalah (bukan precondition Shizuku), retry tak akan menolong, lihat bawah.
-            prefs.record(TrimResult(false, "dilewati, Shizuku: $state", 0L))
+            prefs.record(TrimResult(false, "dilewati, Shizuku: $state", 0L), trigger)
             // v20 hotfix (laporan user: widget "gak berubah sama sekali" abis dipencet, widget/tile
             // gak sinkron dgn state asli): sebelumnya TIDAK ADA yang memberi tahu widget/tile kalau
             // hasil sudah ada -> widget nyangkut di teks "Sedang memproses…" sampai refresh 30 menit
@@ -52,7 +55,7 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             return@withContext Result.retry()
         }
         val r = FstrimExecutor.run()
-        prefs.record(r)
+        prefs.record(r, trigger)
         Scheduler.notifyChanged(applicationContext)
         if (manual) {
             val msg = if (r.ok) {

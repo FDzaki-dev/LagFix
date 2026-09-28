@@ -684,3 +684,113 @@ Utama: kartu "Statistik" harus muncul di bawah Riwayat (kalau riwayat sudah ada 
 angka ringkasan + grafik batang berwarna. -> Next Action: minta user (a) pasang APK v37 setelah CI
 hijau, (b) buka tab Utama, cek kartu "Statistik" muncul & datanya masuk akal (cocok dgn Riwayat di
 atasnya), (c) laporkan kalau ada yang aneh/tidak sesuai (grafik kosong, angka tak cocok, dll).]
+
+- v38 (feedback user setelah v37 terpasang, + screenshot). BUKTI DEVICE NYATA pertama sejak lama: kartu
+  "Statistik" v37 tampil di tab Utama — "23 berhasil · 0 dilewati · 0 gagal · rata-rata 820ms" +
+  grafik batang, angkanya COCOK dgn 23 baris Riwayat di atasnya -> fitur v37 TERVERIFIKASI jalan.
+  Implikasi (P0 NO HALLUCINATION, dibatasi): APK yg memuat kartu itu berhasil dibangun & jalan,
+  jadi KOMPILASI seluruh kode s/d v37 (termasuk v30-v36 yg sebelumnya blm terverifikasi) terbukti
+  lolos; PERILAKU fitur lain (mis. layanan persisten/notifikasi) TIDAK ikut terverifikasi oleh
+  screenshot ini.
+  Permintaan user: (1) tampilkan run dipicu oleh apa (Manual/Otomatis interval); (2) batang grafik
+  Statistik "kurang informatif utk user awam".
+  1. PEMICU RUN (perlu ubah format data -> 5 file, 1 fitur logis): `Prefs.record(r, trigger)` (param
+     wajib, tanpa default -> compiler memaksa semua call site) + `object TriggerSource {MANUAL="Manual",
+     AUTO="Otomatis"}`; baris log baru: `dd/MM HH:mm OK [Manual] 574ms ...` (token disisipkan antara
+     status & durasi, sisanya identik). Call site: `TrimWorker` (2x, pakai flag `manual` yg SUDAH ada:
+     widget/tile=Manual, periodik=Otomatis), `MainViewModel.runNow()` (tombol di app=Manual).
+     UI: regex `logLineRegex` dibuat BACKWARD-COMPAT (token opsional, group 3 kosong utk baris lama) —
+     23 baris lama di HP user tetap terbaca, tampil tanpa tag; helper baru `parseLogLine`/`ParsedLog`
+     dipakai bareng oleh `LogLine`, `parseRunStats`, & ringkasan atas Riwayat. `LogLine` menampilkan
+     "27/09 08:00 OK (Otomatis) 574ms ...". Ringkasan atas Riwayat +baris "Dipicu oleh: Manual
+     (dijalankan sendiri oleh pengguna)" / "Otomatis (jadwal interval)"; TIDAK tampil utk baris lama
+     (label null, tidak menebak) -> baru muncul stlh ada 1 run baru.
+  2. GRAFIK INFORMATIF (`MainActivity.kt` saja, 0 dependency baru): durasi ditulis dlm DETIK
+     (`formatDuration`, "820ms"->"0,8 detik") bukan ms; ringkasan +rata-rata/tercepat/terlama;
+     kalimat penjelas "makin tinggi batang, makin lama"; sumbu vertikal (nilai tertinggi & 0);
+     sumbu waktu (stamp terlama kiri, terbaru kanan); garis putus-putus rata-rata; legenda warna
+     (`StatsLegend`, satu Text AnnotatedString -> otomatis wrap, aman font besar/layar sempit; hanya
+     kategori yg ada).
+  Observasi (TIDAK dikerjakan, di luar permintaan): semua baris Riwayat berujung "PersistableBundle[{}]"
+  = stdout ASLI `sm fstrim` di ROM ini (`FstrimExecutor.run` menempel output), bukan bug kita; noise
+  utk user awam -> KANDIDAT batch berikutnya (rapikan tampilan pesan Riwayat), tunggu approval.
+  Konsekuensi diketahui: `LagFixTileService` menampilkan `Prefs.log.firstOrNull()` MENTAH sbg subtitle
+  tile -> kini memuat token "[Manual]/[Otomatis]" (kosmetik; file tile tidak disentuh).
+  File diubah: `Prefs.kt`, `TrimWorker.kt`, `MainViewModel.kt`, `MainActivity.kt`, `PrefsTest.kt`.
+- v38 VALIDASI: braces seimbang di semua file; `MainActivity.kt` 225/225 `{}`, paren delta +2 IDENTIK
+  dgn baseline (artefak heuristik strip, bukan dari batch ini); blok baru seimbang murni. Regex baru
+  diuji (port Python) thd 9 kasus: baris LAMA dari screenshot, BARU auto/manual, skip lama/baru,
+  "belum siap" manual, kurung `[..]` di dalam pesan (tak kacau), sampah (no match -> fallback polos) —
+  semua benar. `formatDuration` diuji (0/99/100/574/820/1234/2050 ms). `PrefsTest.kt` disesuaikan:
+  signature, assertion "OK [Manual] 964ms", `substring(28)` (dihitung & diverifikasi =120), +1 tes
+  token "Otomatis". Semua call site `.record(` dicek (grep) = 3 kode + 5 tes, tak ada yg tertinggal.
+  **BELUM compile / unit test / device test untuk perubahan v38** (tak ada SDK/Gradle di sandbox).
+- Docs: `CHANGELOG.md` +entry v38.
+- Batch: v38
+
+[RESUME POINT: v38 — pemicu run (Manual/Otomatis) tampil di Riwayat + grafik Statistik lebih informatif
+(detik, sumbu, garis rata-rata, legenda). v37 terverifikasi di device (screenshot). Investigasi
+notifikasi/foreground-service (v25-v35) TETAP DIJEDA, resume dari RESUME POINT v35 kalau user mau.
+-> Remaining: DAILY UPDATE, push, tunggu CI hijau (kini juga mengeksekusi PrefsTest yg diubah) -> user
+install v38, lakukan 1x "Jalankan fstrim sekarang" + tunggu/lihat 1 run otomatis. -> Next Action: minta
+user cek (a) baris baru di Riwayat berformat "... OK (Manual) ..." & ringkasan atas memuat "Dipicu
+oleh: Manual ...", (b) grafik: angka sumbu, garis putus-putus, legenda terbaca & tak terpotong,
+(c) baris lama tetap tampil normal tanpa tag. Kandidat berikutnya (butuh approval): rapikan pesan
+"PersistableBundle[{}]" di Riwayat.]
+
+- v39 (user kirim `logcat_2026-09-28_08-59-18.txt`, tanpa pesan; docs-only, 0 kode diubah, kode = v38).
+  Logcat sistem 7MB (126k baris); jejak app HANYA 08:54:47-08:59 (sebelumnya tak ada baris lagfix).
+  Perangkat dari log: Transsion XOS (tag Tran*, XOSLauncher) + MediaTek, layar 1080x2436.
+  BUKTI TERUKUR (kutipan rekaman, uid app = 10088):
+  1. 08:54:51.471 `tranpm/TranManualCleanMgr` "kill proc pid:25668 ... com.lagfix.fstrim", didahului
+     `Usf_Hiber removeTask reason=remove-task` (app di-swipe dari Recents). 08:54:51.562
+     `ApplicationExitInfo reason=2 (SIGNALED) status=9` (SIGKILL), rss 192MB.
+  2. 08:54:51.551-.553 `tranpm/ServicePolicy limitServiceRestartLocked limit: trdApp process` ->
+     `scheduleServiceRestartLocked skip ServiceRestart` utk `LagFixTileService` DAN
+     `PersistentTrimService`. 08:54:51.563 `TranRestartProcessFeature whiteList not contain
+     packageName : com.lagfix.fstrim`. => di ROM ini XOS membunuh proses saat di-swipe DAN sengaja
+     menolak me-restart service app pihak ketiga yg tidak di whitelist-nya.
+  3. 08:55:16 cold start proses baru (pid 20065) dari launcher. Kode hanya men-start
+     `PersistentTrimService` dari `BootReceiver` & toggle (`MainViewModel.setPersistentService`),
+     BUKAN saat app dibuka -> pasca-relaunch service tak hidup sendiri.
+  4. 0 hit: `FATAL EXCEPTION`, `MissingForegroundServiceType`, `ForegroundServiceDidNotStart`,
+     `RemoteServiceException`, `TrimWorker`. 2 baris `ForegroundServiceTypeLoggerModule` ("has no
+     types") milik UID 10455 = `com.dp.logcatapp` (dicocokkan ke key NotificationService), BUKAN app
+     kita -> diabaikan.
+  5. `NotificationService` MENCATAT post notifikasi app lain di jendela itu (logcatapp 08:55:32,
+     claude 08:58:47) tapi 0 utk `com.lagfix.fstrim`; XOS `BackgroundProcessFilter newList=[]` (tak
+     ada FGS terdaftar) saat app dibuka 08:55:16. Baris "foregroundService=[...]" di log itu = app yg
+     sedang di depan (juga muncul utk launcher/logcatapp), BUKAN bukti FGS kita.
+  KESIMPULAN (dibatasi, P0 NO HALLUCINATION): (a) MENGUATKAN hipotesis restriksi OS/OEM di RESUME v35 —
+  service persisten & tile TIDAK selamat dari swipe-recents di ROM ini, dan itu perilaku sistem,
+  bukan bug kode. (b) TIDAK membuktikan kenapa notifikasi tak tampil SAAT service jalan: log tak
+  memuat momen toggle ditekan (kita tak menulis Log.*), jadi ada 2 kemungkinan tak terbedakan —
+  toggle tak ditekan di jendela itu, atau start gagal diam-diam. Bisect v34 (`diag_toggle_pressed`
+  vs `diag_persistent_service`, lewat Pengaturan -> Log Diagnostik) TETAP terbuka & TETAP satu2nya
+  pembeda. (c) `me.piebridge.brevent` (Brevent) ada di daftar app terbaru pada log — pembekuan/
+  penghentian app oleh pihak ketiga; TIDAK ada bukti keterlibatan, cuma layak dicek user.
+  KANDIDAT (semua butuh approval, tak dikerjakan): kartu user-facing "Agar jadwal tetap jalan" di app
+  (jangan swipe dari Recents / kunci app di Recents / izin autostart) — sejalan dgn arah "tidak
+  teknis"; atau tunggu isi file Log Diagnostik utk lanjut bisect.
+- Batch: v39 (docs-only; APK terpasang tetap build v38, TIDAK perlu instal ulang)
+
+[RESUME POINT: v39 — logcat user memberi bukti OS: XOS SIGKILL saat swipe-recents + skip restart
+PersistentTrimService/LagFixTileService (trdApp, bukan whitelist). Penyebab notifikasi tak tampil SAAT
+service jalan TETAP belum terbukti (bisect v34 terbuka). Kode = v38 (belum ada konfirmasi CI/device utk
+perubahan v38: pemicu Manual/Otomatis + grafik informatif). -> Remaining: DAILY UPDATE + CI hijau,
+user uji v38. -> Next Action: tanyakan (a) apakah toggle "Layanan latar depan persisten" ditekan
+di rentang 08:55-08:59 saat logcat direkam, (b) isi file Log Diagnostik (toggle_pressed &
+persistent_service) kalau mau lanjut bisect, ATAU pilih kartu panduan "Agar jadwal tetap jalan".]
+
+- v40 (permintaan user: notifikasi persistent tak tampil krn app di-kill sebelum sempat menampilkan notifikasi yg baru ter-trigger ~3 menit kemudian; "perbaiki"). Kode diubah 2 file: `PersistentTrimService.kt`, `LagFixApp.kt` (+ docs).
+  Root cause (dibatasi, P0 NO HALLUCINATION): sejalan dgn bukti logcat v39 (XOS SIGKILL saat swipe-Recents + skip restart servis, trdApp bukan whitelist). Angka "3 menit" = keterangan user, TIDAK terverifikasi di log/kode (0 delay 3 menit di kode; log v39 tak memuat momen toggle). 3 celah nyata di kode:
+  1. Servis cuma distart dari toggle/BootReceiver -> setelah proses dibunuh lalu app dibuka lagi, notifikasi tak pernah kembali.
+  2. Android 12+ menunda tampil notifikasi FGS ~10 dtk kecuali `FOREGROUND_SERVICE_IMMEDIATE` -> di ROM yg membunuh proses dlm hitungan detik notifikasi tak sempat muncul.
+  3. `CrashLogger.logDiagnostic()` (IO MediaStore) jalan di Main thread di `onStartCommand()` -> dgn poin 1 jadi tiap cold start; melanggar guard Thread Safety.
+  FIX: (1) `PersistentTrimService.startIfEnabled()` (baru, cek `Prefs.persistentServiceEnabled`, `start()` dibungkus `runCatching` + `Log.w` supaya penolakan OS Android 12+ dari proses background tak crash) dipanggil di `LagFixApp.onCreate()` setelah `CrashLogger.install()`. (2) `.setForegroundServiceBehavior(FOREGROUND_SERVICE_IMMEDIATE)` di `buildNotification()` (core-ktx 1.13.1 >= 1.5.0). (3) log diagnostik dipindah ke `CoroutineScope(Dispatchers.IO).launch`. 0 perubahan manifest/permission/dependency/Scheduler/TrimWorker/UI.
+  SENGAJA TIDAK: `onTaskRemoved()`+AlarmManager (butuh izin exact-alarm; start FGS dari alarm diam2 ditolak Android 12+; SIGKILL XOS tak memanggil callback) -> risiko > manfaat, 0 bukti.
+  BATAS: XOS tetap bisa SIGKILL saat swipe-Recents; notifikasi kembali saat app dibuka/proses dibuat lagi, BUKAN otomatis stlh swipe. Tak ada jaminan 100%.
+- v40 VALIDASI: keseimbangan () {} 2 file OK; import/referensi dicek manual (`Log`, `CoroutineScope`, `Dispatchers`, `launch`, `Prefs`); 0 kompilasi (sandbox tanpa Android SDK/Gradle) -> CI. Behavior BELUM diuji di device.
+- Batch: v40
+
+[RESUME POINT: v40 — notifikasi persistent: servis kini distart ulang tiap cold start proses (jika toggle ON) + notifikasi FGS langsung tampil (IMMEDIATE) + log diagnostik keluar dari Main thread. -> Remaining: DAILY UPDATE, tunggu CI hijau, user install v40, toggle "Layanan latar depan persisten" ON, swipe app dari Recents, buka lagi. -> Next Action: minta user cek apakah notifikasi tampil (a) segera setelah toggle ON dan (b) setelah app dibuka lagi pasca-swipe; kalau tetap 0, kirim isi Log Diagnostik (`diag_persistent_service`, `diag_toggle_pressed`) — jangan ubah kode lagi tanpa evidence itu. Kandidat (butuh approval): kartu panduan "Agar jadwal tetap jalan" (kunci app di Recents / izin autostart).]

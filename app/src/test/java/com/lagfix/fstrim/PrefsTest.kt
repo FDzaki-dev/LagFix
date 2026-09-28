@@ -93,18 +93,27 @@ class PrefsTest {
 
     @Test
     fun `record simpan lastOk true dan format baris status OK`() {
-        prefs.record(TrimResult(ok = true, message = "exit=0 done", durationMs = 964L))
+        prefs.record(TrimResult(ok = true, message = "exit=0 done", durationMs = 964L), TriggerSource.MANUAL)
 
         assertTrue(prefs.lastOk)
         assertEquals(1, prefs.log.size)
         val line = prefs.log[0]
-        assertTrue(line.contains("OK 964ms exit=0 done"))
+        assertTrue(line.contains("OK [Manual] 964ms exit=0 done"))
         assertTrue(Regex("""^\d{2}/\d{2} \d{2}:\d{2} OK""").containsMatchIn(line))
     }
 
     @Test
+    fun `record menyisipkan token trigger Otomatis di antara status dan durasi`() {
+        prefs.record(TrimResult(ok = true, message = "exit=0", durationMs = 10L), TriggerSource.AUTO)
+
+        val line = prefs.log[0]
+        assertTrue(line.contains("OK [Otomatis] 10ms exit=0"))
+        assertTrue(Regex("""^\d{2}/\d{2} \d{2}:\d{2} OK \[Otomatis] 10ms """).containsMatchIn(line))
+    }
+
+    @Test
     fun `record simpan lastOk false dan status FAIL saat gagal`() {
-        prefs.record(TrimResult(ok = false, message = "exit=1", durationMs = 50L))
+        prefs.record(TrimResult(ok = false, message = "exit=1", durationMs = 50L), TriggerSource.MANUAL)
 
         assertTrue(!prefs.lastOk)
         assertTrue(prefs.log[0].contains("FAIL"))
@@ -112,7 +121,7 @@ class PrefsTest {
 
     @Test
     fun `log dipotong maksimal 30 baris, entri terbaru di depan, entri lama terbuang`() {
-        repeat(35) { i -> prefs.record(TrimResult(ok = true, message = "run-$i", durationMs = 1L)) }
+        repeat(35) { i -> prefs.record(TrimResult(ok = true, message = "run-$i", durationMs = 1L), TriggerSource.MANUAL) }
 
         // token terakhir tiap baris = "run-N" persis (bukan substring, hindari salah tangkap run-14/24/34)
         val entries = prefs.log.map { it.substringAfterLast(' ') }
@@ -125,12 +134,13 @@ class PrefsTest {
     @Test
     fun `pesan log newline diganti spasi dan dipotong maksimal 120 karakter`() {
         val longMsg = "a\nb".repeat(60) // 180 char, ada newline berulang
-        prefs.record(TrimResult(ok = true, message = longMsg, durationMs = 1L))
+        prefs.record(TrimResult(ok = true, message = longMsg, durationMs = 1L), TriggerSource.MANUAL)
 
         val line = prefs.log[0]
         assertTrue(!line.contains("\n"))
-        // prefix tetap: stamp "dd/MM HH:mm" (11 char, format 24 jam - selalu fixed width) + " OK 1ms " (8 char)
-        val msgPart = line.substring(19)
+        // prefix tetap: stamp "dd/MM HH:mm" (11 char, format 24 jam - selalu fixed width) +
+        // " OK [Manual] 1ms " (17 char; v38: token trigger "[Manual]" ikut di prefix)
+        val msgPart = line.substring(28)
         assertEquals(120, msgPart.length)
     }
 }

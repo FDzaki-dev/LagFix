@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -61,8 +62,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.app.NotificationManagerCompat
@@ -293,6 +298,13 @@ private fun MainTab(
                     else -> " — gagal"
                 }
             )
+            // v38: pemicu run terakhir (Manual/Otomatis) dari baris log terbaru. Baris lama tanpa
+            // token -> label null -> tidak ditampilkan (bukan menebak).
+            val lastTrigger = ui.log.firstOrNull()?.let { parseLogLine(it)?.trigger }.orEmpty()
+            val lastTriggerLabel = if (ui.lastRunMs != 0L) triggerLabel(lastTrigger) else null
+            if (lastTriggerLabel != null) {
+                Text("Dipicu oleh: $lastTriggerLabel", style = MaterialTheme.typography.bodySmall)
+            }
             ui.log.forEach { LogLine(it) }
         }
     }
@@ -685,32 +697,51 @@ private fun AboutDialog(
     )
 }
 
-// v8 (E1): indikator visual OK/FAIL di Riwayat. Parse-only di sisi UI — format baris log
-// ("dd/MM HH:mm" + status + durasi + pesan) tetap dari Prefs.record() apa adanya (sudah
-// dites PrefsTest.kt, tidak disentuh). Baris yang tak cocok pola tetap tampil polos (fallback aman).
-private val logLineRegex = Regex("""^(\d{2}/\d{2} \d{2}:\d{2}) (OK|FAIL) (.*)$""")
+// v8 (E1): indikator visual OK/FAIL di Riwayat. Parse-only di sisi UI — baris log ditulis oleh
+// Prefs.record() (dites PrefsTest.kt). v38: baris BARU punya token opsional "[Manual]"/"[Otomatis]"
+// di antara status & durasi; regex dibuat backward-compatible supaya baris LAMA (tanpa token, sudah
+// tersimpan di HP user) tetap terbaca — group 3 kosong kalau token tak ada. Baris yang tak cocok
+// pola sama sekali tetap tampil polos (fallback aman).
+private val logLineRegex = Regex("""^(\d{2}/\d{2} \d{2}:\d{2}) (OK|FAIL)(?: \[([^\]]+)\])? (.*)$""")
+private val durationRegex = Regex("""^(\d+)ms""")
 private val successGreen = Color(0xFF2E7D32)
 private val skippedAmber = Color(0xFFB26A00) // v13 (B4): beda dari FAIL asli — precondition Shizuku, bukan error eksekusi
 
+private data class ParsedLog(val stamp: String, val ok: Boolean, val trigger: String, val rest: String) {
+    val skipped: Boolean get() = !ok && rest.contains("dilewati")
+}
+
+private fun parseLogLine(line: String): ParsedLog? {
+    val g = logLineRegex.find(line)?.groupValues ?: return null
+    return ParsedLog(stamp = g[1], ok = g[2] == "OK", trigger = g[3], rest = g[4])
+}
+
+// v38: label ramah utk user awam. Trigger tak dikenal / baris lama tanpa token -> null (tidak ditebak).
+private fun triggerLabel(trigger: String): String? = when (trigger) {
+    TriggerSource.MANUAL -> "Manual (dijalankan sendiri oleh pengguna)"
+    TriggerSource.AUTO -> "Otomatis (jadwal interval)"
+    else -> null
+}
+
 @Composable
 private fun LogLine(line: String) {
-    val match = logLineRegex.find(line)
-    if (match == null) {
+    val parsed = parseLogLine(line)
+    if (parsed == null) {
         Text(line, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
         return
     }
-    val (stamp, status, rest) = match.destructured
-    val ok = status == "OK"
-    val skipped = !ok && rest.contains("dilewati")
     val tint = when {
-        ok -> successGreen
-        skipped -> skippedAmber
+        parsed.ok -> successGreen
+        parsed.skipped -> skippedAmber
         else -> MaterialTheme.colorScheme.error
     }
+    val status = if (parsed.ok) "OK" else "FAIL"
+    // v38: tampilkan pemicu run (Manual/Otomatis) kalau ada; baris lama tanpa token -> tanpa tag.
+    val triggerTag = if (parsed.trigger.isNotEmpty()) " (${parsed.trigger})" else ""
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Text("●", color = tint, style = MaterialTheme.typography.bodySmall)
         Text(
-            "$stamp $status $rest",
+            "${parsed.stamp} $status$triggerTag ${parsed.rest}",
             style = MaterialTheme.typography.bodySmall,
             fontFamily = FontFamily.Monospace,
             color = tint
@@ -718,23 +749,26 @@ private fun LogLine(line: String) {
     }
 }
 
-// v37 (fitur user-facing baru, permintaan eksplisit user "grafik statistik ... bikin project ini
-// hidup, gak teknis banget"): kartu "Statistik" di tab Utama, tepat di bawah Riwayat. PARSE-ONLY
-// di sisi UI, pola SAMA persis dgn LogLine (v8/v13) — reuse `logLineRegex`/`successGreen`/
-// `skippedAmber` yang sudah ada, 0 perubahan ke Prefs.kt/TrimWorker.kt/format baris log
-// (PrefsTest.kt tidak tersentuh sama sekali). Kalau riwayat kosong, kartu tidak ditampilkan
-// (hindari kartu statistik kosong yang membingungkan sebelum ada data apa pun).
-private data class RunStat(val ok: Boolean, val skipped: Boolean, val durationMs: Long)
+// v37 (fitur user-facing, permintaan user "grafik statistik ... bikin project hidup, gak teknis
+// banget") + v38 (feedback user: batang grafik "kurang informatif utk user awam"): kartu "Statistik"
+// di tab Utama. PARSE-ONLY di sisi UI (reuse parseLogLine/successGreen/skippedAmber), 0 data baru.
+// Kalau riwayat kosong, kartu tidak ditampilkan.
+private data class RunStat(val stamp: String, val ok: Boolean, val skipped: Boolean, val durationMs: Long)
 
 private fun parseRunStats(log: List<String>): List<RunStat> =
     log.mapNotNull { line ->
-        val match = logLineRegex.find(line) ?: return@mapNotNull null
-        val (_, status, rest) = match.destructured
-        val ok = status == "OK"
-        val skipped = !ok && rest.contains("dilewati")
-        val durationMs = Regex("""^(\d+)ms""").find(rest)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
-        RunStat(ok, skipped, durationMs)
+        val p = parseLogLine(line) ?: return@mapNotNull null
+        val ms = durationRegex.find(p.rest)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
+        RunStat(p.stamp, p.ok, p.skipped, ms)
     }
+
+// v38: "820ms" tak bermakna bagi user awam -> tampilkan dalam detik (1 desimal, koma gaya
+// Indonesia). Di bawah 0,1 detik ditulis "< 0,1 detik" supaya tak jadi "0,0 detik" yg membingungkan.
+private fun formatDuration(ms: Long): String {
+    if (ms < 100L) return "< 0,1 detik"
+    val tenths = (ms + 50L) / 100L
+    return "${tenths / 10},${tenths % 10} detik"
+}
 
 @Composable
 private fun StatsCard(log: List<String>) {
@@ -744,49 +778,131 @@ private fun StatsCard(log: List<String>) {
     val okCount = stats.count { it.ok }
     val skippedCount = stats.count { it.skipped }
     val failCount = stats.size - okCount - skippedCount
-    val avgOkMs = stats.filter { it.ok }.map { it.durationMs }
-        .let { d -> if (d.isEmpty()) 0L else d.average().toLong() }
+    val okDurations = stats.filter { it.ok }.map { it.durationMs }
+    val avgOkMs = if (okDurations.isEmpty()) 0L else okDurations.average().toLong()
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Statistik", style = MaterialTheme.typography.titleMedium)
             Text(
-                "$okCount berhasil · $skippedCount dilewati · $failCount gagal" +
-                    if (avgOkMs > 0) " · rata-rata ${avgOkMs}ms" else "",
+                "Dari ${stats.size} proses terakhir: $okCount berhasil · $skippedCount dilewati · $failCount gagal",
                 style = MaterialTheme.typography.bodySmall
             )
+            if (okDurations.isNotEmpty()) {
+                Text(
+                    "Rata-rata ${formatDuration(avgOkMs)} · tercepat ${formatDuration(okDurations.minOrNull() ?: 0L)}" +
+                        " · terlama ${formatDuration(okDurations.maxOrNull() ?: 0L)}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            Text(
+                "Lama tiap proses — makin tinggi batang, makin lama.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             // Kiri = riwayat terlama, kanan = terbaru (alur waktu wajar); ui.log sendiri urutannya
-            // terbaru-dulu (dipakai apa adanya oleh LogLine di atas), jadi dibalik cuma utk grafik.
-            RunHistoryChart(stats.reversed())
+            // terbaru-dulu (dipakai apa adanya oleh LogLine), jadi dibalik cuma utk grafik.
+            RunHistoryChart(stats.reversed(), avgOkMs)
+            StatsLegend(okCount > 0, skippedCount > 0, failCount > 0, avgOkMs > 0L)
         }
     }
 }
 
 @Composable
-private fun RunHistoryChart(stats: List<RunStat>) {
-    val maxDuration = (stats.maxOfOrNull { it.durationMs } ?: 0L).coerceAtLeast(1L)
-    val errorColor = MaterialTheme.colorScheme.error // resolve di scope Composable (bukan di DrawScope)
-    Canvas(Modifier.fillMaxWidth().height(64.dp)) {
-        val barGapPx = 4f
-        val n = stats.size.coerceAtLeast(1)
-        val barWidth = ((size.width - barGapPx * (n - 1)) / n).coerceAtLeast(1f)
-        stats.forEachIndexed { i, s ->
-            val tint = when {
-                s.ok -> successGreen
-                s.skipped -> skippedAmber
-                else -> errorColor
+private fun RunHistoryChart(stats: List<RunStat>, avgOkMs: Long) {
+    val rawMax = stats.maxOfOrNull { it.durationMs } ?: 0L
+    val maxDuration = rawMax.coerceAtLeast(1L)
+    // Warna di-resolve di scope Composable (bukan di dalam DrawScope).
+    val errorColor = MaterialTheme.colorScheme.error
+    val axisColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val avgLineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(Modifier.fillMaxWidth().height(80.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Sumbu vertikal: nilai tertinggi di atas, 0 di bawah — biar tinggi batang ada acuan angka.
+            Column(
+                Modifier.fillMaxHeight(),
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.End
+            ) {
+                Text(
+                    if (rawMax > 0L) formatDuration(rawMax) else "",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = axisColor
+                )
+                Text("0", style = MaterialTheme.typography.labelSmall, color = axisColor)
             }
-            // Tinggi minimum kecil biar durasi 0 (dilewati) tetap kelihatan sbg bar tipis, bukan
-            // hilang total — murni visual, 0 pengaruh ke data asli.
-            val ratio = (s.durationMs.toFloat() / maxDuration).coerceIn(0f, 1f)
-            val barHeight = (size.height * ratio).coerceAtLeast(4f)
-            drawRect(
-                color = tint,
-                topLeft = Offset(i * (barWidth + barGapPx), size.height - barHeight),
-                size = Size(barWidth, barHeight)
-            )
+            Canvas(Modifier.weight(1f).fillMaxHeight()) {
+                val barGapPx = 4f
+                val n = stats.size.coerceAtLeast(1)
+                val barWidth = ((size.width - barGapPx * (n - 1)) / n).coerceAtLeast(1f)
+                drawLine(
+                    color = axisColor.copy(alpha = 0.4f),
+                    start = Offset(0f, size.height - 1f),
+                    end = Offset(size.width, size.height - 1f),
+                    strokeWidth = 2f
+                )
+                stats.forEachIndexed { i, s ->
+                    val tint = when {
+                        s.ok -> successGreen
+                        s.skipped -> skippedAmber
+                        else -> errorColor
+                    }
+                    // Tinggi minimum kecil biar durasi 0 (dilewati) tetap kelihatan sbg bar tipis,
+                    // bukan hilang total — murni visual, 0 pengaruh ke data asli.
+                    val ratio = (s.durationMs.toFloat() / maxDuration).coerceIn(0f, 1f)
+                    val barHeight = (size.height * ratio).coerceAtLeast(4f)
+                    drawRect(
+                        color = tint,
+                        topLeft = Offset(i * (barWidth + barGapPx), size.height - barHeight),
+                        size = Size(barWidth, barHeight)
+                    )
+                }
+                // Garis putus-putus = rata-rata proses yang berhasil: acuan cepat "di atas/di bawah biasanya".
+                if (avgOkMs > 0L) {
+                    val y = size.height - (size.height * (avgOkMs.toFloat() / maxDuration)).coerceIn(0f, size.height)
+                    drawLine(
+                        color = avgLineColor,
+                        start = Offset(0f, y),
+                        end = Offset(size.width, y),
+                        strokeWidth = 2f,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 8f), 0f)
+                    )
+                }
+            }
+        }
+        // Sumbu waktu: tanggal-jam proses tertua (kiri) & terbaru (kanan).
+        if (stats.size > 1) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(stats.first().stamp, style = MaterialTheme.typography.labelSmall, color = axisColor)
+                Text(stats.last().stamp, style = MaterialTheme.typography.labelSmall, color = axisColor)
+            }
+        } else {
+            Text(stats.first().stamp, style = MaterialTheme.typography.labelSmall, color = axisColor)
         }
     }
+}
+
+// v38: legenda warna — satu Text ber-AnnotatedString (bukan Row berlapis) supaya otomatis turun
+// baris & tidak terpotong di layar sempit/font besar. Hanya kategori yang MEMANG ada yang ditampilkan.
+@Composable
+private fun StatsLegend(hasOk: Boolean, hasSkipped: Boolean, hasFail: Boolean, hasAvg: Boolean) {
+    val errorColor = MaterialTheme.colorScheme.error
+    val items = mutableListOf<Pair<Color, String>>()
+    if (hasOk) items.add(successGreen to "Berhasil")
+    if (hasSkipped) items.add(skippedAmber to "Dilewati")
+    if (hasFail) items.add(errorColor to "Gagal")
+    val text = buildAnnotatedString {
+        items.forEachIndexed { i, (color, label) ->
+            if (i > 0) append("   ")
+            withStyle(SpanStyle(color = color)) { append("●") }
+            append(" $label")
+        }
+        if (hasAvg) {
+            if (items.isNotEmpty()) append("   ")
+            append("- - - Rata-rata")
+        }
+    }
+    Text(text, style = MaterialTheme.typography.bodySmall)
 }
 
 @Composable

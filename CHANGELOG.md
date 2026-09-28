@@ -77,6 +77,11 @@
 ## v30
 - Fix: catatan crash/diagnostik (folder Download/LagFix/) sebelumnya bisa gagal total tanpa jejak apa pun — foldernya tidak pernah muncul. Sekarang penulisan file dijamin diselesaikan dengan benar sesuai mekanisme resmi Android, dan kalau tetap gagal karena kondisi HP tertentu, catatannya otomatis disimpan sebagai cadangan di penyimpanan internal aplikasi supaya tidak pernah hilang tanpa jejak.
 
+## v38
+- Baru: Riwayat sekarang menunjukkan proses fstrim dipicu oleh apa — Manual (dijalankan sendiri lewat tombol, widget, atau tile) atau Otomatis (jadwal interval). Baris ringkasan di atas Riwayat juga menuliskannya dalam kalimat.
+- Grafik Statistik lebih mudah dibaca: lama proses ditulis dalam detik, ada angka acuan di sisi grafik, tanggal awal dan akhir, garis putus-putus untuk rata-rata, dan keterangan warna batang.
+- Catatan: riwayat lama (sebelum v38) tidak punya info pemicu, jadi tampil tanpa keterangan itu.
+
 ## v37
 - Baru: kartu "Statistik" di tab Utama, di bawah Riwayat — ringkasan jumlah berhasil/dilewati/gagal, rata-rata durasi, dan grafik batang kecil yang menunjukkan durasi tiap proses fstrim dari waktu ke waktu (warna hijau/kuning/merah sesuai hasilnya).
 
@@ -85,3 +90,8 @@
 
 ## v31
 - Baru: card "Log Diagnostik" di tab Pengaturan — baca catatan crash/diagnostik langsung di dalam aplikasi (tidak perlu buka file manager atau folder Download sama sekali). Tap salah satu untuk lihat isinya lengkap, plus tombol "Salin" untuk menyalin teksnya langsung dari aplikasi.
+
+## v40
+- Perbaikan notifikasi "Layanan latar depan persisten": layanan sekarang otomatis dinyalakan lagi setiap aplikasi dibuka kembali setelah dimatikan sistem (mis. digeser dari Recents), sehingga notifikasinya muncul lagi.
+- Notifikasi layanan kini ditampilkan langsung, tidak lagi tertunda beberapa detik di Android 12+ (sebelumnya bisa keburu terbunuh sebelum sempat muncul).
+- Catatan: di HP dengan sistem yang agresif (mis. Infinix XOS), aplikasi tetap bisa dimatikan saat digeser dari Recents; notifikasi akan kembali begitu aplikasi dibuka lagi. Tidak ada jaminan 100%.
