@@ -337,7 +337,7 @@ private fun MainTab(
 }
 
 // v44: menit -> teks manusiawi ("15 menit", "1 jam 30 menit", "3 hari"). Murni format, 0 side-effect.
-private fun formatInterval(minutes: Long): String {
+internal fun formatInterval(minutes: Long): String {
     val d = minutes / 1440L
     val h = (minutes % 1440L) / 60L
     val m = minutes % 60L
@@ -780,11 +780,11 @@ private val durationRegex = Regex("""^(\d+)ms""")
 private val successGreen = Color(0xFF2E7D32)
 private val skippedAmber = Color(0xFFB26A00) // v13 (B4): beda dari FAIL asli — precondition Shizuku, bukan error eksekusi
 
-private data class ParsedLog(val stamp: String, val ok: Boolean, val trigger: String, val rest: String) {
+internal data class ParsedLog(val stamp: String, val ok: Boolean, val trigger: String, val rest: String) {
     val skipped: Boolean get() = !ok && rest.contains("dilewati")
 }
 
-private fun parseLogLine(line: String): ParsedLog? {
+internal fun parseLogLine(line: String): ParsedLog? {
     val g = logLineRegex.find(line)?.groupValues ?: return null
     return ParsedLog(stamp = g[1], ok = g[2] == "OK", trigger = g[3], rest = g[4])
 }
@@ -826,13 +826,15 @@ private fun LogLine(line: String) {
 // banget") + v38 (feedback user: batang grafik "kurang informatif utk user awam"): kartu "Statistik"
 // di tab Utama. PARSE-ONLY di sisi UI (reuse parseLogLine/successGreen/skippedAmber), 0 data baru.
 // Kalau riwayat kosong, kartu tidak ditampilkan.
-private data class RunStat(val stamp: String, val ok: Boolean, val skipped: Boolean, val durationMs: Long)
+private data class RunStat(
+    val stamp: String, val ok: Boolean, val skipped: Boolean, val durationMs: Long, val trigger: String
+)
 
 private fun parseRunStats(log: List<String>): List<RunStat> =
     log.mapNotNull { line ->
         val p = parseLogLine(line) ?: return@mapNotNull null
         val ms = durationRegex.find(p.rest)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
-        RunStat(p.stamp, p.ok, p.skipped, ms)
+        RunStat(p.stamp, p.ok, p.skipped, ms, p.trigger)
     }
 
 // v38: "820ms" tak bermakna bagi user awam -> tampilkan dalam detik (1 desimal, koma gaya
@@ -853,12 +855,20 @@ private fun StatsCard(log: List<String>) {
     val failCount = stats.size - okCount - skippedCount
     val okDurations = stats.filter { it.ok }.map { it.durationMs }
     val avgOkMs = if (okDurations.isEmpty()) 0L else okDurations.average().toLong()
+    // v45 (permintaan user: statistik "kurang jelas" apakah run Otomatis ikut terhitung): rincian
+    // dari data yang SUDAH ada di setiap RunStat, 0 sumber data baru. Baris lama pra-v38 tanpa
+    // token trigger -> tidak diklaim (dikeluarkan dari rincian, biar tak salah label "0 otomatis").
+    val withTrigger = stats.filter { it.trigger.isNotEmpty() }
+    val autoCount = withTrigger.count { it.trigger == TriggerSource.AUTO }
+    val manualCount = withTrigger.count { it.trigger == TriggerSource.MANUAL }
+    val hasManual = withTrigger.any { it.trigger == TriggerSource.MANUAL }
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Statistik", style = MaterialTheme.typography.titleMedium)
             Text(
-                "Dari ${stats.size} proses terakhir: $okCount berhasil · $skippedCount dilewati · $failCount gagal",
+                "Dari ${stats.size} proses terakhir: $okCount berhasil · $skippedCount dilewati · $failCount gagal" +
+                    if (withTrigger.isNotEmpty()) " ($autoCount otomatis · $manualCount manual)" else "",
                 style = MaterialTheme.typography.bodySmall
             )
             if (okDurations.isNotEmpty()) {
@@ -876,7 +886,7 @@ private fun StatsCard(log: List<String>) {
             // Kiri = riwayat terlama, kanan = terbaru (alur waktu wajar); ui.log sendiri urutannya
             // terbaru-dulu (dipakai apa adanya oleh LogLine), jadi dibalik cuma utk grafik.
             RunHistoryChart(stats.reversed(), avgOkMs)
-            StatsLegend(okCount > 0, skippedCount > 0, failCount > 0, avgOkMs > 0L)
+            StatsLegend(okCount > 0, skippedCount > 0, failCount > 0, avgOkMs > 0L, hasManual)
         }
     }
 }
@@ -889,6 +899,7 @@ private fun RunHistoryChart(stats: List<RunStat>, avgOkMs: Long) {
     val errorColor = MaterialTheme.colorScheme.error
     val axisColor = MaterialTheme.colorScheme.onSurfaceVariant
     val avgLineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+    val hasManualMarker = stats.any { it.trigger == TriggerSource.MANUAL }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(Modifier.fillMaxWidth().height(80.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             // Sumbu vertikal: nilai tertinggi di atas, 0 di bawah — biar tinggi batang ada acuan angka.
@@ -929,6 +940,16 @@ private fun RunHistoryChart(stats: List<RunStat>, avgOkMs: Long) {
                         topLeft = Offset(i * (barWidth + barGapPx), size.height - barHeight),
                         size = Size(barWidth, barHeight)
                     )
+                    if (hasManualMarker && s.trigger == TriggerSource.MANUAL) {
+                        drawCircle(
+                            color = axisColor,
+                            radius = 3f,
+                            center = Offset(
+                                i * (barWidth + barGapPx) + barWidth / 2f,
+                                (size.height - barHeight - 8f).coerceAtLeast(3f)
+                            )
+                        )
+                    }
                 }
                 // Garis putus-putus = rata-rata proses yang berhasil: acuan cepat "di atas/di bawah biasanya".
                 if (avgOkMs > 0L) {
@@ -958,7 +979,7 @@ private fun RunHistoryChart(stats: List<RunStat>, avgOkMs: Long) {
 // v38: legenda warna — satu Text ber-AnnotatedString (bukan Row berlapis) supaya otomatis turun
 // baris & tidak terpotong di layar sempit/font besar. Hanya kategori yang MEMANG ada yang ditampilkan.
 @Composable
-private fun StatsLegend(hasOk: Boolean, hasSkipped: Boolean, hasFail: Boolean, hasAvg: Boolean) {
+private fun StatsLegend(hasOk: Boolean, hasSkipped: Boolean, hasFail: Boolean, hasAvg: Boolean, hasManual: Boolean = false) {
     val errorColor = MaterialTheme.colorScheme.error
     val items = mutableListOf<Pair<Color, String>>()
     if (hasOk) items.add(successGreen to "Berhasil")
@@ -973,6 +994,10 @@ private fun StatsLegend(hasOk: Boolean, hasSkipped: Boolean, hasFail: Boolean, h
         if (hasAvg) {
             if (items.isNotEmpty()) append("   ")
             append("- - - Rata-rata")
+        }
+        if (hasManual) {
+            if (items.isNotEmpty() || hasAvg) append("   ")
+            append("• titik = dipicu manual")
         }
     }
     Text(text, style = MaterialTheme.typography.bodySmall)

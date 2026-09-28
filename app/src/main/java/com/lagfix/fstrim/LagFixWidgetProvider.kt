@@ -55,16 +55,36 @@ class LagFixWidgetProvider : AppWidgetProvider() {
     // penyimpanan) — cuma cara TAMPILKANNYA di widget yg dibikin ramah. Deteksi "dilewati" pakai
     // teknik yg SAMA persis dgn yg sudah dipakai MainActivity.kt baris ~276 (cek prefix log),
     // konsisten dgn konvensi existing, bukan bikin cara baru.
+    // v45 (permintaan user: info "kurang jelas" — taruh interval di widget + baris status tak
+    // bilang pemicu Otomatis/Manual): baris ke-2 (`android:maxLines="2"` di layout SUDAH
+    // mengantisipasi ini sejak awal, 0 perubahan XML) menampilkan interval aktif via
+    // `formatInterval()` (dibuat `internal` di MainActivity.kt, v45, 0 logic diduplikasi). Baris
+    // ke-1 menyisipkan `(Otomatis)`/`(Manual)` dari `ParsedLog.trigger` (juga dibuat `internal`)
+    // HANYA kalau baris log itu punya token trigger (baris lama pra-v38 -> tanpa embel-embel,
+    // sama seperti sebelumnya).
     private fun friendlyStatus(context: Context): String {
         val prefs = Prefs(context)
-        if (prefs.lastRunMs == 0L) return context.getString(R.string.widget_status_never)
-        val stamp = SimpleDateFormat("dd/MM HH:mm", Locale.US).format(Date(prefs.lastRunMs))
-        val skipped = prefs.log.firstOrNull()?.contains("dilewati") == true
-        return when {
-            skipped -> context.getString(R.string.widget_status_not_ready, stamp)
-            prefs.lastOk -> context.getString(R.string.widget_status_ok, stamp)
-            else -> context.getString(R.string.widget_status_fail, stamp)
+        val intervalLine = context.getString(R.string.widget_interval_line, formatInterval(prefs.intervalMinutes))
+        if (prefs.lastRunMs == 0L) {
+            return "${context.getString(R.string.widget_status_never)}\n$intervalLine"
         }
+        val stamp = SimpleDateFormat("dd/MM HH:mm", Locale.US).format(Date(prefs.lastRunMs))
+        val parsed = prefs.log.firstOrNull()?.let(::parseLogLine)
+        val trigger = parsed?.trigger?.takeIf { it.isNotEmpty() }
+        val line1 = when {
+            parsed?.skipped == true -> context.getString(R.string.widget_status_not_ready, stamp)
+            prefs.lastOk -> if (trigger != null) {
+                context.getString(R.string.widget_status_ok_trigger, stamp, trigger)
+            } else {
+                context.getString(R.string.widget_status_ok, stamp)
+            }
+            else -> if (trigger != null) {
+                context.getString(R.string.widget_status_fail_trigger, stamp, trigger)
+            } else {
+                context.getString(R.string.widget_status_fail, stamp)
+            }
+        }
+        return "$line1\n$intervalLine"
     }
 
     private fun runNowPendingIntent(context: Context): PendingIntent {

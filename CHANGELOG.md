@@ -100,3 +100,7 @@
 - Pengaturan > Jadwal: interval kustom. Isi sendiri angka dalam menit (minimal 15 menit) lalu tekan "Terapkan" atau tombol selesai di keyboard; pilihan cepat 6 jam – 7 hari tetap ada.
 - Teks di bawah kolom menampilkan interval yang sedang aktif (mis. "1 jam 30 menit"). Pilihan interval lama tetap terbawa saat pembaruan.
 - Catatan: 15 menit adalah batas terkecil penjadwal Android (WorkManager), jadi nilai lebih kecil ditolak. Opsi "Hanya saat mengisi daya"/"idle" tetap berlaku dan bisa menunda jalannya jadwal.
+
+## v45
+- Widget layar utama: baris kedua kini menampilkan interval jadwal yang aktif (mis. "Tiap 15 menit"), dan baris status menyebut apakah proses terakhir dari jadwal Otomatis atau dijalankan Manual.
+- Kartu "Statistik" di app: ringkasan kini merinci berapa dari proses terakhir yang Otomatis vs Manual, dan grafik menandai batang hasil "Manual" dengan titik kecil di atasnya (kalau ada campuran keduanya) supaya jelas kedua jenis pemicu sama-sama terhitung.
