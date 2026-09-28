@@ -19,7 +19,7 @@ import rikka.shizuku.Shizuku
 data class UiState(
     val shizuku: ShizukuState = ShizukuState.NOT_RUNNING,
     val enabled: Boolean = false,
-    val intervalHours: Long = 24L,
+    val intervalMinutes: Long = 24L * 60L, // v44: menit (sebelumnya jam)
     val requireCharging: Boolean = true,
     val requireIdle: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
@@ -53,7 +53,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private fun read(running: Boolean = false) = UiState(
         shizuku = FstrimExecutor.state(getApplication<Application>()),
         enabled = prefs.enabled,
-        intervalHours = prefs.intervalHours,
+        intervalMinutes = prefs.intervalMinutes,
         requireCharging = prefs.requireCharging,
         requireIdle = prefs.requireIdle,
         themeMode = prefs.themeMode,
@@ -100,7 +100,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun setEnabled(v: Boolean) { prefs.enabled = v; reschedule() }
-    fun setInterval(h: Long) { prefs.intervalHours = h; reschedule() }
+    fun setInterval(minutes: Long) {
+        prefs.intervalMinutes = minutes.coerceAtLeast(Scheduler.MIN_INTERVAL_MINUTES)
+        reschedule()
+    }
     fun setCharging(v: Boolean) { prefs.requireCharging = v; reschedule() }
     fun setIdle(v: Boolean) { prefs.requireIdle = v; reschedule() }
     fun setThemeMode(m: ThemeMode) { prefs.themeMode = m; ui = ui.copy(themeMode = m) }

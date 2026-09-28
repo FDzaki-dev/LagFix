@@ -24,6 +24,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -38,6 +41,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -64,6 +68,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -218,7 +225,7 @@ private fun HomeScreen(vm: MainViewModel) {
         }
     ) { pad ->
         Column(
-            Modifier.padding(pad).verticalScroll(rememberScrollState()).padding(16.dp),
+            Modifier.padding(pad).imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (selectedTab == 0) {
@@ -329,6 +336,19 @@ private fun MainTab(
     )
 }
 
+// v44: menit -> teks manusiawi ("15 menit", "1 jam 30 menit", "3 hari"). Murni format, 0 side-effect.
+private fun formatInterval(minutes: Long): String {
+    val d = minutes / 1440L
+    val h = (minutes % 1440L) / 60L
+    val m = minutes % 60L
+    val parts = buildList {
+        if (d > 0) add("$d hari")
+        if (h > 0) add("$h jam")
+        if (m > 0) add("$m menit")
+    }
+    return parts.joinToString(" ").ifEmpty { "0 menit" }
+}
+
 // v10: tab "Pengaturan" — jadwal otomatis + interval + charging/idle (dipindah dari Utama, sama
 // persis logic/callback-nya, cuma beda lokasi tab) + BARU: pemilih tema (Ikuti sistem/Terang/Gelap).
 @Composable
@@ -348,18 +368,71 @@ private fun SettingsTab(
                 onFeedback(if (it) "Jadwal otomatis diaktifkan." else "Jadwal otomatis dinonaktifkan.")
             }
             Text("Interval")
+            // v44 (permintaan user: interval kustom diisi sendiri, biar tak kelamaan nunggu saat
+            // uji): chip preset TETAP (nilai jam x 60 -> menit), ditambah kolom angka menit.
+            // Batas bawah 15 menit = batas periodik WorkManager (di bawah itu WorkManager diam-diam
+            // menaikkannya, jadi ditolak eksplisit di sini). Teks input rememberSaveable -> tahan rotasi.
+            val focusManager = LocalFocusManager.current
+            val presets = listOf(6L to "6 jam", 12L to "12 jam", 24L to "1 hari", 72L to "3 hari", 168L to "7 hari")
+            var customText by rememberSaveable {
+                mutableStateOf(
+                    if (presets.any { it.first * 60L == ui.intervalMinutes }) "" else ui.intervalMinutes.toString()
+                )
+            }
+            val customValue = customText.toLongOrNull()
+            val customValid = customValue != null && customValue >= Scheduler.MIN_INTERVAL_MINUTES
+            val applyCustom: () -> Unit = {
+                if (customValue != null && customValid) {
+                    vm.setInterval(customValue)
+                    onFeedback("Interval diubah ke ${formatInterval(customValue)}.")
+                    focusManager.clearFocus()
+                }
+            }
             Row(
                 Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                listOf(6L to "6 jam", 12L to "12 jam", 24L to "1 hari", 72L to "3 hari", 168L to "7 hari")
-                    .forEach { (h, label) ->
-                        FilterChip(
-                            selected = ui.intervalHours == h,
-                            onClick = { vm.setInterval(h); onFeedback("Interval diubah ke $label.") },
-                            label = { Text(label) }
+                presets.forEach { (h, label) ->
+                    FilterChip(
+                        selected = ui.intervalMinutes == h * 60L,
+                        onClick = {
+                            customText = ""
+                            vm.setInterval(h * 60L)
+                            onFeedback("Interval diubah ke $label.")
+                        },
+                        label = { Text(label) }
+                    )
+                }
+            }
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                OutlinedTextField(
+                    value = customText,
+                    onValueChange = { customText = it.filter(Char::isDigit).take(6) },
+                    modifier = Modifier.weight(1f),
+                    label = { Text("Interval kustom (menit)") },
+                    singleLine = true,
+                    isError = customText.isNotEmpty() && !customValid,
+                    supportingText = {
+                        Text(
+                            if (customText.isNotEmpty() && !customValid) {
+                                "Minimal ${Scheduler.MIN_INTERVAL_MINUTES} menit (batas WorkManager)."
+                            } else {
+                                "Interval aktif: ${formatInterval(ui.intervalMinutes)}"
+                            }
                         )
-                    }
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { applyCustom() })
+                )
+                Button(
+                    onClick = applyCustom,
+                    enabled = customValid,
+                    modifier = Modifier.padding(top = 8.dp)
+                ) { Text("Terapkan") }
             }
             ToggleRow("Hanya saat mengisi daya", ui.requireCharging) {
                 vm.setCharging(it)

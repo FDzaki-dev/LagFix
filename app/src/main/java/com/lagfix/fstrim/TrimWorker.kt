@@ -80,6 +80,11 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
 object Scheduler {
     private const val NAME = "lagfix_fstrim"
 
+    // v44: batas bawah interval periodik WorkManager (PeriodicWorkRequest.MIN_PERIODIC_INTERVAL_MILLIS
+    // = 15 menit). Nilai lebih kecil DIAM-DIAM dinaikkan ke 15 menit oleh WorkManager, jadi UI
+    // menolaknya secara eksplisit & di sini diclamp juga sbg pengaman.
+    const val MIN_INTERVAL_MINUTES = 15L
+
     fun apply(ctx: Context, p: Prefs) {
         val wm = WorkManager.getInstance(ctx.applicationContext)
         if (!p.enabled) {
@@ -91,7 +96,9 @@ object Scheduler {
             .setRequiresDeviceIdle(p.requireIdle)
             .setRequiresBatteryNotLow(true)
             .build()
-        val req = PeriodicWorkRequestBuilder<TrimWorker>(p.intervalHours, TimeUnit.HOURS)
+        val req = PeriodicWorkRequestBuilder<TrimWorker>(
+            p.intervalMinutes.coerceAtLeast(MIN_INTERVAL_MINUTES), TimeUnit.MINUTES
+        )
             .setConstraints(constraints)
             .build()
         wm.enqueueUniquePeriodicWork(NAME, ExistingPeriodicWorkPolicy.UPDATE, req)

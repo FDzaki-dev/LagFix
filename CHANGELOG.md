@@ -95,3 +95,8 @@
 - Perbaikan notifikasi "Layanan latar depan persisten": layanan sekarang otomatis dinyalakan lagi setiap aplikasi dibuka kembali setelah dimatikan sistem (mis. digeser dari Recents), sehingga notifikasinya muncul lagi.
 - Notifikasi layanan kini ditampilkan langsung, tidak lagi tertunda beberapa detik di Android 12+ (sebelumnya bisa keburu terbunuh sebelum sempat muncul).
 - Catatan: di HP dengan sistem yang agresif (mis. Infinix XOS), aplikasi tetap bisa dimatikan saat digeser dari Recents; notifikasi akan kembali begitu aplikasi dibuka lagi. Tidak ada jaminan 100%.
+
+## v44
+- Pengaturan > Jadwal: interval kustom. Isi sendiri angka dalam menit (minimal 15 menit) lalu tekan "Terapkan" atau tombol selesai di keyboard; pilihan cepat 6 jam – 7 hari tetap ada.
+- Teks di bawah kolom menampilkan interval yang sedang aktif (mis. "1 jam 30 menit"). Pilihan interval lama tetap terbawa saat pembaruan.
+- Catatan: 15 menit adalah batas terkecil penjadwal Android (WorkManager), jadi nilai lebih kecil ditolak. Opsi "Hanya saat mengisi daya"/"idle" tetap berlaku dan bisa menunda jalannya jadwal.

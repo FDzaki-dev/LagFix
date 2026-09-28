@@ -24,9 +24,12 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("enabled", false)
         set(v) { sp.edit().putBoolean("enabled", v).apply() }
 
-    var intervalHours: Long
-        get() = sp.getLong("interval", 24L)
-        set(v) { sp.edit().putLong("interval", v).apply() }
+    // v44: interval kini dalam MENIT (mendukung nilai kustom dari user). Kunci lama "interval"
+    // (jam, dipakai v1-v43) TETAP dibaca sbg fallback -> user existing tak kehilangan pilihannya,
+    // 0 migrasi data. Nilai baru cuma ditulis ke kunci "intervalMin".
+    var intervalMinutes: Long
+        get() = sp.getLong("intervalMin", sp.getLong("interval", 24L) * 60L)
+        set(v) { sp.edit().putLong("intervalMin", v).apply() }
 
     var requireCharging: Boolean
         get() = sp.getBoolean("charging", true)
