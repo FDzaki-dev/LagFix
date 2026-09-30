@@ -9,6 +9,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.os.Process
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -35,10 +37,18 @@ import kotlinx.coroutines.launch
  */
 class PersistentTrimService : Service() {
 
+    // v49: waktu onCreate (elapsedRealtime) utk menghitung umur servis di log onDestroy().
+    private var createdAtMs = 0L
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
+        createdAtMs = SystemClock.elapsedRealtime()
+        // v49 (milestone "Log.i lifecycle servis", jawab pertanyaan terbuka v42: siapa yg
+        // menghentikan FGS ~1,7 dtk SEBELUM SIGKILL XOS, & apa yg menghidupkan proses lagi).
+        // Filter logcat: tag `PersistentTrimService`, kata kunci `LIFECYCLE`.
+        Log.i(TAG, "LIFECYCLE onCreate pid=${Process.myPid()} procAge=${procAgeMs()}ms")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val mgr = getSystemService(NotificationManager::class.java)
             val channel = NotificationChannel(
@@ -61,6 +71,15 @@ class PersistentTrimService : Service() {
         // panduan lainnya (channel ID match, smallIcon valid, foregroundServiceType+property
         // manifest) sudah dicek & SESUAI, 0 perubahan di situ.
         val result = runCatching { startForeground(NOTIF_ID, buildNotification()) }
+        // v49: log SETELAH startForeground() (aturan v35: tak ada operasi apa pun sebelumnya).
+        // `intentNull=true` = servis dihidupkan ulang SISTEM (START_STICKY, intent null);
+        // `false` = distart kode app (`start()`/`startIfEnabled()`/BootReceiver).
+        Log.i(
+            TAG,
+            "LIFECYCLE onStartCommand pid=${Process.myPid()} procAge=${procAgeMs()}ms " +
+                "startId=$startId flags=$flags intentNull=${intent == null} " +
+                "startForeground=${if (result.isSuccess) "ok" else result.exceptionOrNull()}"
+        )
 
         // v29 (0 berubah dari sisi DATA yang direkam, cuma dibaca SESUDAH startForeground() skrg):
         // kumpulkan BUKTI KONKRET langsung ke Download/LagFix/ — status areNotificationsEnabled(),
@@ -81,6 +100,18 @@ class PersistentTrimService : Service() {
             CrashLogger.logDiagnostic(appCtx, "persistent_service", "$preCheck\n$outcome")
         }
         return START_STICKY
+    }
+
+    // v49: TANPA override onTaskRemoved() — manifest tak set `stopWithTask="false"`, jadi sistem
+    // langsung menghentikan servis saat task dihapus & callback itu TIDAK dipanggil (dead code).
+    // Bukti stop dari sistem = onDestroy() di bawah TANPA baris "stop() dipanggil kode app" sebelumnya.
+    override fun onDestroy() {
+        Log.i(
+            TAG,
+            "LIFECYCLE onDestroy pid=${Process.myPid()} " +
+                "serviceUptime=${SystemClock.elapsedRealtime() - createdAtMs}ms"
+        )
+        super.onDestroy()
     }
 
     private fun buildNotification(): Notification {
@@ -110,9 +141,15 @@ class PersistentTrimService : Service() {
 
         private const val TAG = "PersistentTrimService"
 
+        // v49: umur proses (ms) sejak dibuat. Kecil (< beberapa detik) saat onCreate servis =
+        // servis lahir bersamaan proses baru (cold start / revive), bukan servis lama yg hidup terus.
+        // `getStartElapsedRealtime()` API 24+, minSdk 26.
+        private fun procAgeMs(): Long = SystemClock.elapsedRealtime() - Process.getStartElapsedRealtime()
+
         fun start(ctx: Context) {
             val app = ctx.applicationContext
             ContextCompat.startForegroundService(app, Intent(app, PersistentTrimService::class.java))
+            Log.i(TAG, "LIFECYCLE start() -> startForegroundService() dipanggil pid=${Process.myPid()}")
         }
 
         /**
@@ -124,12 +161,15 @@ class PersistentTrimService : Service() {
          * (Android 12+ `ForegroundServiceStartNotAllowedException`) — itu ditangkap, bukan crash.
          */
         fun startIfEnabled(ctx: Context) {
-            if (!Prefs(ctx).persistentServiceEnabled) return
+            val enabled = Prefs(ctx).persistentServiceEnabled
+            Log.i(TAG, "LIFECYCLE startIfEnabled pid=${Process.myPid()} procAge=${procAgeMs()}ms toggleOn=$enabled")
+            if (!enabled) return
             runCatching { start(ctx) }
                 .onFailure { Log.w(TAG, "Start servis persisten ditolak OS (proses dari background)", it) }
         }
 
         fun stop(ctx: Context) {
+            Log.i(TAG, "LIFECYCLE stop() dipanggil dari kode app pid=${Process.myPid()}")
             val app = ctx.applicationContext
             app.stopService(Intent(app, PersistentTrimService::class.java))
         }

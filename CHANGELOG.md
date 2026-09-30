@@ -1,5 +1,9 @@
 # Changelog
 
+## v49
+- Pengaturan: kartu baru "Agar jadwal tetap jalan" berisi panduan singkat (jangan geser LagFix dari Recents, kunci di Recents bila ada, izinkan Autostart/Latar belakang) plus tombol ke Info Aplikasi. Paragraf Autostart lama di kartu Jadwal dipindah ke kartu ini.
+- Layanan latar depan persisten kini mencatat siklus hidupnya ke logcat (kata kunci LIFECYCLE) untuk membantu diagnosis saat dimatikan sistem. Tidak ada perubahan perilaku.
+
 ## v48
 - Dihapus juga: batasan "baterai tidak rendah" pada jadwal otomatis. Sekarang jadwal murni mengikuti interval, tanpa syarat apa pun (sebelumnya masih ditunda saat baterai sangat rendah).
 - Jalur penyegaran satu kali dari v47 dicabut. Setelah memasang v48, matikan lalu nyalakan lagi "Jadwal otomatis" (atau tekan "Terapkan" pada interval) satu kali supaya jadwal lama yang masih membawa syarat baterai digantikan jadwal baru.

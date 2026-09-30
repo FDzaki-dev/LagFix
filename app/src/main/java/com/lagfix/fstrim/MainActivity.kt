@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -461,20 +462,62 @@ private fun SettingsTab(
                     Text("↗")
                 }
             }
-            // v24 (laporan user: sudah exempt battery optimization tapi jadwal 6 jam TETAP 0 entri
-            // otomatis — dikonfirmasi ini BUKAN cukup di sebagian HP, khususnya Infinix/Tecno/itel
-            // (XOS/HiOS) & Xiaomi/dst: ROM ini punya toggle "Autostart"/"Latar belakang" TERPISAH
-            // di App Management/Phone Master/Security App, DI LUAR API baterai standar Android — 0
-            // API publik utk app pihak ketiga minta ini secara terprogram, cuma bisa dipandu manual,
-            // makanya di sini teks saja, bukan tombol/intent (nebak nama package/activity spesifik
-            // per versi ROM berisiko ActivityNotFoundException, jadi TIDAK dilakukan).
+        }
+    }
+
+    // v49 (milestone "Kartu panduan jadwal", dipilih user; menggantikan paragraf teks "Autostart"
+    // v24 yg dulu di kartu Jadwal — DIPINDAH ke sini & dilengkapi, bukan diduplikasi).
+    // Dasar bukti: logcat v41 (XOS `TranManualCleanMgr` SIGKILL saat swipe-Recents + tolak restart
+    // servis) — cuma poin 1 yg TERBUKTI di HP ini. Poin 2 (Kunci Recents) & 3 (Autostart) = praktik
+    // umum ROM, BELUM diverifikasi di HP ini -> teksnya sengaja berhati-hati, tanpa klaim pasti.
+    // Tombol hanya membuka Info Aplikasi (intent standar Android, 0 tebakan nama activity per ROM
+    // -> tetap patuh alasan v24: tak ada intent Autostart khusus merek).
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Agar jadwal tetap jalan", style = MaterialTheme.typography.titleMedium)
             Text(
-                "Kalau jadwal otomatis tetap tidak jalan walau sudah diizinkan di atas, cek juga " +
-                    "pengaturan \"Autostart\" / \"Latar belakang\" yang terpisah di App Management " +
-                    "atau Phone Master/Security App bawaan HP (umum di Infinix, Tecno, Xiaomi, dll — " +
-                    "nama menu beda-beda tiap merek & versi).",
+                "Jadwal otomatis jalan di latar belakang, jadi HP tidak boleh mematikan LagFix. " +
+                    "Yang paling berpengaruh:",
                 style = MaterialTheme.typography.bodySmall
             )
+            Text(
+                "• Jangan geser LagFix dari daftar aplikasi terbaru (Recents). Di HP seperti " +
+                    "Infinix/Tecno (XOS), menggesernya langsung mematikan proses LagFix. " +
+                    "Untuk keluar cukup tekan Home.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                "• Kunci LagFix di Recents kalau HP punya opsinya (biasanya tahan kartu aplikasi, " +
+                    "lalu pilih Kunci). Ini melindungi dari \"Bersihkan semua\"; menggeser satu " +
+                    "kartu tetap bisa mematikannya di sebagian HP.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                "• Izinkan \"Autostart\" / \"Latar belakang\" di App Management atau Phone " +
+                    "Master/Security App bawaan HP. Nama menu beda-beda tiap merek & versi.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                "Tidak ada jaminan 100%: sistem HP tetap bisa mematikan aplikasi kapan saja.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            TextButton(
+                onClick = {
+                    runCatching {
+                        ctx.startActivity(
+                            Intent(
+                                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.fromParts("package", ctx.packageName, null)
+                            )
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Buka Info Aplikasi LagFix", Modifier.weight(1f))
+                Text("↗")
+            }
         }
     }
 
