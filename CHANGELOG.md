@@ -1,5 +1,8 @@
 # Changelog
 
+## v51
+- Log crash dan diagnostik kini disimpan di folder Documents/LagFix (sebelumnya Download/LagFix), jadi folder Download tidak lagi terisi file log. Kartu "Log Diagnostik" di Pengaturan membaca kedua lokasi. File lama di Download/LagFix tidak dipindah otomatis; hapus manual bila tak diperlukan.
+
 ## v49
 - Pengaturan: kartu baru "Agar jadwal tetap jalan" berisi panduan singkat (jangan geser LagFix dari Recents, kunci di Recents bila ada, izinkan Autostart/Latar belakang) plus tombol ke Info Aplikasi. Paragraf Autostart lama di kartu Jadwal dipindah ke kartu ini.
 - Layanan latar depan persisten kini mencatat siklus hidupnya ke logcat (kata kunci LIFECYCLE) untuk membantu diagnosis saat dimatikan sistem. Tidak ada perubahan perilaku.

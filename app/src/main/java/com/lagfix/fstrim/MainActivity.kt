@@ -666,7 +666,7 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Log Diagnostik", style = MaterialTheme.typography.titleMedium)
             Text(
-                "Baca langsung dari dalam aplikasi — tidak bergantung file manager/folder Download " +
+                "Baca langsung dari dalam aplikasi — tidak bergantung file manager/folder Documents " +
                     "yang mungkin tidak menampilkan file baru di sebagian HP.",
                 style = MaterialTheme.typography.bodySmall
             )
@@ -702,7 +702,7 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
                     style = MaterialTheme.typography.bodySmall
                 )
                 !loading && logs.isEmpty() -> Text(
-                    "Belum ada file log ditemukan (baik di Download/LagFix maupun cadangan internal app).",
+                    "Belum ada file log ditemukan (baik di Documents/LagFix, Download/LagFix lama, maupun cadangan internal app).",
                     style = MaterialTheme.typography.bodySmall
                 )
             }

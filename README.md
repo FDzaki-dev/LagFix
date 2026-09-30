@@ -13,7 +13,7 @@ Menjalankan `sm fstrim` (fallback `sm idle-maint run`) sebagai shell UID lewat *
 CI: GitHub Actions (`.github/workflows/build.yml`). Lokal: `gradle assembleDebug` (Gradle 8.9, JDK 17). Signing release via env: `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` + `release.keystore` di root.
 
 ## Crash log
-`Download/LagFix/LagFix_crash_*.txt`
+`Documents/LagFix/LagFix_crash_*.txt` (sebelum v51: `Download/LagFix/`)
 
 ## Tautan di app
 Kartu "Tautan" di layar utama membuka rilis terbaru, source, dan lapor masalah di `github.com/FDzaki-dev/LagFix`.

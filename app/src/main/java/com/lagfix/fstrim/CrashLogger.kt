@@ -14,7 +14,10 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Menangkap force close → Download/LagFix/ (MediaStore API 29+, fallback app files dir).
+ * Menangkap force close → Documents/LagFix/ (MediaStore API 29+, fallback app files dir).
+ * v51 (permintaan user: log jangan menuhin folder Download): folder tujuan dipindah dari
+ * Download/LagFix/ ke Documents/LagFix/ (koleksi `MediaStore.Files`, RELATIVE_PATH Documents/).
+ * File lama di Download/LagFix/ TIDAK dipindah/dihapus, tetap terbaca di `listLogs()`.
  * v30 (fix laporan user: "crash logger tidak mencatat apa-apa, foldernya sendiri gak nampak"):
  * root cause PALING MUNGKIN dari review kode (P0 NO HALLUCINATION — dugaan terkuat, BUKAN
  * kepastian 100% krn 0 device di sandbox ini) = versi lama bisa "sukses" (0 exception, ketangkep
@@ -50,7 +53,7 @@ object CrashLogger {
     }
 
     /** v29: log evidence non-crash ke file (sama folder/mekanisme dgn crash), dipanggil manual dari
-     * titik yg diinvestigasi (bukan otomatis tiap event — cegah membanjiri Download/LagFix/). */
+     * titik yg diinvestigasi (bukan otomatis tiap event — cegah membanjiri Documents/LagFix/). */
     fun logDiagnostic(ctx: Context, tag: String, message: String) {
         runCatching {
             val body = "SDK: ${Build.VERSION.SDK_INT}\nDevice: ${Build.MANUFACTURER} ${Build.MODEL}\n\n$message"
@@ -85,7 +88,7 @@ object CrashLogger {
         if (Build.VERSION.SDK_INT >= 29) {
             val mediaError = runCatching { writeViaMediaStore(ctx, name, body) }.exceptionOrNull()
             if (mediaError == null) return
-            Log.e(TAG, "MediaStore write ke Download/LagFix gagal, fallback ke app files dir", mediaError)
+            Log.e(TAG, "MediaStore write ke Documents/LagFix gagal, fallback ke app files dir", mediaError)
             val fallbackError = runCatching {
                 writeToAppFilesDir(ctx, name, body + "\n\n[MediaStore GAGAL, fallback ke app files dir: $mediaError]")
             }.exceptionOrNull()
@@ -98,16 +101,20 @@ object CrashLogger {
         }
     }
 
+    /** v51: koleksi Files volume utama — dipakai penulis (insert ke Documents/) & pembaca. API 29+. */
+    private fun filesCollection() = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+
     /** Melempar exception eksplisit di tiap titik gagal (bukan diam2 no-op) supaya caller tahu
      * persis kenapa, dan siklus IS_PENDING resmi dipakai supaya file+folder pasti ter-finalize. */
     private fun writeViaMediaStore(ctx: Context, name: String, body: String) {
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, name)
             put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
-            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/LagFix/")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOCUMENTS + "/LagFix/")
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
-        val uri = ctx.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+        // v51: `MediaStore.Downloads` hanya utk folder Download -> pakai koleksi Files (API 29+).
+        val uri = ctx.contentResolver.insert(filesCollection(), values)
             ?: throw IOException("contentResolver.insert() return null (MediaStore menolak buat row)")
         val stream = ctx.contentResolver.openOutputStream(uri)
             ?: throw IOException("openOutputStream() return null untuk uri: $uri")
@@ -138,20 +145,28 @@ object CrashLogger {
         val result = mutableListOf<LogFile>()
         if (Build.VERSION.SDK_INT >= 29) {
             runCatching {
-                val projection = arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME)
+                val collection = filesCollection()
+                val projection = arrayOf(
+                    MediaStore.MediaColumns._ID,
+                    MediaStore.MediaColumns.DISPLAY_NAME,
+                    MediaStore.MediaColumns.RELATIVE_PATH
+                )
                 val selection = "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ? AND " +
                     "${MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?"
                 val args = arrayOf("%LagFix%", "LagFix_%.txt")
                 ctx.contentResolver.query(
-                    MediaStore.Downloads.EXTERNAL_CONTENT_URI, projection, selection, args,
+                    collection, projection, selection, args,
                     "${MediaStore.MediaColumns.DATE_ADDED} DESC"
                 )?.use { c ->
                     val idCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
                     val nameCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
+                    val pathCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.RELATIVE_PATH)
                     while (c.moveToNext()) {
-                        val uri = ContentUris.withAppendedId(MediaStore.Downloads.EXTERNAL_CONTENT_URI, c.getLong(idCol))
+                        val uri = ContentUris.withAppendedId(collection, c.getLong(idCol))
                         val name = c.getString(nameCol)
-                        result += LogFile(name, "Download/LagFix") {
+                        // v51: label = folder asli (Documents/LagFix baru, Download/LagFix lama).
+                        val folder = c.getString(pathCol)?.trimEnd('/') ?: "Documents/LagFix"
+                        result += LogFile(name, folder) {
                             ctx.contentResolver.openInputStream(uri)?.bufferedReader()?.use { r -> r.readText() }
                                 ?: "(gagal buka isi file — openInputStream() return null)"
                         }
