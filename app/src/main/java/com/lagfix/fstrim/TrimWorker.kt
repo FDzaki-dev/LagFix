@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.service.quicksettings.TileService
 import android.widget.Toast
-import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -91,16 +90,11 @@ object Scheduler {
             wm.cancelUniqueWork(NAME)
             return
         }
-        // v47 (permintaan user: opsi "Hanya saat mengisi daya"/"perangkat idle" dihapus — interval
-        // + manual dianggap cukup): constraint charging & idle DIBUANG. `setRequiresBatteryNotLow`
-        // TETAP (bukan opsi user, pengaman baterai lama; di luar permintaan -> tak disentuh).
-        val constraints = Constraints.Builder()
-            .setRequiresBatteryNotLow(true)
-            .build()
+        // v48 (permintaan user): SEMUA constraint dibuang (charging & idle sejak v47, baterai-rendah
+        // sejak v48) -> request periodik murni interval, tanpa `setConstraints()`.
         val req = PeriodicWorkRequestBuilder<TrimWorker>(
             p.intervalMinutes.coerceAtLeast(MIN_INTERVAL_MINUTES), TimeUnit.MINUTES
         )
-            .setConstraints(constraints)
             .build()
         wm.enqueueUniquePeriodicWork(NAME, ExistingPeriodicWorkPolicy.UPDATE, req)
     }

@@ -1,5 +1,32 @@
 # Changelog
 
+## v48
+- Dihapus juga: batasan "baterai tidak rendah" pada jadwal otomatis. Sekarang jadwal murni mengikuti interval, tanpa syarat apa pun (sebelumnya masih ditunda saat baterai sangat rendah).
+- Jalur penyegaran satu kali dari v47 dicabut. Setelah memasang v48, matikan lalu nyalakan lagi "Jadwal otomatis" (atau tekan "Terapkan" pada interval) satu kali supaya jadwal lama yang masih membawa syarat baterai digantikan jadwal baru.
+
+## v47
+- Dihapus: opsi "Hanya saat mengisi daya" dan "Hanya saat perangkat idle" di Pengaturan > Jadwal, berikut keterangan "Menunggu: ..." di kartu Riwayat, tab Pengaturan, dan widget (v46). Jadwal kini murni mengikuti interval yang kamu atur, plus tombol manual.
+- Pembaruan ini otomatis menyegarkan jadwal lama satu kali saat aplikasi dibuka, supaya syarat mengisi daya/idle versi lama benar-benar hilang (bukan cuma tombolnya).
+- Catatan: jadwal otomatis tetap ditunda kalau baterai sedang sangat rendah (pengaman lama, tidak termasuk opsi yang dihapus).
+
+## v46
+- Jadwal otomatis: saat toggle "Hanya saat mengisi daya" / "Hanya saat perangkat idle" aktif dan jadwal sedang ditahan, sekarang tertulis jelas "Menunggu: mengisi daya" / "menunggu: perangkat idle" — di kartu Riwayat (tab Utama), tab Pengaturan, dan baris kedua widget.
+- Kalau syaratnya sudah terpenuhi, tab Pengaturan menegaskan "Syarat terpenuhi — jadwal akan jalan sesuai interval." supaya jelas fiturnya memang bekerja, bukan diam tanpa keterangan.
+
+## v45
+- Widget layar utama: baris kedua kini menampilkan interval jadwal yang aktif (mis. "Tiap 15 menit"), dan baris status menyebut apakah proses terakhir dari jadwal Otomatis atau dijalankan Manual.
+- Kartu "Statistik" di app: ringkasan kini merinci berapa dari proses terakhir yang Otomatis vs Manual, dan grafik menandai batang hasil "Manual" dengan titik kecil di atasnya (kalau ada campuran keduanya) supaya jelas kedua jenis pemicu sama-sama terhitung.
+
+## v44
+- Pengaturan > Jadwal: interval kustom. Isi sendiri angka dalam menit (minimal 15 menit) lalu tekan "Terapkan" atau tombol selesai di keyboard; pilihan cepat 6 jam – 7 hari tetap ada.
+- Teks di bawah kolom menampilkan interval yang sedang aktif (mis. "1 jam 30 menit"). Pilihan interval lama tetap terbawa saat pembaruan.
+- Catatan: 15 menit adalah batas terkecil penjadwal Android (WorkManager), jadi nilai lebih kecil ditolak. Opsi "Hanya saat mengisi daya"/"idle" tetap berlaku dan bisa menunda jalannya jadwal.
+
+## v40
+- Perbaikan notifikasi "Layanan latar depan persisten": layanan sekarang otomatis dinyalakan lagi setiap aplikasi dibuka kembali setelah dimatikan sistem (mis. digeser dari Recents), sehingga notifikasinya muncul lagi.
+- Notifikasi layanan kini ditampilkan langsung, tidak lagi tertunda beberapa detik di Android 12+ (sebelumnya bisa keburu terbunuh sebelum sempat muncul).
+- Catatan: di HP dengan sistem yang agresif (mis. Infinix XOS), aplikasi tetap bisa dimatikan saat digeser dari Recents; notifikasi akan kembali begitu aplikasi dibuka lagi. Tidak ada jaminan 100%.
+
 ## v1 — 1.0.0
 - Initial scaffold: Compose M3 UI, integrasi Shizuku, penjadwal WorkManager, CrashLogger (MediaStore), CI GitHub Actions.
 
@@ -90,26 +117,3 @@
 
 ## v31
 - Baru: card "Log Diagnostik" di tab Pengaturan — baca catatan crash/diagnostik langsung di dalam aplikasi (tidak perlu buka file manager atau folder Download sama sekali). Tap salah satu untuk lihat isinya lengkap, plus tombol "Salin" untuk menyalin teksnya langsung dari aplikasi.
-
-## v40
-- Perbaikan notifikasi "Layanan latar depan persisten": layanan sekarang otomatis dinyalakan lagi setiap aplikasi dibuka kembali setelah dimatikan sistem (mis. digeser dari Recents), sehingga notifikasinya muncul lagi.
-- Notifikasi layanan kini ditampilkan langsung, tidak lagi tertunda beberapa detik di Android 12+ (sebelumnya bisa keburu terbunuh sebelum sempat muncul).
-- Catatan: di HP dengan sistem yang agresif (mis. Infinix XOS), aplikasi tetap bisa dimatikan saat digeser dari Recents; notifikasi akan kembali begitu aplikasi dibuka lagi. Tidak ada jaminan 100%.
-
-## v44
-- Pengaturan > Jadwal: interval kustom. Isi sendiri angka dalam menit (minimal 15 menit) lalu tekan "Terapkan" atau tombol selesai di keyboard; pilihan cepat 6 jam – 7 hari tetap ada.
-- Teks di bawah kolom menampilkan interval yang sedang aktif (mis. "1 jam 30 menit"). Pilihan interval lama tetap terbawa saat pembaruan.
-- Catatan: 15 menit adalah batas terkecil penjadwal Android (WorkManager), jadi nilai lebih kecil ditolak. Opsi "Hanya saat mengisi daya"/"idle" tetap berlaku dan bisa menunda jalannya jadwal.
-
-## v45
-- Widget layar utama: baris kedua kini menampilkan interval jadwal yang aktif (mis. "Tiap 15 menit"), dan baris status menyebut apakah proses terakhir dari jadwal Otomatis atau dijalankan Manual.
-- Kartu "Statistik" di app: ringkasan kini merinci berapa dari proses terakhir yang Otomatis vs Manual, dan grafik menandai batang hasil "Manual" dengan titik kecil di atasnya (kalau ada campuran keduanya) supaya jelas kedua jenis pemicu sama-sama terhitung.
-
-## v46
-- Jadwal otomatis: saat toggle "Hanya saat mengisi daya" / "Hanya saat perangkat idle" aktif dan jadwal sedang ditahan, sekarang tertulis jelas "Menunggu: mengisi daya" / "menunggu: perangkat idle" — di kartu Riwayat (tab Utama), tab Pengaturan, dan baris kedua widget.
-- Kalau syaratnya sudah terpenuhi, tab Pengaturan menegaskan "Syarat terpenuhi — jadwal akan jalan sesuai interval." supaya jelas fiturnya memang bekerja, bukan diam tanpa keterangan.
-
-## v47
-- Dihapus: opsi "Hanya saat mengisi daya" dan "Hanya saat perangkat idle" di Pengaturan > Jadwal, berikut keterangan "Menunggu: ..." di kartu Riwayat, tab Pengaturan, dan widget (v46). Jadwal kini murni mengikuti interval yang kamu atur, plus tombol manual.
-- Pembaruan ini otomatis menyegarkan jadwal lama satu kali saat aplikasi dibuka, supaya syarat mengisi daya/idle versi lama benar-benar hilang (bukan cuma tombolnya).
-- Catatan: jadwal otomatis tetap ditunda kalau baterai sedang sangat rendah (pengaman lama, tidak termasuk opsi yang dihapus).

@@ -46,12 +46,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Shizuku.addBinderReceivedListenerSticky(onBinder)
         Shizuku.addBinderDeadListener(onDead)
         Shizuku.addRequestPermissionResultListener(onPerm)
-        // v47: re-enqueue jadwal 1x TANPA constraint charging/idle (lihat Prefs.constraintsDropped).
-        // `apply()` = `cancelUniqueWork` kalau jadwal otomatis mati -> aman utk install baru.
-        if (!prefs.constraintsDropped) {
-            Scheduler.apply(getApplication<Application>(), prefs)
-            prefs.markConstraintsDropped()
-        }
     }
 
     private fun read(running: Boolean = false) = UiState(

@@ -31,17 +31,6 @@ class Prefs(context: Context) {
         get() = sp.getLong("intervalMin", sp.getLong("interval", 24L) * 60L)
         set(v) { sp.edit().putLong("intervalMin", v).apply() }
 
-    // v47: opsi charging/idle dihapus. Jadwal periodik lama (v1-v46) mungkin MASIH ter-enqueue di
-    // WorkManager DENGAN constraint itu (default charging = true!) & `Scheduler.apply()` tak jalan
-    // saat startup -> tanpa re-enqueue 1x, user existing tertahan diam-diam tanpa UI utk mematikan.
-    // Flag ini menjamin re-enqueue (MainViewModel.init) cuma 1x; kunci lama dibersihkan sekalian.
-    val constraintsDropped: Boolean
-        get() = sp.getBoolean("constraintsDropped", false)
-
-    fun markConstraintsDropped() {
-        sp.edit().putBoolean("constraintsDropped", true).remove("charging").remove("idle").apply()
-    }
-
     // v27 (fitur opsional, pilihan eksplisit user — lihat SettingsTab): toggle foreground service
     // "keep-alive" (PersistentTrimService). Default false, non-breaking utk user existing yg belum
     // pernah lihat/pilih opsi ini.
