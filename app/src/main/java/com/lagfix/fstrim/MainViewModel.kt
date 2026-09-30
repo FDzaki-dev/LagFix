@@ -20,8 +20,6 @@ data class UiState(
     val shizuku: ShizukuState = ShizukuState.NOT_RUNNING,
     val enabled: Boolean = false,
     val intervalMinutes: Long = 24L * 60L, // v44: menit (sebelumnya jam)
-    val requireCharging: Boolean = true,
-    val requireIdle: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val running: Boolean = false,
     val lastRunMs: Long = 0L,
@@ -32,8 +30,7 @@ data class UiState(
     val updateResult: UpdateResult? = null,
     val downloading: Boolean = false,
     val downloadError: String? = null,
-    val persistentServiceEnabled: Boolean = false,
-    val scheduleWaitLabel: String? = null // v46: alasan jadwal otomatis SAAT INI ditahan constraint
+    val persistentServiceEnabled: Boolean = false
 )
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
@@ -49,22 +46,25 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Shizuku.addBinderReceivedListenerSticky(onBinder)
         Shizuku.addBinderDeadListener(onDead)
         Shizuku.addRequestPermissionResultListener(onPerm)
+        // v47: re-enqueue jadwal 1x TANPA constraint charging/idle (lihat Prefs.constraintsDropped).
+        // `apply()` = `cancelUniqueWork` kalau jadwal otomatis mati -> aman utk install baru.
+        if (!prefs.constraintsDropped) {
+            Scheduler.apply(getApplication<Application>(), prefs)
+            prefs.markConstraintsDropped()
+        }
     }
 
     private fun read(running: Boolean = false) = UiState(
         shizuku = FstrimExecutor.state(getApplication<Application>()),
         enabled = prefs.enabled,
         intervalMinutes = prefs.intervalMinutes,
-        requireCharging = prefs.requireCharging,
-        requireIdle = prefs.requireIdle,
         themeMode = prefs.themeMode,
         running = running,
         lastRunMs = prefs.lastRunMs,
         lastOk = prefs.lastOk,
         log = prefs.log,
         batteryUnrestricted = isBatteryUnrestricted(),
-        persistentServiceEnabled = prefs.persistentServiceEnabled,
-        scheduleWaitLabel = scheduleWaitLabel(computeScheduleWait(getApplication(), prefs))
+        persistentServiceEnabled = prefs.persistentServiceEnabled
     )
 
     // v21: root cause laporan user "jadwal otomatis tak tercatat" — confirmed toggle sudah ON dari
@@ -106,8 +106,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         prefs.intervalMinutes = minutes.coerceAtLeast(Scheduler.MIN_INTERVAL_MINUTES)
         reschedule()
     }
-    fun setCharging(v: Boolean) { prefs.requireCharging = v; reschedule() }
-    fun setIdle(v: Boolean) { prefs.requireIdle = v; reschedule() }
     fun setThemeMode(m: ThemeMode) { prefs.themeMode = m; ui = ui.copy(themeMode = m) }
 
     // v27 (fitur opsional, pilihan eksplisit user): start/stop PersistentTrimService ikut toggle.

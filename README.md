@@ -2,7 +2,7 @@
 Utilitas Android non-root untuk memicu dan menjadwalkan `fstrim` (TRIM pada UFS/eMMC) dengan interval kustom.
 
 ## Cara kerja
-Menjalankan `sm fstrim` (fallback `sm idle-maint run`) sebagai shell UID lewat **Shizuku**. Penjadwalan: WorkManager (preset 6 jam – 7 hari atau interval kustom isi sendiri mulai 15 menit; opsi hanya saat charging / idle).
+Menjalankan `sm fstrim` (fallback `sm idle-maint run`) sebagai shell UID lewat **Shizuku**. Penjadwalan: WorkManager (preset 6 jam – 7 hari atau interval kustom isi sendiri mulai 15 menit).
 
 ## Syarat
 - Android 8.0+ (API 26)

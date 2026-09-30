@@ -91,9 +91,10 @@ object Scheduler {
             wm.cancelUniqueWork(NAME)
             return
         }
+        // v47 (permintaan user: opsi "Hanya saat mengisi daya"/"perangkat idle" dihapus — interval
+        // + manual dianggap cukup): constraint charging & idle DIBUANG. `setRequiresBatteryNotLow`
+        // TETAP (bukan opsi user, pengaman baterai lama; di luar permintaan -> tak disentuh).
         val constraints = Constraints.Builder()
-            .setRequiresCharging(p.requireCharging)
-            .setRequiresDeviceIdle(p.requireIdle)
             .setRequiresBatteryNotLow(true)
             .build()
         val req = PeriodicWorkRequestBuilder<TrimWorker>(

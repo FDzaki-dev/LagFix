@@ -1,8 +1,6 @@
 package com.lagfix.fstrim
 
 import android.content.Context
-import android.os.BatteryManager
-import android.os.PowerManager
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -33,13 +31,16 @@ class Prefs(context: Context) {
         get() = sp.getLong("intervalMin", sp.getLong("interval", 24L) * 60L)
         set(v) { sp.edit().putLong("intervalMin", v).apply() }
 
-    var requireCharging: Boolean
-        get() = sp.getBoolean("charging", true)
-        set(v) { sp.edit().putBoolean("charging", v).apply() }
+    // v47: opsi charging/idle dihapus. Jadwal periodik lama (v1-v46) mungkin MASIH ter-enqueue di
+    // WorkManager DENGAN constraint itu (default charging = true!) & `Scheduler.apply()` tak jalan
+    // saat startup -> tanpa re-enqueue 1x, user existing tertahan diam-diam tanpa UI utk mematikan.
+    // Flag ini menjamin re-enqueue (MainViewModel.init) cuma 1x; kunci lama dibersihkan sekalian.
+    val constraintsDropped: Boolean
+        get() = sp.getBoolean("constraintsDropped", false)
 
-    var requireIdle: Boolean
-        get() = sp.getBoolean("idle", false)
-        set(v) { sp.edit().putBoolean("idle", v).apply() }
+    fun markConstraintsDropped() {
+        sp.edit().putBoolean("constraintsDropped", true).remove("charging").remove("idle").apply()
+    }
 
     // v27 (fitur opsional, pilihan eksplisit user — lihat SettingsTab): toggle foreground service
     // "keep-alive" (PersistentTrimService). Default false, non-breaking utk user existing yg belum
@@ -80,43 +81,3 @@ object TriggerSource {
     const val AUTO = "Otomatis"     // jadwal periodik WorkManager (interval)
 }
 
-// v46 (permintaan user: "Hanya saat mengisi daya/idle" terasa gimmick krn 0 jejak jelas kapan
-// sedang ditahan — root cause: `TrimWorker.doWork()` & `Prefs.record()` baru dipanggil WorkManager
-// SETELAH constraint terpenuhi, jadi selama ditahan literally 0 kode kita yang jalan utk dicatat).
-// Fix: baca kondisi charging/idle SAAT INI langsung dari sistem (bukan nebak dari WorkManager,
-// yg tak expose alasan blokir secara publik) & bandingkan ke toggle constraint yg aktif -> tunjukkan
-// "Menunggu: ..." di app & widget. Satu sumber logic di sini, dipakai MainViewModel (app) DAN
-// LagFixWidgetProvider (widget) — 0 duplikasi. Pola cek "saat ini" (bukan listener terus-menerus)
-// SENGAJA konsisten dgn `isBatteryUnrestricted()` yg sudah ada (MainViewModel.kt) — refresh saat
-// app dibuka/onResume/event Shizuku utk app, saat widget update utk widget; bukan setengah2, ini
-// pola yg SUDAH established di project ini utk info kondisi sistem serupa.
-internal fun isCurrentlyCharging(context: Context): Boolean =
-    context.getSystemService(BatteryManager::class.java)?.isCharging ?: false
-
-internal fun isCurrentlyDeviceIdle(context: Context): Boolean =
-    context.getSystemService(PowerManager::class.java)?.isDeviceIdleMode ?: false
-
-internal data class ScheduleWait(val waitingCharging: Boolean, val waitingIdle: Boolean) {
-    val isWaiting: Boolean get() = waitingCharging || waitingIdle
-}
-
-/** Constraint mana (kalau ada) yg SAAT INI menahan jadwal otomatis dari jalan. Selalu 0/false
- * kalau jadwal otomatis mati (`Prefs.enabled == false`) — cocok dgn `Scheduler.apply()` yang
- * langsung `cancelUniqueWork` saat itu. */
-internal fun computeScheduleWait(context: Context, prefs: Prefs): ScheduleWait {
-    if (!prefs.enabled) return ScheduleWait(waitingCharging = false, waitingIdle = false)
-    return ScheduleWait(
-        waitingCharging = prefs.requireCharging && !isCurrentlyCharging(context),
-        waitingIdle = prefs.requireIdle && !isCurrentlyDeviceIdle(context)
-    )
-}
-
-/** null kalau tak sedang menunggu apa pun (constraint terpenuhi / jadwal otomatis mati). */
-internal fun scheduleWaitLabel(wait: ScheduleWait): String? {
-    if (!wait.isWaiting) return null
-    val parts = buildList {
-        if (wait.waitingCharging) add("mengisi daya")
-        if (wait.waitingIdle) add("perangkat idle")
-    }
-    return "Menunggu: " + parts.joinToString(" & ")
-}

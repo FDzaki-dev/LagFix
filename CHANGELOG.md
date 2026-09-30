@@ -108,3 +108,8 @@
 ## v46
 - Jadwal otomatis: saat toggle "Hanya saat mengisi daya" / "Hanya saat perangkat idle" aktif dan jadwal sedang ditahan, sekarang tertulis jelas "Menunggu: mengisi daya" / "menunggu: perangkat idle" — di kartu Riwayat (tab Utama), tab Pengaturan, dan baris kedua widget.
 - Kalau syaratnya sudah terpenuhi, tab Pengaturan menegaskan "Syarat terpenuhi — jadwal akan jalan sesuai interval." supaya jelas fiturnya memang bekerja, bukan diam tanpa keterangan.
+
+## v47
+- Dihapus: opsi "Hanya saat mengisi daya" dan "Hanya saat perangkat idle" di Pengaturan > Jadwal, berikut keterangan "Menunggu: ..." di kartu Riwayat, tab Pengaturan, dan widget (v46). Jadwal kini murni mengikuti interval yang kamu atur, plus tombol manual.
+- Pembaruan ini otomatis menyegarkan jadwal lama satu kali saat aplikasi dibuka, supaya syarat mengisi daya/idle versi lama benar-benar hilang (bukan cuma tombolnya).
+- Catatan: jadwal otomatis tetap ditunda kalau baterai sedang sangat rendah (pengaman lama, tidak termasuk opsi yang dihapus).
