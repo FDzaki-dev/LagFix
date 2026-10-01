@@ -17,5 +17,8 @@
     <string name="toast_run_fail">fstrim gagal: %1$s</string>
     <string name="toast_shizuku_not_ready">Shizuku belum siap, aktifkan dulu lalu coba lagi</string>
     <string name="persistent_service_notif_text">Menjaga proses LagFix tetap berjalan untuk jadwal fstrim otomatis</string>
+    <!-- v55: layanan aksesibilitas penjaga proses (kosong; tak membaca layar/ketikan). -->
+    <string name="a11y_keepalive_label">LagFix (penjaga proses)</string>
+    <string name="a11y_keepalive_description">Layanan kosong: tidak membaca layar atau ketikan. Hanya membantu sistem menghidupkan lagi proses LagFix agar notifikasi dan jadwal fstrim cepat kembali setelah aplikasi dimatikan.</string>
 </resources>
 

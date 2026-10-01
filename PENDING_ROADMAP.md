@@ -108,6 +108,13 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    v52: akar masalah `lint-results-debug.html` hilang TETAP belum diketahui (log mentah step lint tak
    pernah diunggah). `build.yml` kini memisah step Lint/Detekt & mengunggah log mentah + semua file
    `lint-results*` + listing; F1 baru VERIFIED penuh setelah artifact run berikutnya dibaca.
+   v54: ✅ F1 VERIFIED penuh — artifact `LagFix-lint-detekt-report-47` dibaca: `lint-results-debug.html`
+   (+ .txt/.xml) ADA di `app/build/reports/` & ikut terunggah; lint `BUILD SUCCESSFUL` (0 error, 15
+   warning). Detekt step gagal `MaxIssuesReached` (127 weighted issue; sengaja non-blocking) tapi
+   laporan tetap tertulis. Penyebab HTML hilang di run #20 TIDAK terbaca dari artifact ini (cuma
+   terbukti: dgn step lint terpisah + log mentah, laporan kini muncul). Temuan detekt (MagicNumber 84,
+   FunctionNaming 15, MaxLineLength 10, sisanya <=4/rule; 91 di MainActivity.kt) = backlog triase,
+   BUKAN bagian F1.
 2. Belum ada dependency-update check otomatis (mis. Dependabot) utk `dev.rikka.shizuku`.
 
 ## Urutan eksekusi disarankan

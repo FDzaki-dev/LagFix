@@ -85,6 +85,21 @@
                 android:value="Keeps app process alive so the user-enabled periodic maintenance schedule keeps running on OEMs that aggressively kill background apps" />
         </service>
 
+        <!-- v55 (permintaan user: jalur aksesibilitas): layanan KOSONG, di-bind sistem, user aktifkan
+             sendiri di Setelan Aksesibilitas. 0 baca layar (lihat res/xml/accessibility_keepalive_config.xml). -->
+        <service
+            android:name=".KeepAliveAccessibilityService"
+            android:exported="true"
+            android:label="@string/a11y_keepalive_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_keepalive_config" />
+        </service>
+
         <receiver
             android:name=".BootReceiver"
             android:exported="true">

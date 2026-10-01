@@ -592,6 +592,27 @@ private fun SettingsTab(
                     )
                 }
             }
+            // v55 (permintaan user: "Pakai jalur aksesibilitas"): layanan aksesibilitas KOSONG
+            // (KeepAliveAccessibilityService) sbg jangkar yg di-bind SISTEM. App TIDAK bisa
+            // menyalakannya sendiri -> tombol ini cuma membuka Setelan Aksesibilitas (intent standar).
+            // 0 jaminan (lihat KDoc service), makanya teksnya berhati-hati.
+            Text(
+                "Opsional — Layanan Aksesibilitas \"LagFix (penjaga proses)\": layanan kosong yang " +
+                    "tidak membaca layar maupun ketikan. Sistem HP yang menyambungkannya, jadi " +
+                    "setelah LagFix dimatikan (mis. digeser dari Recents) proses bisa hidup lagi " +
+                    "lebih cepat dan notifikasi permanen kembali — kalau toggle di atas aktif. " +
+                    "Aktifkan sendiri di Setelan Aksesibilitas. Di Android 13+ untuk aplikasi di luar " +
+                    "Play Store, opsinya bisa terkunci: buka Info Aplikasi LagFix, menu ⋮, lalu " +
+                    "\"Izinkan pengaturan terbatas\". Belum ada jaminan di semua HP.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            TextButton(
+                onClick = { runCatching { ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) } },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Buka Pengaturan Aksesibilitas", Modifier.weight(1f))
+                Text("↗")
+            }
         }
     }
 

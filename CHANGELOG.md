@@ -1,5 +1,8 @@
 # Changelog
 
+## v55
+- Pengaturan > Keandalan latar belakang: tombol baru "Buka Pengaturan Aksesibilitas" untuk mengaktifkan layanan "LagFix (penjaga proses)". Layanan ini kosong (tidak membaca layar maupun ketikan); gunanya membantu sistem menghidupkan lagi proses LagFix lebih cepat setelah dimatikan (mis. digeser dari Recents), sehingga notifikasi permanen bisa kembali tanpa menunggu interval jadwal. Harus diaktifkan sendiri di Setelan Aksesibilitas; di Android 13+ untuk aplikasi di luar Play Store mungkin perlu "Izinkan pengaturan terbatas" lebih dulu. Belum ada jaminan di semua HP.
+
 ## v51
 - Log crash dan diagnostik kini disimpan di folder Documents/LagFix (sebelumnya Download/LagFix), jadi folder Download tidak lagi terisi file log. Kartu "Log Diagnostik" di Pengaturan membaca kedua lokasi. File lama di Download/LagFix tidak dipindah otomatis; hapus manual bila tak diperlukan.
 
