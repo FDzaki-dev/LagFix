@@ -38,6 +38,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -982,13 +983,18 @@ private fun UpdateCard(
                 is UpdateResult.Available -> {
                     Text("Versi terpasang: build ${result.installedBuild}")
                     Text("Versi tersedia: build ${result.info.latestBuild} (${result.info.latestName})")
-                    Row(horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-                        TextButton(onClick = { showChangelog = true }) { Text("Lihat changelog") }
-                        Button(
-                            onClick = { onInstall(result.info.downloadUrl) },
-                            enabled = !downloading
-                        ) { Text(if (downloading) "Memasang…" else "Update sekarang") }
-                    }
+                    // v65: aksi disusun simetris — semua tombol selebar kartu & setinggi sama (sebelumnya
+                    // TextButton + Button berdampingan: teks Update membungkus 2 baris, tinggi tak sama,
+                    // TextButton menjorok ke dalam). Hierarki: Update = primer (filled), changelog = tonal.
+                    Button(
+                        onClick = { onInstall(result.info.downloadUrl) },
+                        enabled = !downloading,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(if (downloading) "Memasang…" else "Update sekarang") }
+                    FilledTonalButton(
+                        onClick = { showChangelog = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Lihat changelog") }
                     if (downloadError != null) {
                         Text(
                             "Gagal memasang: $downloadError",
@@ -1002,8 +1008,12 @@ private fun UpdateCard(
             if (checking) {
                 CircularProgressIndicator(Modifier.padding(top = 4.dp))
             } else {
-                Button(onClick = onCheck, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (result == null) "Cek pembaruan" else "Cek ulang")
+                val checkLabel = if (result == null) "Cek pembaruan" else "Cek ulang"
+                if (result is UpdateResult.Available) {
+                    // v65: saat ada update, "Update sekarang" jadi satu-satunya aksi primer -> cek ulang = tonal.
+                    FilledTonalButton(onClick = onCheck, modifier = Modifier.fillMaxWidth()) { Text(checkLabel) }
+                } else {
+                    Button(onClick = onCheck, modifier = Modifier.fillMaxWidth()) { Text(checkLabel) }
                 }
             }
         }

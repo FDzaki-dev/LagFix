@@ -1,5 +1,8 @@
 # Changelog
 
+## v65
+- Kartu Pembaruan (tab Utama): tombol aksi disusun simetris. Saat ada versi baru, "Update sekarang" (utama), "Lihat changelog", dan "Cek ulang" kini selebar kartu dan setinggi sama (sebelumnya berdampingan dengan ukuran berbeda: "Update sekarang" membungkus 2 baris dan "Lihat changelog" menjorok ke dalam). Fungsi update dan cek versi tidak berubah.
+
 ## v64
 - Pengaturan > Jadwal: label kolom interval kustom dipersingkat menjadi "Kustom (menit)" dan dipaksa satu baris, sehingga tidak lagi membungkus dan merusak bingkai kolom. Fungsi interval tidak berubah.
 
