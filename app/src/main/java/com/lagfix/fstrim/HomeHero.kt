@@ -2,6 +2,10 @@
 
 package com.lagfix.fstrim
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,7 +57,7 @@ internal fun HeroStatusCard(
     val ready = state == ShizukuState.READY
     val statusColors = LocalStatusColors.current
     val tint = if (ready) statusColors.success else statusColors.warning
-    GlassCard(Modifier.fillMaxWidth()) {
+    GlassCard(Modifier.fillMaxWidth(), animateSize = true) { // v71 (M4): tinggi kartu halus saat status/aksi berganti
         Column(
             Modifier.fillMaxWidth().padding(LagSpacing.xl),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -82,7 +86,16 @@ internal fun HeroStatusCard(
             }
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(LagSpacing.xs)) {
                 Box(Modifier.fillMaxWidth().height(4.dp)) {
-                    if (running) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    // v71 (M4): fade masuk/keluar (150 ms). Indikator tetap HANYA dikomposisi saat
+                    // running (+ <=150 ms sisa fade-out): setelah itu keluar dari komposisi -> animasi
+                    // indeterminate berhenti. Tidak ada loop abadi.
+                    AnimatedVisibility(
+                        visible = running,
+                        enter = fadeIn(tween(durationMillis = LagMotion.FADE_MS)),
+                        exit = fadeOut(tween(durationMillis = LagMotion.FADE_MS))
+                    ) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
                 }
                 Button(
                     onClick = onRunNow,

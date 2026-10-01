@@ -112,7 +112,8 @@ Urutan default: M1 -> M2 -> M3 -> M4 -> M5 -> M6 -> M7 -> M8 -> M9 (M1 dulu: mem
 | v65 | `UpdateCard`: tombol aksi simetris (full-width, tinggi sama) — IMPLEMENTED, belum dikompilasi/diuji device | bagian 12 |
 | v66 (M2b) | `StatusCard`: ikon status Shizuku (centang mint / peringatan amber) + `contentDescription` + 2 string — IMPLEMENTED, belum dikompilasi/diuji device | bagian 13 |
 | M3 | IMPLEMENTED (v68) — belum dikompilasi/diuji device | bagian 14 |
-| M4-M9 | PLANNED | — |
+| M4 | IMPLEMENTED (v71) — belum dikompilasi/diuji device | bagian 17 |
+| M5-M9 | PLANNED | — |
 
 ## 8. Di luar scope
 Ganti arsitektur/dependency utama (Shizuku/WorkManager/Compose), migrasi modul, hitam murni, Material You dinamis (diganti calm di v10), fitur non-visual, jalur revive/notifikasi persistent.
@@ -201,3 +202,13 @@ Kontras (WCAG 2.x, skenario TERBURUK: 3 glow menumpuk + fill kaca + glow sudut =
 ## 16. Ikon QS tile ikut ikon baru (v70, permintaan user) — IMPLEMENTED, BELUM dikompilasi & BELUM diuji device
 **Fakta:** v69 sengaja tak menyentuh `ic_tile_fstrim.xml` (daftar DO-NOT-TOUCH) -> tile masih petir lama; user menegur. **Perubahan:** hanya `pathData` (+komentar) `ic_tile_fstrim.xml`: cincin chip 12x12dp evenOdd (tebal 1,8dp), 8 pin (2/sisi), kilau 4 titik; fill tetap `@color/ic_launcher_background` (keputusan v25). Drawable yang sama = ikon kecil notifikasi persisten (`PersistentTrimService.kt:125`, 0 kode diubah) -> ikut berganti.
 **Verifikasi sandbox (BUKAN device):** `xmllint` OK; siluet dirasterisasi 24-192px (parser path buatan sendiri): terbaca >=48px; terjauh dari pusat 8,6dp (<12). **INFERENSI/RISIKO:** pin 1,6dp & kilau kecil bisa terlihat rapat di mdpi/tile kecil; kalau terlalu ramai -> sederhanakan HANYA `ic_tile_fstrim.xml` (mis. buang pin, sisakan cincin+kilau).
+
+## 17. M4 — motion & haptic (v71, perintah user "Lanjutkan milestone!!") — IMPLEMENTED, BELUM dikompilasi & BELUM diuji device
+**Perubahan (visual-only; 3 file: `Design.kt`, `HomeHero.kt`, `MainActivity.kt`; 0 perubahan state/ViewModel/Prefs/callback):**
+- `Design.kt`: `LagMotion` (TAB_MS 200, CONTENT_MS 250, FADE_MS 150 — semua tween finite <= 300 ms) + `GlassCard(animateSize: Boolean = false)`; true -> `animateContentSize(tween 250)` di rantai modifier PALING DALAM (setelah border). Default false = pemanggil lama identik.
+- `HomeHero.kt`: kartu hero `animateSize = true`; progress run dibungkus `AnimatedVisibility` fade 150 ms di slot 4dp yang sama (slot tetap dicadangkan; indikator hanya dikomposisi saat `running` + <=150 ms sisa fade-out -> animasi indeterminate TETAP berhenti, tak ada loop abadi).
+- `MainActivity.kt`: `Crossfade(selectedTab, tween 200)`; `Column(fillMaxSize+imePadding+verticalScroll+padding)` dipindah KE DALAM Crossfade (urutan modifier sama dgn v70) dan isi memakai `tab` (bukan `selectedTab`) agar tab yang memudar tetap benar; kartu Riwayat/Statistik/Pembaruan `animateSize = true`; `LocalHapticFeedback` + `HapticFeedbackType.TextHandleMove` di tombol "Jalankan" dialog konfirmasi (urutan: tutup dialog -> haptic -> `vm.runNow()`).
+**Perubahan perilaku yang disengaja:** scroll tidak lagi dibagi antar tab (sebelumnya 1 `rememberScrollState` untuk keduanya). Tanpa ini Crossfade membuat tinggi kotak = tab tertinggi selama fade dan konten melompat di akhir. Efek: pindah tab = tab tujuan mulai dari atas.
+**Verifikasi sandbox (BUKAN device):** keseimbangan `{}`/`()`/`[]` 3 file = 0; semua import baru ada (BOM 2024.10.01 -> `Crossfade(label)`, `animateContentSize`, `HapticFeedbackType.TextHandleMove` tersedia); tak ada `LaunchedEffect`/launcher baru; `LaunchedEffect(Unit){load()}` (Pengaturan) & launcher izin notifikasi tak berubah perilaku (jalan saat tab masuk, seperti v70). 0 kompilasi/CI di sandbox (tanpa Android SDK/Gradle).
+**INFERENSI/RISIKO (cek device):** (a) gate "skala animasi 0x/1x": Compose membaca skala animasi sistem -> 0x = langsung ke akhir — belum diuji; (b) `TextHandleMove` = haptic API 27+, API 26 (minSdk) = no-op — belum diuji; (c) saat Crossfade 200 ms dua tab terkomposisi bersamaan (hanya sesaat); (d) `animateContentSize` di dalam `verticalScroll` bisa terasa "mengejar" bila isi berubah cepat berulang (mis. baris Riwayat saat run) — bila mengganggu, matikan `animateSize` HANYA di kartu itu; (e) bila build gagal: kandidat pertama `GlassCard` (`.then(if/else)` di `Design.kt`), lalu `Crossfade`-block `MainActivity.kt`, lalu `AnimatedVisibility` di `HomeHero.kt`.
+**Gate M4 yang masih terbuka (device):** skala animasi 0x & 1x; progress berhenti saat `running=false`; rotasi di tengah crossfade; TalkBack tetap membaca satu tab saja.

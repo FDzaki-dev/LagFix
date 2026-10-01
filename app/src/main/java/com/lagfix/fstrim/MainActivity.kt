@@ -17,11 +17,14 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
@@ -65,6 +68,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalFocusManager
@@ -121,6 +126,7 @@ private suspend fun SnackbarHostState.showFeedback(message: String) {
 private fun HomeScreen(vm: MainViewModel) {
     val ui = vm.ui
     val ctx = LocalContext.current
+    val haptic = LocalHapticFeedback.current // v71 (M4): tick ringan saat konfirmasi run
     val versionName = remember {
         runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull()
     }
@@ -164,28 +170,40 @@ private fun HomeScreen(vm: MainViewModel) {
             }
         }
     ) { pad ->
-        Column(
-            Modifier.padding(pad).imePadding().verticalScroll(rememberScrollState()).padding(LagSpacing.lg),
-            verticalArrangement = Arrangement.spacedBy(LagSpacing.md)
-        ) {
-            if (selectedTab == 0) {
-                MainTab(
-                    ui = ui,
-                    ctx = ctx,
-                    versionName = versionName,
-                    onRunNow = { showRunConfirm = true }, // v11: minta konfirmasi dulu
-                    onGrant = vm::requestPermission,
-                    onCheckUpdate = vm::checkUpdate,
-                    onInstallUpdate = vm::installUpdate
-                )
-            } else {
-                SettingsTab(
-                    ui = ui,
-                    ctx = ctx,
-                    vm = vm,
-                    onFeedback = onFeedback,
-                    onAboutClick = { showAbout = true }
-                )
+        // v71 (M4): ganti tab = Crossfade 200 ms. Column+scroll dipindah KE DALAM Crossfade supaya tiap
+        // tab punya posisi scroll sendiri (tab masuk mulai dari atas, tab keluar memudar di posisinya) —
+        // tanpa ini kedua tab berbagi 1 scroll & tinggi kotak = tab tertinggi selama fade -> konten
+        // melompat di akhir. Isi `if (tab == 0)` memakai `tab` (BUKAN selectedTab) agar tab yang sedang
+        // memudar tetap menampilkan dirinya sendiri. Callback/state/argumen tab identik v70.
+        Crossfade(
+            targetState = selectedTab,
+            modifier = Modifier.padding(pad),
+            animationSpec = tween(durationMillis = LagMotion.TAB_MS),
+            label = "tab"
+        ) { tab ->
+            Column(
+                Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(LagSpacing.lg),
+                verticalArrangement = Arrangement.spacedBy(LagSpacing.md)
+            ) {
+                if (tab == 0) {
+                    MainTab(
+                        ui = ui,
+                        ctx = ctx,
+                        versionName = versionName,
+                        onRunNow = { showRunConfirm = true }, // v11: minta konfirmasi dulu
+                        onGrant = vm::requestPermission,
+                        onCheckUpdate = vm::checkUpdate,
+                        onInstallUpdate = vm::installUpdate
+                    )
+                } else {
+                    SettingsTab(
+                        ui = ui,
+                        ctx = ctx,
+                        vm = vm,
+                        onFeedback = onFeedback,
+                        onAboutClick = { showAbout = true }
+                    )
+                }
             }
         }
 
@@ -202,7 +220,11 @@ private fun HomeScreen(vm: MainViewModel) {
             AlertDialog(
                 onDismissRequest = { showRunConfirm = false },
                 confirmButton = {
-                    TextButton(onClick = { showRunConfirm = false; vm.runNow() }) { Text("Jalankan") }
+                    TextButton(onClick = {
+                        showRunConfirm = false
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) // v71 (M4): tick ringan; ikut pengaturan sentuhan sistem
+                        vm.runNow()
+                    }) { Text("Jalankan") }
                 },
                 dismissButton = {
                     TextButton(onClick = { showRunConfirm = false }) { Text("Batal") }
@@ -236,7 +258,7 @@ private fun MainTab(
         onRunNow = onRunNow
     )
 
-    GlassCard(Modifier.fillMaxWidth()) {
+    GlassCard(Modifier.fillMaxWidth(), animateSize = true) { // v71 (M4): tinggi kartu halus saat isi berubah
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.xs)) {
             Text("Riwayat", style = MaterialTheme.typography.titleMedium)
             if (ui.lastRunMs == 0L) {
@@ -823,7 +845,7 @@ private fun StatsCard(log: List<String>) {
     val manualCount = withTrigger.count { it.trigger == TriggerSource.MANUAL }
     val hasManual = withTrigger.any { it.trigger == TriggerSource.MANUAL }
 
-    GlassCard(Modifier.fillMaxWidth()) {
+    GlassCard(Modifier.fillMaxWidth(), animateSize = true) { // v71 (M4): tinggi kartu halus saat isi berubah
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             Text("Statistik", style = MaterialTheme.typography.titleMedium)
             Text(
@@ -977,7 +999,7 @@ private fun UpdateCard(
 ) {
     var showChangelog by rememberSaveable { mutableStateOf(false) }
 
-    GlassCard(Modifier.fillMaxWidth()) {
+    GlassCard(Modifier.fillMaxWidth(), animateSize = true) { // v71 (M4): tinggi kartu halus saat isi berubah
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             Text("Pembaruan", style = MaterialTheme.typography.titleMedium)
 

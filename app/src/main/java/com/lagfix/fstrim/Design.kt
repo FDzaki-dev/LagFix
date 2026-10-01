@@ -2,6 +2,8 @@
 
 package com.lagfix.fstrim
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -195,8 +197,25 @@ private val glassBorder = Brush.linearGradient(
     listOf(Color(0x66FFFFFF), Color(0x1F6F8CFF), Color(0x0DFFFFFF))
 )
 
+// --- Motion (v71, M4) ----------------------------------------------------------------------------
+// Semua animasi app = tween berdurasi tetap (<= 300 ms, P4), BUKAN loop abadi (baterai). Compose
+// membaca skala animasi sistem (Opsi Pengembang) -> 0x = langsung ke keadaan akhir (INFERENSI, belum
+// diuji device).
+internal object LagMotion {
+    const val TAB_MS = 200 // Crossfade ganti tab
+    const val CONTENT_MS = 250 // kartu menyesuaikan tinggi saat isinya berubah
+    const val FADE_MS = 150 // progress run muncul/hilang
+}
+
+// `animateSize = true` -> tinggi kartu berubah halus saat isinya berubah (mis. baris Riwayat baru,
+// status pembaruan). animateContentSize diletakkan PALING DALAM (setelah border) supaya latar kaca &
+// tepi ikut tumbuh bersama isi, bukan terpotong. Default false = semua pemanggil lama identik.
 @Composable
-internal fun GlassCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+internal fun GlassCard(
+    modifier: Modifier = Modifier,
+    animateSize: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit
+) {
     val shape = MaterialTheme.shapes.large
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
         Column(
@@ -212,7 +231,11 @@ internal fun GlassCard(modifier: Modifier = Modifier, content: @Composable Colum
                         )
                     )
                 }
-                .border(1.dp, glassBorder, shape),
+                .border(1.dp, glassBorder, shape)
+                .then(
+                    if (animateSize) Modifier.animateContentSize(animationSpec = tween(durationMillis = LagMotion.CONTENT_MS))
+                    else Modifier
+                ),
             content = content
         )
     }

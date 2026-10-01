@@ -1,5 +1,10 @@
 # Changelog
 
+## v71
+- Perpindahan tab Utama/Pengaturan kini memudar halus (200 ms). Tiap tab punya posisi gulir sendiri dan selalu mulai dari atas.
+- Kartu Status, Riwayat, Statistik, dan Pembaruan menyesuaikan tinggi dengan halus saat isinya berubah (mis. baris Riwayat baru muncul setelah run). Progress "Menjalankan…" muncul dan hilang dengan fade.
+- Tombol "Jalankan" di dialog konfirmasi memberi getaran ringan (mengikuti pengaturan sentuhan sistem; perangkat Android 8.0 tidak bergetar). Tidak ada animasi yang berputar terus-menerus.
+
 ## v70
 - Ikon Quick Settings tile kini ikut desain baru: chip memori flash dengan kilau di tengah (sebelumnya masih petir lama). Ikon kecil notifikasi "Layanan latar depan persisten" memakai gambar yang sama, jadi ikut berganti. Perilaku tile tidak berubah.
 
