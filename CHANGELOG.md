@@ -1,5 +1,8 @@
 # Changelog
 
+## v73
+- Perbaikan build: v71 dan v72 gagal dikompilasi sehingga tidak ada APK. Fitur M4 (tab memudar, kartu menyesuaikan tinggi, getaran konfirmasi) tetap sama; hanya cara progress "Menjalankan…" memudar yang diganti.
+
 ## v71
 - Perpindahan tab Utama/Pengaturan kini memudar halus (200 ms). Tiap tab punya posisi gulir sendiri dan selalu mulai dari atas.
 - Kartu Status, Riwayat, Statistik, dan Pembaruan menyesuaikan tinggi dengan halus saat isinya berubah (mis. baris Riwayat baru muncul setelah run). Progress "Menjalankan…" muncul dan hilang dengan fade.

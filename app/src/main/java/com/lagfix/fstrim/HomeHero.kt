@@ -2,10 +2,8 @@
 
 package com.lagfix.fstrim
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,8 +19,10 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -57,6 +57,16 @@ internal fun HeroStatusCard(
     val ready = state == ShizukuState.READY
     val statusColors = LocalStatusColors.current
     val tint = if (ready) statusColors.success else statusColors.warning
+    // v71 (M4, fix v73): fade progress 150 ms lewat animateFloatAsState + alpha, BUKAN AnimatedVisibility
+    // (di dalam Box, AnimatedVisibility jatuh ke ColumnScope.AnimatedVisibility milik Column di luarnya
+    // -> error kompilasi "cannot be called in this context with an implicit receiver", CI run 58).
+    // Indikator hanya dikomposisi saat alpha > 0 -> setelah fade-out selesai keluar dari komposisi,
+    // animasi indeterminate berhenti. Tween finite, tak ada loop abadi.
+    val progressAlpha by animateFloatAsState(
+        targetValue = if (running) 1f else 0f,
+        animationSpec = tween(durationMillis = LagMotion.FADE_MS),
+        label = "progressAlpha"
+    )
     GlassCard(Modifier.fillMaxWidth(), animateSize = true) { // v71 (M4): tinggi kartu halus saat status/aksi berganti
         Column(
             Modifier.fillMaxWidth().padding(LagSpacing.xl),
@@ -86,15 +96,8 @@ internal fun HeroStatusCard(
             }
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(LagSpacing.xs)) {
                 Box(Modifier.fillMaxWidth().height(4.dp)) {
-                    // v71 (M4): fade masuk/keluar (150 ms). Indikator tetap HANYA dikomposisi saat
-                    // running (+ <=150 ms sisa fade-out): setelah itu keluar dari komposisi -> animasi
-                    // indeterminate berhenti. Tidak ada loop abadi.
-                    AnimatedVisibility(
-                        visible = running,
-                        enter = fadeIn(tween(durationMillis = LagMotion.FADE_MS)),
-                        exit = fadeOut(tween(durationMillis = LagMotion.FADE_MS))
-                    ) {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    if (progressAlpha > 0f) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth().alpha(progressAlpha))
                     }
                 }
                 Button(
