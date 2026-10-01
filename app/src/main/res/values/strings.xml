@@ -12,10 +12,17 @@
     <!-- v45: baris ke-1 widget saat baris log riwayat MEMILIKI token trigger (v38+) — dgn (Otomatis)/(Manual). -->
     <string name="widget_status_ok_trigger">Bersih ✓ · %1$s (%2$s)</string>
     <string name="widget_status_fail_trigger">Gagal ⚠ · %1$s (%2$s)</string>
-    <string name="tile_subtitle_not_ready">Shizuku belum siap</string>
+    <!-- v67: QS tile dialihfungsikan jadi pemicu notifikasi "Layanan latar depan persisten" (bukan fstrim). -->
+    <string name="tile_label">Layanan persisten</string>
+    <string name="tile_subtitle_idle">Ketuk untuk menyalakan</string>
+    <string name="tile_subtitle_triggered">Notifikasi dinyalakan</string>
+    <string name="toast_tile_persistent_denied">Android menolak menyalakan layanan dari tile. Buka LagFix lalu nyalakan lewat Pengaturan.</string>
     <string name="toast_run_ok">fstrim berhasil dijalankan</string>
     <string name="toast_run_fail">fstrim gagal: %1$s</string>
     <string name="toast_shizuku_not_ready">Shizuku belum siap, aktifkan dulu lalu coba lagi</string>
+    <!-- v66 (M2b): contentDescription ikon status Shizuku (StatusCard); sengaja tak mengulang judul kartu agar TalkBack tak membaca ganda. -->
+    <string name="cd_shizuku_status_ready">Status: baik</string>
+    <string name="cd_shizuku_status_action">Status: perlu tindakan</string>
     <string name="persistent_service_notif_text">Menjaga proses LagFix tetap berjalan untuk jadwal fstrim otomatis</string>
 </resources>
 

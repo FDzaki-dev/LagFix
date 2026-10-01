@@ -67,6 +67,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -1046,9 +1047,19 @@ private fun StatusCard(state: ShizukuState, onGrant: () -> Unit, onOpen: () -> U
         ShizukuState.NEED_PERMISSION -> Triple("Izin diperlukan", "Beri izin LagFix untuk memakai Shizuku.", "Beri izin")
         ShizukuState.READY -> Triple("Siap", "Shizuku aktif dan izin diberikan.", null)
     }
+    // v66 (M2b): ikon status (visual-only) — READY = centang mint, selain itu = peringatan amber (token LocalStatusColors, 0 warna baru).
+    val ready = state == ShizukuState.READY
+    val statusColors = LocalStatusColors.current
     GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
+                Icon(
+                    painter = painterResource(if (ready) R.drawable.ic_status_ok else R.drawable.ic_status_warning),
+                    contentDescription = stringResource(if (ready) R.string.cd_shizuku_status_ready else R.string.cd_shizuku_status_action),
+                    tint = if (ready) statusColors.success else statusColors.warning
+                )
+                Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            }
             Text(body)
             if (action != null) {
                 Button(onClick = if (state == ShizukuState.NEED_PERMISSION) onGrant else onOpen) { Text(action) }

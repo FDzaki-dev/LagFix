@@ -1,5 +1,11 @@
 # Changelog
 
+## v67
+- Quick Settings tile dialihfungsikan: ketuk tile sekarang langsung menyalakan notifikasi "Layanan latar depan persisten" saat itu juga (label tile: "Layanan persisten"). Tile tidak lagi menjalankan fstrim — fstrim manual tetap lewat tombol di app dan widget. Tile hanya memicu servis; saklar di Pengaturan tidak berubah. Kalau Android menolak menyalakan servis dari tile, muncul pesan singkat (aplikasi tidak crash).
+
+## v66
+- Kartu status Shizuku (tab Utama): kini ada ikon status di samping judul — centang hijau-mint saat "Siap", segitiga peringatan amber saat Shizuku belum terpasang / tidak aktif / butuh izin. Ikon punya label aksesibilitas (TalkBack: "Status: baik" / "Status: perlu tindakan"). Teks, tombol, dan fungsi tidak berubah.
+
 ## v65
 - Kartu Pembaruan (tab Utama): tombol aksi disusun simetris. Saat ada versi baru, "Update sekarang" (utama), "Lihat changelog", dan "Cek ulang" kini selebar kartu dan setinggi sama (sebelumnya berdampingan dengan ukuran berbeda: "Update sekarang" membungkus 2 baris dan "Lihat changelog" menjorok ke dalam). Fungsi update dan cek versi tidak berubah.
 

@@ -107,9 +107,10 @@ Urutan default: M1 -> M2 -> M3 -> M4 -> M5 -> M6 -> M7 -> M8 -> M9 (M1 dulu: mem
 | M0 | SELESAI (v59) | docs-only |
 | M1 | IMPLEMENTED (v60) — belum dikompilasi, belum diuji device | bagian 9 |
 | v61 (dark-only + glass, bagian 10) | IMPLEMENTED; device: tampil & tak crash (screenshot v1.0.52), detail bagian 11 | screenshot user |
-| M2 | SEBAGIAN (v62): ikon nav Utama/Pengaturan -> vector drawable; ikon status Shizuku BELUM | bagian 11 |
+| M2 | IMPLEMENTED (v62 nav + v66 status Shizuku) — belum dikompilasi/diuji device | bagian 11, 13 |
 | v64 | label interval kustom 1 baris — IMPLEMENTED; user melaporkan label tak membungkus lagi | bagian 11 poin 2 |
 | v65 | `UpdateCard`: tombol aksi simetris (full-width, tinggi sama) — IMPLEMENTED, belum dikompilasi/diuji device | bagian 12 |
+| v66 (M2b) | `StatusCard`: ikon status Shizuku (centang mint / peringatan amber) + `contentDescription` + 2 string — IMPLEMENTED, belum dikompilasi/diuji device | bagian 13 |
 | M3-M9 | PLANNED | — |
 
 ## 8. Di luar scope
@@ -168,9 +169,15 @@ Kontras (WCAG 2.x, skenario TERBURUK: 3 glow menumpuk + fill kaca + glow sudut =
 **Belum terlihat/diuji:** flash terang saat cold start, snackbar, dialog (Jalankan/Tentang), rotasi, TalkBack, bagian bawah Pengaturan (kartu Tema harus sudah hilang).
 **M2a (v62):** `ic_nav_home.xml` (path rumah Material) + `ic_nav_settings.xml` (cincin evenOdd + 8 gigi lewat 4 grup rotasi; gambar sendiri, 0 dependency, 0 `material-icons`) + `MainActivity.kt` 2 baris `icon = { Icon(painterResource(...), contentDescription = null) }` (+2 import). `contentDescription = null` disengaja: item nav sudah berlabel teks (TalkBack tak membaca ganda). `strings.xml` tak diubah. Ikon tertint otomatis oleh `LocalContentColor` NavigationBarItem (terpilih = `onSecondaryContainer` cyan-pucat di pil `secondaryContainer`).
 **INFERENSI:** bentuk roda gigi hasil gambar sendiri belum dilihat di device (mungkin perlu penyesuaian ukuran gigi); path rumah = path Material standar.
-**M2b (sisa):** ikon status Shizuku di `StatusCard` + `contentDescription` bermakna (butuh `strings.xml`) — hanya atas perintah.
+**M2b:** DIKERJAKAN v66 (bagian 13).
 
 ## 12. UpdateCard simetris (v65, permintaan user setelah screenshot tab Utama) — IMPLEMENTED, BELUM dikompilasi & BELUM diuji device
 **Terlihat di screenshot (fakta):** kartu Pembaruan keadaan `Available` = baris `TextButton("Lihat changelog")` + `Button("Update sekarang")` berdampingan, lalu `Button("Cek ulang")` selebar kartu. Teks "Update sekarang" membungkus 2 baris (tombol lebih tinggi dari changelog), `TextButton` menjorok ke dalam relatif teks kartu, dua gaya tombol campur (side-by-side vs full-width) = tak simetris. (Screenshot itu build terpasang 52 dengan ikon nav emoji -> ikon v62 belum terlihat dari screenshot tsb.)
 **Perubahan (`MainActivity.kt`, hanya `UpdateCard`, visual-only):** Row dibongkar -> kolom tombol selebar kartu, urutan: `Button` "Update sekarang" (primer, `enabled = !downloading`, callback `onInstall` identik) -> `FilledTonalButton` "Lihat changelog" (`showChangelog = true` identik) -> teks error unduh (posisi relatif sama) -> "Cek ulang": `FilledTonalButton` bila `result is Available` (agar hanya 1 aksi primer), selain itu `Button` seperti sebelumnya. Teks info/versi, dialog changelog, state `showChangelog`, dan progress TIDAK disentuh. +import `FilledTonalButton` (material3 bawaan, 0 dependency).
 **INFERENSI/RISIKO:** tampilan tonal (secondaryContainer teal + teks cyan-pucat) di atas kaca belum dilihat di device; kontras teoretis `onSecondaryContainer`/`secondaryContainer` = 8.4:1. Baris teks "Versi tersedia: build N (nama)" masih bisa membungkus (sengaja tak disentuh: salinan teks).
+
+## 13. M2b — ikon status Shizuku (v66, perintah user "kerjakan next kandidat milestone") — IMPLEMENTED, BELUM dikompilasi & BELUM diuji device
+**Pilihan kandidat (fakta dokumen):** urutan default M1 -> M2 -> M3; M2 baru separuh (M2a v62), sisa eksplisit = M2b -> dikerjakan sebelum M3.
+**Perubahan (visual-only, 0 logic/state/callback):** `ic_status_ok.xml` (lingkaran+centang, path Material standar) & `ic_status_warning.xml` (segitiga peringatan, path Material standar) BARU; `strings.xml` +`cd_shizuku_status_ready` "Status: baik" & `cd_shizuku_status_action` "Status: perlu tindakan"; `MainActivity.kt` hanya `StatusCard`: judul dibungkus `Row` (Icon + `Text(title, Modifier.weight(1f))`), tint = `LocalStatusColors` (READY -> `success` mint, 3 keadaan lain -> `warning` amber; 0 warna baru), +import `stringResource`. Body teks, tombol aksi (`onGrant`/`onOpen`), `enabled` tombol Jalankan TIDAK disentuh.
+**contentDescription:** sengaja tak mengulang judul kartu (judul sudah terbaca TalkBack) -> hanya memberi makna kategori status yang di layar disampaikan lewat bentuk+warna.
+**INFERENSI/RISIKO:** tampilan ikon 24dp sejajar `titleMedium` + glow judul belum dilihat di device; kontras mint/amber di atas kaca belum diukur di device (token sama dgn status Riwayat, kontras teoretis dari M1). Karakter teks `✓` di baris "Baterai: berjalan tanpa batas" (Pengaturan) TIDAK diubah (bukan ikon StatusCard, di luar scope).
