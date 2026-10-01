@@ -1,5 +1,8 @@
 # Changelog
 
+## v57
+- Dicabut: layanan Aksesibilitas "LagFix (penjaga proses)" dan tombol "Buka Pengaturan Aksesibilitas" (v55). Uji logcat di HP ini menunjukkan sistem tidak menyambungkan ulang layanan itu setelah LagFix digeser dari Recents, jadi tidak mempercepat kembalinya notifikasi permanen. Kalau layanan sudah kamu aktifkan, matikan manual di Setelan > Aksesibilitas (otomatis hilang dari daftar setelah update). Tidak ada perubahan pada jadwal fstrim, widget, tile, maupun layanan latar depan persisten.
+
 ## v55
 - Pengaturan > Keandalan latar belakang: tombol baru "Buka Pengaturan Aksesibilitas" untuk mengaktifkan layanan "LagFix (penjaga proses)". Layanan ini kosong (tidak membaca layar maupun ketikan); gunanya membantu sistem menghidupkan lagi proses LagFix lebih cepat setelah dimatikan (mis. digeser dari Recents), sehingga notifikasi permanen bisa kembali tanpa menunggu interval jadwal. Harus diaktifkan sendiri di Setelan Aksesibilitas; di Android 13+ untuk aplikasi di luar Play Store mungkin perlu "Izinkan pengaturan terbatas" lebih dulu. Belum ada jaminan di semua HP.
 

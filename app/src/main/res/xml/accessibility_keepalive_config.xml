@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- v55: layanan aksesibilitas KOSONG (penjaga proses). Tanpa accessibilityEventTypes (= tak
-     menerima event apa pun) dan canRetrieveWindowContent=false (= tak bisa membaca isi layar). -->
-<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityFeedbackType="feedbackGeneric"
-    android:canRetrieveWindowContent="false"
-    android:description="@string/a11y_keepalive_description" />
