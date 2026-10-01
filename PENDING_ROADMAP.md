@@ -105,6 +105,9 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    CONFIRMED real runner GitHub Actions (91 code smell — rincian di PROJECT_STATE.md batch v18).
    `lint-results-debug.html` TIDAK ada di artifact yg sama — root cause belum diketahui, butuh log
    mentah step tsb + konfirmasi status Build/Release run #20 sebelum F1 dianggap VERIFIED penuh.
+   v52: akar masalah `lint-results-debug.html` hilang TETAP belum diketahui (log mentah step lint tak
+   pernah diunggah). `build.yml` kini memisah step Lint/Detekt & mengunggah log mentah + semua file
+   `lint-results*` + listing; F1 baru VERIFIED penuh setelah artifact run berikutnya dibaca.
 2. Belum ada dependency-update check otomatis (mis. Dependabot) utk `dev.rikka.shizuku`.
 
 ## Urutan eksekusi disarankan

@@ -29,19 +29,38 @@ jobs:
       # non-blocking dulu supaya pipeline hijau existing (Unit test/Build/Release) tidak
       # mendadak merah krn gaya-kode lama yg belum pernah dicek. Tidak mempengaruhi step
       # "Simpan/Unggah log kegagalan" (if: failure()) krn continue-on-error meredam itu by design.
-      - name: Lint & detekt (non-blocking)
+      # v52: lint & detekt DIPISAH jadi 2 step (dulu satu command `gradle lintDebug detekt` tanpa
+      # --continue: kegagalan task pertama menghentikan task kedua & menutupi penyebabnya). Log
+      # mentah tiap step disimpan (tee) lalu diunggah bersama laporan, supaya penyebab
+      # lint-results-debug.html yg tak muncul (run #20) bisa dibaca langsung, bukan ditebak.
+      - name: Lint (non-blocking)
         continue-on-error: true
         run: |
           set -o pipefail
-          gradle --no-daemon --stacktrace lintDebug detekt 2>&1 | tee lint_detekt_output.log
+          gradle --no-daemon --stacktrace lintDebug 2>&1 | tee lint_output.log
+      - name: Detekt (non-blocking)
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          gradle --no-daemon --stacktrace detekt 2>&1 | tee detekt_output.log
+      # Kumpulkan ke satu folder (if: always): log mentah, laporan detekt, semua file
+      # lint-results* yg ada di mana pun di app/build (path asli terbaca juga dari lint_output.log),
+      # daftar semua nama file ber-"lint" (hanya nama), dan listing app/build/reports.
+      - name: Kumpulkan laporan lint & detekt
+        if: always()
+        run: |
+          mkdir -p lint_artifacts
+          cp lint_output.log detekt_output.log lint_artifacts/ 2>/dev/null || true
+          cp -r app/build/reports/detekt lint_artifacts/ 2>/dev/null || true
+          find app/build -iname '*lint*' > lint_artifacts/lint_files_found.txt 2>&1 || true
+          find app/build -iname 'lint-results*' -type f -exec cp --parents {} lint_artifacts/ \; 2>/dev/null || true
+          ls -laR app/build/reports > lint_artifacts/reports_listing.txt 2>&1 || true
       - name: Unggah laporan lint & detekt
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: LagFix-lint-detekt-report-${{ github.run_number }}
-          path: |
-            app/build/reports/lint-results-debug.html
-            app/build/reports/detekt/detekt.html
+          path: lint_artifacts/
           if-no-files-found: ignore
 
       - name: Decode keystore
