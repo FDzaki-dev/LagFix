@@ -39,6 +39,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.NavigationBar
@@ -64,12 +65,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -148,13 +151,13 @@ private fun HomeScreen(vm: MainViewModel) {
                 NavigationBarItem(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    icon = { Text("🏠") },
+                    icon = { Icon(painterResource(R.drawable.ic_nav_home), contentDescription = null) }, // v62 (M2): label "Utama" sudah dibaca TalkBack
                     label = { Text("Utama") }
                 )
                 NavigationBarItem(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
-                    icon = { Text("⚙️") },
+                    icon = { Icon(painterResource(R.drawable.ic_nav_settings), contentDescription = null) }, // v62 (M2)
                     label = { Text("Pengaturan") }
                 )
             }
@@ -349,7 +352,8 @@ private fun SettingsTab(
                     value = customText,
                     onValueChange = { customText = it.filter(Char::isDigit).take(6) },
                     modifier = Modifier.weight(1f),
-                    label = { Text("Interval kustom (menit)") },
+                    // v64: label dipersingkat + 1 baris (sebelumnya membungkus 2 baris & merusak notch outline di kolom setengah lebar).
+                    label = { Text("Kustom (menit)", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     singleLine = true,
                     isError = customText.isNotEmpty() && !customValid,
                     supportingText = {

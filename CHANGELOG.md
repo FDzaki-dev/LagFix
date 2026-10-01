@@ -1,5 +1,11 @@
 # Changelog
 
+## v64
+- Pengaturan > Jadwal: label kolom interval kustom dipersingkat menjadi "Kustom (menit)" dan dipaksa satu baris, sehingga tidak lagi membungkus dan merusak bingkai kolom. Fungsi interval tidak berubah.
+
+## v62
+- Tampilan: ikon bilah navigasi bawah (Utama, Pengaturan) kini ikon vektor bergaya garis-solid yang ikut warna tema (sebelumnya emoji berwarna yang tidak serasi dengan gaya kaca). Tidak ada perubahan fungsi, jadwal fstrim, widget, tile, maupun layanan latar depan.
+
 ## v61
 - Tampilan: aplikasi kini HANYA mode gelap dan seluruh tema, tipografi, serta bentuk memakai gaya Glassmorphism & Glow. Latar midnight blue berpendar lembut (biru, cyan, violet), kartu berupa panel kaca translusen dengan tepi bercahaya, bilah atas/bawah transparan, sudut lebih membulat, dan judul berbobot tebal dengan cahaya halus. Warna teks lavender-putih (bukan putih murni) agar nyaman di mata. Kartu \"Tema\" (Ikuti sistem/Terang/Gelap) dihapus dari Pengaturan; ikon bar status & navigasi selalu terang apa pun mode sistem. Tidak ada perubahan fungsi, jadwal fstrim, widget, tile, maupun layanan latar depan.
 

@@ -106,7 +106,10 @@ Urutan default: M1 -> M2 -> M3 -> M4 -> M5 -> M6 -> M7 -> M8 -> M9 (M1 dulu: mem
 |------|--------|-------|
 | M0 | SELESAI (v59) | docs-only |
 | M1 | IMPLEMENTED (v60) — belum dikompilasi, belum diuji device | bagian 9 |
-| M2-M9 | PLANNED | — |
+| v61 (dark-only + glass, bagian 10) | IMPLEMENTED; device: tampil & tak crash (screenshot v1.0.52), detail bagian 11 | screenshot user |
+| M2 | SEBAGIAN (v62): ikon nav Utama/Pengaturan -> vector drawable; ikon status Shizuku BELUM | bagian 11 |
+| v64 | label interval kustom 1 baris — IMPLEMENTED, belum dikompilasi/diuji device | bagian 11 poin 2 |
+| M3-M9 | PLANNED | — |
 
 ## 8. Di luar scope
 Ganti arsitektur/dependency utama (Shizuku/WorkManager/Compose), migrasi modul, hitam murni, Material You dinamis (diganti calm di v10), fitur non-visual, jalur revive/notifikasi persistent.
@@ -153,4 +156,16 @@ Implementasi (3 file source: `Design.kt`, `MainActivity.kt`, `themes.xml`):
 Kontras (WCAG 2.x, skenario TERBURUK: 3 glow menumpuk + fill kaca + glow sudut = latar ~#324795): onSurface 7.49, onSurfaceVariant 5.29, primary 4.60, secondary 5.51, tertiary 4.77, error 4.92 (FFB0B7), success 5.58, warning 5.20, outline 3.03 (>=3). Latar normal (surface #0E1634): semua >=8.
 **INFERENSI/RISIKO (belum terbukti):** (a) parameter `surfaceContainer*` butuh material3 1.3.0 (asumsi BOM 2024.10.01, sama seperti v60); (b) `LocalContentColor` diset manual karena latar Scaffold transparan (default hitam) — kalau ada teks hitam di layar, cek ini; (c) `Shadow` pada judul bisa terlihat berkabut di layar tertentu -> hapus `glow = true` di `Design.kt` (2 baris); (d) judul \"Keandalan latar belakang (opsional)\" mungkin membungkus (SemiBold, tak berubah dari v60).
 **Checklist device v61** (screenshot): 1. Tak crash, tak ada flash terang saat dibuka; 2. Ikon status/nav bar terang walau HP mode terang; 3. Kartu terlihat sebagai kaca (tepi bercahaya, latar berpendar) & teks terbaca di semua kartu; 4. Riwayat/Statistik: warna status terbaca; 5. Switch OFF, kolom interval, snackbar, dialog (Jalankan/Tentang) terbaca; 6. Layout tak bergeser, rotasi tak mereset tab/dialog; 7. Pengaturan tak lagi punya kartu Tema.
+
+## 11. Bukti device v61 (screenshot user, build label v1.0.52) + M2a (v62) — M2a IMPLEMENTED, BELUM dikompilasi & BELUM diuji device
+**Terlihat di screenshot (fakta):** app terbuka & berfungsi (tab Utama + Pengaturan); latar midnight berpendar, kartu kaca bertepi bercahaya, judul bercahaya; ikon status bar putih; Riwayat/Statistik: baris status hijau-mint terbaca, batang grafik tampil; switch Jadwal ON (track periwinkle, thumb navy) terbaca; label "Baterai: berjalan tanpa batas" + centang tampil.
+**Temuan (bug isolation, TIDAK diperbaiki di v62, di luar scope M2a):**
+1. Ikon nav = emoji berwarna (A1) -> DIPERBAIKI v62 (M2a).
+2. Pengaturan > Jadwal: `OutlinedTextField` label "Interval kustom (menit)" membungkus 2 baris dan outline-notch label tampak berantakan (`MainActivity.kt` ~baris 348-352). Dugaan: lebar kolom sempit + font tebal override perangkat user (poin 3; BELUM terbukti). **DIPERBAIKI v64 (IMPLEMENTED, belum dikompilasi/diuji device)** atas perintah user "Lanjut kesitu": label -> "Kustom (menit)" + `maxLines = 1` + `overflow = Ellipsis` (+import `TextOverflow`), 1 file `MainActivity.kt`. Teks `supportingText` "Interval aktif: ..." TIDAK disentuh (bisa membungkus di kolom sempit; bukan temuan yang diminta).
+3. ~~Teks body/label tampak tebal~~ -> **BUKAN BUG (klarifikasi user, v63):** itu override font di perangkat user sendiri, di luar kendali app. TIDAK ada aksi di `Design.kt`; jangan diselidiki/dipertanyakan lagi.
+4. ~~Chip interval terpotong di tepi kanan~~ -> **BUKAN BUG (klarifikasi user, v63):** baris chip memang bisa digeser ke samping. Perilaku benar.
+**Belum terlihat/diuji:** flash terang saat cold start, snackbar, dialog (Jalankan/Tentang), rotasi, TalkBack, bagian bawah Pengaturan (kartu Tema harus sudah hilang).
+**M2a (v62):** `ic_nav_home.xml` (path rumah Material) + `ic_nav_settings.xml` (cincin evenOdd + 8 gigi lewat 4 grup rotasi; gambar sendiri, 0 dependency, 0 `material-icons`) + `MainActivity.kt` 2 baris `icon = { Icon(painterResource(...), contentDescription = null) }` (+2 import). `contentDescription = null` disengaja: item nav sudah berlabel teks (TalkBack tak membaca ganda). `strings.xml` tak diubah. Ikon tertint otomatis oleh `LocalContentColor` NavigationBarItem (terpilih = `onSecondaryContainer` cyan-pucat di pil `secondaryContainer`).
+**INFERENSI:** bentuk roda gigi hasil gambar sendiri belum dilihat di device (mungkin perlu penyesuaian ukuran gigi); path rumah = path Material standar.
+**M2b (sisa):** ikon status Shizuku di `StatusCard` + `contentDescription` bermakna (butuh `strings.xml`) — hanya atas perintah.
 
