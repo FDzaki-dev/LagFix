@@ -178,6 +178,7 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
 - v67 (permintaan user): QS tile dialihfungsikan jadi pemicu `PersistentTrimService.start()` (bukan `Scheduler.runOnce()`) — `LagFixTileService.kt`, `strings.xml`, `AndroidManifest.xml` (label tile). Di luar jalur milestone UI/UX.
 - v68 (user "Lanjutkan milestone!!"; tile v67 dikonfirmasi berhasil di device): G/M3 — hero status Shizuku + aksi run + progress + empty state Riwayat (`HomeHero.kt` baru, `ic_empty_history.xml` baru, `strings.xml`, `MainActivity.kt`; `PENDING_UIUX_MILESTONE.md` bagian 14). Sisa: M4-M9 (butuh perintah user).
 - v69 (user: widget wajib selaras gaya utama + ikon app dirombak total): visual-only — `widget_lagfix.xml`, `widget_card_bg.xml`, `widget_button_bg.xml` (widget dark glass + glow, tombol pil periwinkle) & `ic_launcher_foreground.xml` (chip memori flash + kilau), `ic_launcher_backdrop.xml` baru, `ic_launcher_monochrome.xml` baru, `mipmap-anydpi-v26/ic_launcher.xml` (+`<monochrome>`); `PENDING_UIUX_MILESTONE.md` bagian 15. Di luar M-seri. Sisa: M4-M9 (butuh perintah user).
+- v70 (user: ikon QS tile belum ikut revisi ikon): `ic_tile_fstrim.xml` bentuk baru chip+kilau 24dp (juga ikon kecil notifikasi persisten). Pertanyaan "tile hanya bereaksi setelah app di-swipe" dijawab analisis kode (PROJECT_STATE v70), 0 kode diubah. Sisa: M4-M9 (butuh perintah user).
 
 ## Eksplisit DI LUAR SCOPE
 Tidak ada rencana ganti arsitektur, ganti dependency utama (Shizuku/WorkManager/Compose), migrasi

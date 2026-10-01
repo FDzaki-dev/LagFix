@@ -1,5 +1,8 @@
 # Changelog
 
+## v70
+- Ikon Quick Settings tile kini ikut desain baru: chip memori flash dengan kilau di tengah (sebelumnya masih petir lama). Ikon kecil notifikasi "Layanan latar depan persisten" memakai gambar yang sama, jadi ikut berganti. Perilaku tile tidak berubah.
+
 ## v69
 - Widget: tampilan disamakan dengan gaya utama aplikasi — kartu kaca gelap midnight dengan cahaya biru/cyan/violet dan tepi bercahaya, ikon aplikasi + judul lavender-putih di bagian atas, teks status lembut, dan tombol "Jalankan Sekarang" berbentuk pil periwinkle (sebelumnya kartu mengikuti tema sistem/launcher dan tombol biru datar). Pratinjau di pemilih widget kini menampilkan isi, bukan kartu kosong. Isi status, interval, dan fungsi tombol tidak berubah.
 - Ikon aplikasi dirombak total: petir putih di atas biru polos diganti chip memori flash dengan kilau "bersih" di tengah (menggambarkan trim/pembersihan penyimpanan), berlatar midnight berpendar yang selaras dengan UI. Mendukung ikon bertema Android 13+. Ikon tile Panel Cepat tidak berubah.
