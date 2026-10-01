@@ -173,6 +173,7 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
 - v59 (atas permintaan eksplisit user "planning + embedded doc milestone UI UX premium"): G dibuka, docs-only.
   File: `PENDING_UIUX_MILESTONE.md` (baru), bagian ini. 0 source diubah. Sisa backlog: G/M1-M9 (butuh perintah user), D2, F2.
 - v60 (atas perintah user "Lanjut M1"): G/M1 diimplementasi — `Design.kt` (baru), `MainActivity.kt`; detail di `PENDING_UIUX_MILESTONE.md` bagian 9. Sisa backlog: G/M2-M9 (butuh perintah user), D2, F2.
+- v61 (permintaan user): arah visual DARK ONLY + Glassmorphism & Glow — `Design.kt`, `MainActivity.kt`, `themes.xml`; detail & checklist device di `PENDING_UIUX_MILESTONE.md` bagian 10. M2-M9 tetap butuh perintah user; kartu Tema & `ThemeMode` sisa (debt kecil, tak dipakai) boleh dibersihkan atas perintah.
 
 ## Eksplisit DI LUAR SCOPE
 Tidak ada rencana ganti arsitektur, ganti dependency utama (Shizuku/WorkManager/Compose), migrasi

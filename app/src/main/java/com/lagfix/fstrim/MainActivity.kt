@@ -13,6 +13,7 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -35,7 +36,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -86,10 +86,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // v61: dark-only -> ikon status/navigasi bar SELALU terang, apa pun mode sistem (default auto
+        // memakai ikon gelap saat sistem terang -> tak terbaca di latar midnight).
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        )
         setContent {
-            val ui = vm.ui
-            LagFixTheme(ui.themeMode) { HomeScreen(vm) }
+            LagFixTheme { HomeScreen(vm) }
         }
     }
 
@@ -136,10 +140,11 @@ private fun HomeScreen(vm: MainViewModel) {
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("LagFix (fstrim)") }) },
+        containerColor = Color.Transparent, // v61: backdrop berglow dari LagFixTheme tampil di belakang
+        topBar = { TopAppBar(title = { Text("LagFix (fstrim)") }, colors = glassTopBarColors()) },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            NavigationBar {
+            NavigationBar(containerColor = GlassNavContainer, modifier = Modifier.glassTopEdge()) {
                 NavigationBarItem(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
@@ -225,7 +230,7 @@ private fun MainTab(
         modifier = Modifier.fillMaxWidth()
     ) { Text(if (ui.running) "Menjalankan…" else "Jalankan fstrim sekarang") }
 
-    Card(Modifier.fillMaxWidth()) {
+    GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.xs)) {
             Text("Riwayat", style = MaterialTheme.typography.titleMedium)
             Text(
@@ -291,7 +296,7 @@ private fun SettingsTab(
     onAboutClick: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
-    Card(Modifier.fillMaxWidth()) {
+    GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             Text("Jadwal", style = MaterialTheme.typography.titleMedium)
             ToggleRow("Jadwal otomatis", ui.enabled) {
@@ -402,7 +407,7 @@ private fun SettingsTab(
     // umum ROM, BELUM diverifikasi di HP ini -> teksnya sengaja berhati-hati, tanpa klaim pasti.
     // Tombol hanya membuka Info Aplikasi (intent standar Android, 0 tebakan nama activity per ROM
     // -> tetap patuh alasan v24: tak ada intent Autostart khusus merek).
-    Card(Modifier.fillMaxWidth()) {
+    GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             Text("Agar jadwal tetap jalan", style = MaterialTheme.typography.titleMedium)
             Text(
@@ -455,7 +460,7 @@ private fun SettingsTab(
     // bermasalah — konsultasi eksplisit dgn user sebelum dibuat, lihat riwayat v25/v26, dikerjakan v27). 0 logic
     // fstrim baru — cuma menjaga proses tetap hidup, jadwal periodik tetap lewat WorkManager
     // (Scheduler.apply(), 0 diubah).
-    Card(Modifier.fillMaxWidth()) {
+    GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             Text("Keandalan latar belakang (opsional)", style = MaterialTheme.typography.titleMedium)
             val notifPermissionLauncher = rememberLauncherForActivityResult(
@@ -530,27 +535,8 @@ private fun SettingsTab(
     // manager/OS pihak lain menampilkan folder baru) + tombol salin teks.
     LogReaderCard(ctx = ctx, onFeedback = onFeedback)
 
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-            Text("Tema", style = MaterialTheme.typography.titleMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-                listOf(
-                    ThemeMode.SYSTEM to "Ikuti sistem",
-                    ThemeMode.LIGHT to "Terang",
-                    ThemeMode.DARK to "Gelap"
-                ).forEach { (mode, label) ->
-                    FilterChip(
-                        selected = ui.themeMode == mode,
-                        onClick = { vm.setThemeMode(mode); onFeedback("Tema: $label.") },
-                        label = { Text(label) }
-                    )
-                }
-            }
-        }
-    }
-
     // v12: dipindah dari tab Utama biar tab Utama cuma isi fitur utama (status/aksi/riwayat/pembaruan).
-    Card(Modifier.fillMaxWidth()) {
+    GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.xs)) {
             Text("Tautan", style = MaterialTheme.typography.titleMedium)
             LinkRow("Unduh rilis terbaru") { openUrl(ctx, AppLinks.releases) }
@@ -592,7 +578,7 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
     }
     LaunchedEffect(Unit) { load() }
 
-    Card(Modifier.fillMaxWidth()) {
+    GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             Text("Log Diagnostik", style = MaterialTheme.typography.titleMedium)
             Text(
@@ -827,7 +813,7 @@ private fun StatsCard(log: List<String>) {
     val manualCount = withTrigger.count { it.trigger == TriggerSource.MANUAL }
     val hasManual = withTrigger.any { it.trigger == TriggerSource.MANUAL }
 
-    Card(Modifier.fillMaxWidth()) {
+    GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             Text("Statistik", style = MaterialTheme.typography.titleMedium)
             Text(
@@ -981,7 +967,7 @@ private fun UpdateCard(
 ) {
     var showChangelog by rememberSaveable { mutableStateOf(false) }
 
-    Card(Modifier.fillMaxWidth()) {
+    GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             Text("Pembaruan", style = MaterialTheme.typography.titleMedium)
 
@@ -1046,7 +1032,7 @@ private fun StatusCard(state: ShizukuState, onGrant: () -> Unit, onOpen: () -> U
         ShizukuState.NEED_PERMISSION -> Triple("Izin diperlukan", "Beri izin LagFix untuk memakai Shizuku.", "Beri izin")
         ShizukuState.READY -> Triple("Siap", "Shizuku aktif dan izin diberikan.", null)
     }
-    Card(Modifier.fillMaxWidth()) {
+    GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             Text(body)

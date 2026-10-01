@@ -1,5 +1,8 @@
 # Changelog
 
+## v61
+- Tampilan: aplikasi kini HANYA mode gelap dan seluruh tema, tipografi, serta bentuk memakai gaya Glassmorphism & Glow. Latar midnight blue berpendar lembut (biru, cyan, violet), kartu berupa panel kaca translusen dengan tepi bercahaya, bilah atas/bawah transparan, sudut lebih membulat, dan judul berbobot tebal dengan cahaya halus. Warna teks lavender-putih (bukan putih murni) agar nyaman di mata. Kartu \"Tema\" (Ikuti sistem/Terang/Gelap) dihapus dari Pengaturan; ikon bar status & navigasi selalu terang apa pun mode sistem. Tidak ada perubahan fungsi, jadwal fstrim, widget, tile, maupun layanan latar depan.
+
 ## v60
 - Tampilan: palet warna dirapikan. Status Riwayat & Statistik (berhasil / dilewati / gagal) kini terbaca jelas di tema gelap (sebelumnya terlalu redup), batas kolom/chip/switch lebih terlihat, dan warna kartu, bilah bawah, serta notifikasi singkat (snackbar) kini seragam dengan palet calm. Di tema terang, kartu berwarna putih. Judul kartu sedikit lebih tebal. Tidak ada perubahan fungsi, jadwal fstrim, widget, tile, maupun layanan latar depan.
 
