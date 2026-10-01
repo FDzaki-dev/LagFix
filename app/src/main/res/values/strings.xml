@@ -23,6 +23,9 @@
     <!-- v66 (M2b): contentDescription ikon status Shizuku (StatusCard); sengaja tak mengulang judul kartu agar TalkBack tak membaca ganda. -->
     <string name="cd_shizuku_status_ready">Status: baik</string>
     <string name="cd_shizuku_status_action">Status: perlu tindakan</string>
+    <!-- v68 (M3): empty state kartu Riwayat di tab Utama. Judul = copy lama; petunjuk = baru. -->
+    <string name="history_empty_title">Belum pernah dijalankan</string>
+    <string name="history_empty_hint">Ketuk tombol Jalankan di atas, atau nyalakan Jadwal otomatis di tab Pengaturan.</string>
     <string name="persistent_service_notif_text">Menjaga proses LagFix tetap berjalan untuk jadwal fstrim otomatis</string>
 </resources>
 

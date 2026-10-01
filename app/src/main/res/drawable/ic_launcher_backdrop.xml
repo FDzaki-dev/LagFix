@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v69: latar ikon launcher — midnight blue + 3 glow (biru/cyan/violet) = palet & gaya glass-glow
+     yang sama dengan UI aplikasi (Design.kt: Midnight*, GlowBlue/Cyan/Violet). Vector + gradient
+     (aapt:attr, API 24+; minSdk 26 aman). Menggantikan warna datar #0F62FE. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M0,0H108V108H0Z">
+        <aapt:attr name="android:fillColor">
+        <gradient
+            android:type="linear"
+            android:startX="0" android:startY="0"
+            android:endX="108" android:endY="108">
+            <item android:offset="0" android:color="#FF172273" />
+            <item android:offset="0.55" android:color="#FF0A1233" />
+            <item android:offset="1" android:color="#FF050818" />
+        </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M0,0H108V108H0Z">
+        <aapt:attr name="android:fillColor">
+        <gradient
+            android:type="radial"
+            android:centerX="54" android:centerY="54"
+            android:gradientRadius="58">
+            <item android:offset="0" android:color="#7A2F4FD8" />
+            <item android:offset="1" android:color="#002F4FD8" />
+        </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M0,0H108V108H0Z">
+        <aapt:attr name="android:fillColor">
+        <gradient
+            android:type="radial"
+            android:centerX="100" android:centerY="100"
+            android:gradientRadius="60">
+            <item android:offset="0" android:color="#4022C6E0" />
+            <item android:offset="1" android:color="#0022C6E0" />
+        </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M0,0H108V108H0Z">
+        <aapt:attr name="android:fillColor">
+        <gradient
+            android:type="radial"
+            android:centerX="6" android:centerY="6"
+            android:gradientRadius="58">
+            <item android:offset="0" android:color="#348B5CF6" />
+            <item android:offset="1" android:color="#008B5CF6" />
+        </gradient>
+        </aapt:attr>
+    </path>
+</vector>

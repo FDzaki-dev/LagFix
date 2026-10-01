@@ -1,5 +1,12 @@
 # Changelog
 
+## v69
+- Widget: tampilan disamakan dengan gaya utama aplikasi — kartu kaca gelap midnight dengan cahaya biru/cyan/violet dan tepi bercahaya, ikon aplikasi + judul lavender-putih di bagian atas, teks status lembut, dan tombol "Jalankan Sekarang" berbentuk pil periwinkle (sebelumnya kartu mengikuti tema sistem/launcher dan tombol biru datar). Pratinjau di pemilih widget kini menampilkan isi, bukan kartu kosong. Isi status, interval, dan fungsi tombol tidak berubah.
+- Ikon aplikasi dirombak total: petir putih di atas biru polos diganti chip memori flash dengan kilau "bersih" di tengah (menggambarkan trim/pembersihan penyimpanan), berlatar midnight berpendar yang selaras dengan UI. Mendukung ikon bertema Android 13+. Ikon tile Panel Cepat tidak berubah.
+
+## v68
+- Tab Utama: status Shizuku dan tombol "Jalankan fstrim sekarang" kini satu kartu utama (hero) — lencana bulat berikon (centang mint saat siap, peringatan amber saat belum), judul & penjelasan di tengah, tombol aksi selebar kartu. Saat fstrim berjalan muncul bilah progres di atas tombol. Kartu Riwayat yang masih kosong kini menampilkan ikon dan petunjuk ("Ketuk tombol Jalankan di atas, atau nyalakan Jadwal otomatis di tab Pengaturan."). Teks status, kondisi tombol aktif/nonaktif, dan fungsi tidak berubah.
+
 ## v67
 - Quick Settings tile dialihfungsikan: ketuk tile sekarang langsung menyalakan notifikasi "Layanan latar depan persisten" saat itu juga (label tile: "Layanan persisten"). Tile tidak lagi menjalankan fstrim — fstrim manual tetap lewat tombol di app dan widget. Tile hanya memicu servis; saklar di Pengaturan tidak berubah. Kalau Android menolak menyalakan servis dari tile, muncul pesan singkat (aplikasi tidak crash).
 

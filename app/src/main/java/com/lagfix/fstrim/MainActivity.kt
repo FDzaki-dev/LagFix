@@ -67,7 +67,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -227,25 +226,30 @@ private fun MainTab(
     onCheckUpdate: () -> Unit,
     onInstallUpdate: (String) -> Unit
 ) {
-    StatusCard(ui.shizuku, onGrant = onGrant, onOpen = { openShizuku(ctx, ui.shizuku) })
-
-    Button(
-        onClick = onRunNow,
-        enabled = ui.shizuku == ShizukuState.READY && !ui.running,
-        modifier = Modifier.fillMaxWidth()
-    ) { Text(if (ui.running) "Menjalankan…" else "Jalankan fstrim sekarang") }
+    // v68 (M3): status Shizuku + tombol run digabung jadi hero (HomeHero.kt). Callback, kondisi
+    // enabled (READY && !running), dan semua teks identik v67; progress hanya saat running.
+    HeroStatusCard(
+        state = ui.shizuku,
+        running = ui.running,
+        onGrant = onGrant,
+        onOpen = { openShizuku(ctx, ui.shizuku) },
+        onRunNow = onRunNow
+    )
 
     GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.xs)) {
             Text("Riwayat", style = MaterialTheme.typography.titleMedium)
-            Text(
-                if (ui.lastRunMs == 0L) "Belum pernah dijalankan"
-                else formatTime(ui.lastRunMs) + when {
-                    ui.log.firstOrNull()?.contains("dilewati") == true -> " — dilewati (Shizuku belum siap)"
-                    ui.lastOk -> " — berhasil"
-                    else -> " — gagal"
-                }
-            )
+            if (ui.lastRunMs == 0L) {
+                HistoryEmptyState() // v68 (M3): copy lama "Belum pernah dijalankan" + petunjuk aksi
+            } else {
+                Text(
+                    formatTime(ui.lastRunMs) + when {
+                        ui.log.firstOrNull()?.contains("dilewati") == true -> " — dilewati (Shizuku belum siap)"
+                        ui.lastOk -> " — berhasil"
+                        else -> " — gagal"
+                    }
+                )
+            }
             // v38: pemicu run terakhir (Manual/Otomatis) dari baris log terbaru. Baris lama tanpa
             // token -> label null -> tidak ditampilkan (bukan menebak).
             val lastTrigger = ui.log.firstOrNull()?.let { parseLogLine(it)?.trigger }.orEmpty()
@@ -1036,35 +1040,6 @@ private fun UpdateCard(
                 )
             }
         )
-    }
-}
-
-@Composable
-private fun StatusCard(state: ShizukuState, onGrant: () -> Unit, onOpen: () -> Unit) {
-    val (title, body, action) = when (state) {
-        ShizukuState.NOT_INSTALLED -> Triple("Shizuku belum terpasang", "Pasang Shizuku, aktifkan via Wireless debugging (tanpa root).", "Unduh Shizuku")
-        ShizukuState.NOT_RUNNING -> Triple("Shizuku tidak aktif", "Buka Shizuku lalu jalankan layanannya.", "Buka Shizuku")
-        ShizukuState.NEED_PERMISSION -> Triple("Izin diperlukan", "Beri izin LagFix untuk memakai Shizuku.", "Beri izin")
-        ShizukuState.READY -> Triple("Siap", "Shizuku aktif dan izin diberikan.", null)
-    }
-    // v66 (M2b): ikon status (visual-only) — READY = centang mint, selain itu = peringatan amber (token LocalStatusColors, 0 warna baru).
-    val ready = state == ShizukuState.READY
-    val statusColors = LocalStatusColors.current
-    GlassCard(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-                Icon(
-                    painter = painterResource(if (ready) R.drawable.ic_status_ok else R.drawable.ic_status_warning),
-                    contentDescription = stringResource(if (ready) R.string.cd_shizuku_status_ready else R.string.cd_shizuku_status_action),
-                    tint = if (ready) statusColors.success else statusColors.warning
-                )
-                Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-            }
-            Text(body)
-            if (action != null) {
-                Button(onClick = if (state == ShizukuState.NEED_PERMISSION) onGrant else onOpen) { Text(action) }
-            }
-        }
     }
 }
 

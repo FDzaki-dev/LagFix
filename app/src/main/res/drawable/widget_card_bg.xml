@@ -1,5 +1,86 @@
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="?android:attr/colorBackground" />
-    <corners android:radius="20dp" />
-</shape>
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v69: kartu widget = kartu kaca (GlassCard, Design.kt) versi XML: dark-only, midnight + glow
+     biru/cyan/violet, tepi gradien 1dp (terang di sudut atas-kiri), radius 26dp (= Shapes.large).
+     Warna tetap (bukan ?android:attr/colorBackground) supaya tampilan TIDAK ikut tema sistem/launcher.
+     Tepi = lapisan gradien di bawah + isi di-inset 1dp. Base alpha ~94% agar teks selalu terbaca
+     di atas wallpaper apa pun, tapi masih sedikit translusen seperti kaca. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- tepi kaca -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="26dp" />
+            <gradient
+                android:angle="315"
+                android:startColor="#66FFFFFF"
+                android:centerColor="#1F6F8CFF"
+                android:endColor="#0DFFFFFF"
+                android:type="linear" />
+        </shape>
+    </item>
+    <!-- dasar midnight (gradien diagonal; atas-kiri sedikit lebih terang = pantulan kaca) -->
+    <item
+        android:left="1dp"
+        android:top="1dp"
+        android:right="1dp"
+        android:bottom="1dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="25dp" />
+            <gradient
+                android:angle="315"
+                android:startColor="#F01A2347"
+                android:endColor="#F00A1030"
+                android:type="linear" />
+        </shape>
+    </item>
+    <!-- glow biru (kiri-atas) -->
+    <item
+        android:left="1dp"
+        android:top="1dp"
+        android:right="1dp"
+        android:bottom="1dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="25dp" />
+            <gradient
+                android:centerX="0.0"
+                android:centerY="0.0"
+                android:endColor="#002F4FD8"
+                android:gradientRadius="150dp"
+                android:startColor="#472F4FD8"
+                android:type="radial" />
+        </shape>
+    </item>
+    <!-- glow cyan (kanan-tengah) -->
+    <item
+        android:left="1dp"
+        android:top="1dp"
+        android:right="1dp"
+        android:bottom="1dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="25dp" />
+            <gradient
+                android:centerX="1.0"
+                android:centerY="0.6"
+                android:endColor="#0022C6E0"
+                android:gradientRadius="120dp"
+                android:startColor="#2E22C6E0"
+                android:type="radial" />
+        </shape>
+    </item>
+    <!-- glow violet (kiri-bawah) -->
+    <item
+        android:left="1dp"
+        android:top="1dp"
+        android:right="1dp"
+        android:bottom="1dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="25dp" />
+            <gradient
+                android:centerX="0.0"
+                android:centerY="1.0"
+                android:endColor="#008B5CF6"
+                android:gradientRadius="100dp"
+                android:startColor="#268B5CF6"
+                android:type="radial" />
+        </shape>
+    </item>
+</layer-list>

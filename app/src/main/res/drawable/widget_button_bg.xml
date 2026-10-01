@@ -1,10 +1,28 @@
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="@color/ic_launcher_background" />
-    <corners android:radius="12dp" />
-    <padding
-        android:left="16dp"
-        android:top="8dp"
-        android:right="16dp"
-        android:bottom="8dp" />
-</shape>
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v69: tombol widget = Button utama app (Compose M3 Button): pil penuh, isi primary periwinkle
+     #A3BEFF (teks onPrimary #0A1440 di layout). Sebelumnya biru brand datar #0F62FE + radius 12dp.
+     State pressed = periwinkle sedikit lebih gelap (RemoteViews tak punya ripple). -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#FF7E9DEB" />
+            <corners android:radius="24dp" />
+            <padding
+                android:left="18dp"
+                android:top="8dp"
+                android:right="18dp"
+                android:bottom="8dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#FFA3BEFF" />
+            <corners android:radius="24dp" />
+            <padding
+                android:left="18dp"
+                android:top="8dp"
+                android:right="18dp"
+                android:bottom="8dp" />
+        </shape>
+    </item>
+</selector>
