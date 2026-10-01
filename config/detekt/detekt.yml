@@ -1,0 +1,12 @@
+# F1 triase (v58): override MINIMUM di atas ruleset default detekt (`buildUponDefaultConfig = true`
+# di app/build.gradle.kts). Hanya 2 rule yang terbukti false-positive Compose; rule lain TIDAK diubah.
+#  - FunctionNaming: 15/15 temuan = fungsi @Composable ber-nama PascalCase (konvensi wajib Compose).
+#  - MagicNumber: literal UI di dalam fungsi @Composable (mis. 16.dp, 0.5f) bukan "magic number" nyata.
+# `ignoreAnnotated` = kunci umum detekt >= 1.19 (berlaku untuk semua rule).
+naming:
+  FunctionNaming:
+    ignoreAnnotated: ['Composable']
+
+style:
+  MagicNumber:
+    ignoreAnnotated: ['Composable']

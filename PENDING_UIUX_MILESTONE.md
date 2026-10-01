@@ -1,0 +1,144 @@
+[BRANDING_NAME: LagFix]
+[TERMUX_ROOT: LagFix]
+
+# PENDING_UIUX_MILESTONE — Milestone UI/UX "Premium"
+
+Dasar: dibaca langsung dari source ZIP v58 (`MainActivity.kt` 1150 baris, `themes.xml`/`colors.xml`/`strings.xml`,
+drawable widget & launcher, `app/build.gradle.kts`, lint v54). **PLANNING ONLY — 0 source diubah di batch v59.**
+Tiap fase butuh perintah eksplisit user ("lanjut M<n>"). Hubungan ke roadmap: `PENDING_ROADMAP.md` bagian G.
+
+## 1. Definisi "Premium" (terukur, bukan klaim)
+"100% premium" tak bisa diklaim tanpa bukti device. Milestone dianggap TUNTAS hanya kalau semua butir ini
+DEVICE-VERIFIED (screenshot terang + gelap dari user):
+
+| ID | Kriteria |
+|----|----------|
+| P1 | Konsistensi: 1 sumber token (warna/spasi/tipografi/bentuk); 0 `Color(0x` di luar file token |
+| P2 | Ikonografi: 0 emoji sebagai ikon UI; ikon vektor konsisten + `contentDescription` |
+| P3 | Hierarki: tiap layar punya 1 aksi primer jelas; aksi sekunder/tersier beda gaya |
+| P4 | Motion: transisi tab/state halus (<=300 ms), hormati skala animasi sistem, tanpa animasi tak berujung |
+| P5 | Kontras & aksesibilitas: teks >=4.5:1, komponen >=3:1 (terang & gelap); target sentuh >=48dp; TalkBack terbaca; font scale 1.3 & 2.0 tak terpotong |
+| P6 | State lengkap: empty/loading/error/sukses tiap kartu punya desain, bukan teks polos |
+| P7 | Brand seragam lintas permukaan: app, launcher (+monochrome), widget (tile & notifikasi tetap, lihat guard) |
+| P8 | First frame: tak ada flash warna salah saat cold start (terang/gelap) |
+| P9 | Zero-regresi: jadwal/widget/tile/service/persistensi/rotasi identik dgn v58 |
+
+Level bukti per fase: PLANNED -> IMPLEMENTED (belum dikompilasi) -> CI-HIJAU -> DEVICE-VERIFIED. Build hijau != behavior terverifikasi.
+
+## 2. Baseline audit (source v58) — semua dari baca kode/grep
+| ID | Temuan | Bukti | Status |
+|----|--------|-------|--------|
+| A1 | Nav bawah memakai emoji teks sebagai ikon (`"🏠"`, `"⚙️"`) | `HomeScreen` -> `NavigationBarItem` | VERIFIED |
+| A2 | 0 `Icon(`, 0 `contentDescription`, 0 `semantics` | grep `MainActivity.kt` = 0 | VERIFIED |
+| A3 | 0 animasi (`animate*`, `AnimatedVisibility`, `Crossfade` = 0); ganti tab instan (if/else) | grep + `HomeScreen` | VERIFIED |
+| A4 | Tipografi = skala default M3 (0 `Typography(` kustom); `FontFamily` hanya Monospace utk log | grep | VERIFIED |
+| A5 | Brand ganda: launcher/widget/tile = `#0F62FE` (`colors.xml`), in-app primary terang `#5A6ACF` / gelap `#A9B4F2` | `colors.xml`, `calmLightScheme`/`calmDarkScheme` | VERIFIED |
+| A6 | Hierarki datar: 18 `Card(` gaya default (0 `CardDefaults`/`containerColor`), 20 `Button(`, 15 `TextButton(`, 0 `OutlinedButton` | grep | VERIFIED |
+| A7 | `successGreen #2E7D32` & `skippedAmber #B26A00` = val file-level (bukan bagian ColorScheme), dipakai sbg warna TEKS `LogLine` & chart di KEDUA tema | `MainActivity.kt:815-816`, `LogLine` | VERIFIED; DIPERBAIKI v60 (IMPLEMENTED, belum diuji device) |
+| A8 | String UI di Kotlin; `strings.xml` hanya widget/tile/toast/notifikasi | `strings.xml` | VERIFIED |
+| A9 | Launcher adaptive icon tanpa layer `<monochrome>` | `ic_launcher.xml` + lint v54 `MonochromeLauncherIcon` | VERIFIED |
+| A10 | `Theme.LagFix` parent `android:Theme.Material.Light.NoActionBar`; 0 `core-splashscreen`; 0 `values-night` | `themes.xml`, `app/build.gradle.kts` | VERIFIED (struktur) |
+| A10b | Efek A10: flash terang saat cold start di mode gelap | — | HIPOTESIS (belum diuji) |
+| A11 | `ColorScheme` "calm" tak mengisi `surfaceContainer*` & Card tanpa `containerColor` -> latar kartu ikut default M3 (versi material3 dari BOM 2024.10.01, tak dicek langsung) | `calm*Scheme`, grep Card | struktur VERIFIED; warna kartu nyata = HIPOTESIS (butuh screenshot) |
+| A12 | Pengaturan = 6 kartu satu kolom `verticalScroll` (Jadwal, Agar jadwal tetap jalan, Keandalan latar belakang, Tema, Tautan, Log Diagnostik) | grep judul kartu | VERIFIED |
+| A13 | Tab Utama: StatusCard, tombol "Jalankan fstrim sekarang", Riwayat, Statistik, Pembaruan; empty state Riwayat = teks "Belum pernah dijalankan" | `MainTab` | VERIFIED |
+| A14 | Tak ada tes visual/UI (hanya `PrefsTest`, `FstrimExecutorTest`) -> verifikasi visual = manual device | daftar test | VERIFIED |
+
+Jangan dirusak (sudah bagus): palet calm + shapes 6/10/16/22/28dp (v10), `enableEdgeToEdge` + `imePadding`, state tab `rememberSaveable`,
+pembeda skip/FAIL (v13), konfirmasi sebelum run (v11), snackbar dismiss-dulu (v12).
+
+## 3. Kontras warna (dihitung dari nilai `Color` di source, rumus WCAG 2.x)
+Asumsi latar = `surface` (A11: latar kartu nyata belum terverifikasi). Ambang: teks 4.5, komponen 3.0.
+
+| Pasangan | Terang | Gelap | Catatan |
+|----------|--------|-------|---------|
+| onSurface / surface | 13.90 | 11.78 | OK |
+| onSurfaceVariant / surface | 6.63 | 8.27 | OK |
+| primary / surface | 4.78 | 7.25 | OK |
+| onPrimary / primary (tombol) | 4.78 | 7.23 | OK |
+| error / surface | 4.62 | 5.94 | OK |
+| **successGreen / surface** | 5.13 | **2.83** | GELAP gagal (teks `bodySmall` di `LogLine`) |
+| **skippedAmber / surface** | **4.24** | **3.42** | TERANG tipis & GELAP gagal (teks `bodySmall`) |
+| secondary / surface | 3.76 | 7.34 | terang gagal HANYA bila dipakai utk teks (pemakaian tak dicek) |
+| tertiary / surface | 3.06 | 7.37 | idem |
+| outline / surface | 1.95 | 3.00 | terang gagal HANYA bila dipakai sbg batas komponen (pemakaian tak dicek) |
+| putih / `#0F62FE` (tombol widget) | 5.00 | — | OK |
+
+Implikasi: status Riwayat/Statistik (A7) = temuan kontras NYATA di tema gelap -> diperbaiki di M1 via token status per-tema.
+
+## 4. Fase (1 fase = 1 batch, visual-only)
+**Aturan semua fase**
+- Visual-only: callback, kondisi `enabled`, state, Prefs/ViewModel/Shizuku/Worker/Scheduler dipertahankan persis.
+- DO-NOT-TOUCH (kecuali user minta eksplisit): `PersistentTrimService`, `LagFixApp`, `Scheduler`/`TrimWorker`, `Prefs`, `FstrimExecutor`, `UpdateChecker`, `CrashLogger`, `BootReceiver`, signing/CI release, `ic_tile_fstrim.xml` (riwayat v20/v25, sensitif OEM), notifikasi persistent (investigasi ditutup v57).
+- Maks 3-5 file target per fase; lebih besar dipecah (a/b).
+- 0 dependency baru tanpa keputusan eksplisit (D2). Release `isMinifyEnabled=false` -> dependency ikon besar menambah ukuran APK -> pakai vector drawable XML.
+- `MainActivity.kt` TIDAK dipecah/ditulis ulang (stabil, 91 temuan detekt = backlog lain). Komposabel baru -> file baru (additive); call-site diubah minimum.
+- State UI baru wajib `rememberSaveable`/ViewModel; side-effect via `LaunchedEffect`; cegah recomposition berlebih.
+- String baru -> `strings.xml`; string lama tidak dimigrasi (scope creep).
+
+| Fase | Isi | File target (perkiraan) | Gate khusus |
+|------|-----|--------------------------|-------------|
+| M0 | Dokumen ini (v59) | 0 kode | SELESAI |
+| M1 | Fondasi token: spacing scale, Typography kustom, `surfaceContainer*` eksplisit di scheme calm, token status per-tema (ganti `successGreen`/`skippedAmber`) | `Design.kt` (baru), `MainActivity.kt` | kontras status >=4.5 terang & gelap; ukuran/spasi tak bergeser (beda teks hanya bobot judul kartu). IMPLEMENTED v60, lihat bagian 9 |
+| M2 | Ikon & navigasi: vector drawable (nav Utama/Pengaturan, status Shizuku), `Icon` + `contentDescription`, hapus emoji | 2-3 drawable baru, `MainActivity.kt`, `strings.xml` | 0 emoji ikon; label TalkBack |
+| M3 | Hero status + hierarki aksi tab Utama: `StatusCard` jadi hero per `ShizukuState` (copy sama), tombol run tetap `enabled = READY && !running`, progress saat running, empty state Riwayat | `MainActivity.kt` (+ file komposabel baru) | callback & enabled identik v58 |
+| M4 | Motion & haptic: Crossfade/AnimatedContent ganti tab, `animateContentSize`/`AnimatedVisibility` kartu, haptic ringan di konfirmasi run | `MainActivity.kt` | uji skala animasi 0x & 1x; 0 animasi tak berujung (baterai) |
+| M5 | IA Pengaturan: 6 kartu -> 4 bagian (Jadwal / Keandalan / Tampilan / Info & Diagnostik); kartu jarang pakai collapsible (`rememberSaveable`) | `MainActivity.kt` | semua tombol/callback identik; tak ada UI terpotong |
+| M6 | Poles Riwayat/Statistik: `LogLine`, `StatsCard`, `RunHistoryChart`, `StatsLegend` dari token; chart non-teks >=3:1 | `MainActivity.kt` | 0 perubahan parse/format (`PrefsTest` tetap valid) |
+| M7 | Permukaan luar Activity: launcher `<monochrome>` (themed icon API 33+; minSdk 26 aman), restyle widget | `ic_launcher.xml`, drawable mono baru, `widget_*.xml` | lint `MonochromeLauncherIcon` hilang; widget render terang/gelap |
+| M8 | First frame: `windowBackground` per tema lewat `values/` + `values-night/themes.xml` (0 dependency) | `themes.xml`, `values-night/themes.xml` | cold start terang & gelap tanpa flash; BATAS: mode tema manual in-app != sistem, XML tak tahu pilihan in-app -> flash bisa tersisa saat beda (INFERENSI) |
+| M9 | QA aksesibilitas & poles akhir: TalkBack, font scale 1.3/2.0, layar kecil/landscape/gesture-nav, hitung ulang kontras; centang P1-P9 | sesuai temuan (<=5) | DoP P1-P9 DEVICE-VERIFIED |
+
+Urutan default: M1 -> M2 -> M3 -> M4 -> M5 -> M6 -> M7 -> M8 -> M9 (M1 dulu: memperbaiki kontras nyata + dasar semua fase).
+
+## 5. Keputusan terbuka (blokir fase tertentu saja)
+- **D1 (M1/M7) arah brand:** (a) in-app ikut `#0F62FE`; (b) launcher/widget ikut palet calm `#5A6ACF`; (c) pertahankan dua-duanya. Default tanpa jawaban user = (c): 0 risiko. Catatan: `ic_launcher_background` juga dipakai fill `ic_tile_fstrim.xml` (v25) dan tombol widget -> opsi (b) mengubah tile sekaligus (area DO-NOT-TOUCH); (a) menyalahi palet calm permintaan user v10.
+- **D2 (M8) dependency baru** (mis. `core-splashscreen`)? Default TIDAK.
+- **D3 (M2) sumber ikon:** vector drawable kustom (default) vs `material-icons-extended` (APK lebih besar, R8 mati).
+
+## 6. Verifikasi per fase
+1. Sintaks: `xmllint` utk XML; keseimbangan `()` `{}` delta utk Kotlin. Sandbox tanpa Android SDK/Gradle -> IMPLEMENTED = belum dikompilasi; wajib CI (unit test + build + lint, cek warning baru).
+2. Device: checklist fase + screenshot sebelum/sesudah (terang & gelap) dari user (A14: tak ada tes visual otomatis).
+3. Regresi P9 (tiap fase): jadwal on/off + interval; run manual (konfirmasi -> snackbar hasil); widget; tile; toggle notifikasi persistent; rotasi tak mereset tab/dialog; 3 mode tema; cek pembaruan.
+
+## 7. Status board
+| Fase | Status | Bukti |
+|------|--------|-------|
+| M0 | SELESAI (v59) | docs-only |
+| M1 | IMPLEMENTED (v60) — belum dikompilasi, belum diuji device | bagian 9 |
+| M2-M9 | PLANNED | — |
+
+## 8. Di luar scope
+Ganti arsitektur/dependency utama (Shizuku/WorkManager/Compose), migrasi modul, hitam murni, Material You dinamis (diganti calm di v10), fitur non-visual, jalur revive/notifikasi persistent.
+
+## 9. Hasil M1 (v60) — IMPLEMENTED, BELUM dikompilasi (sandbox tanpa SDK/Gradle) & BELUM diuji device
+**File:** `Design.kt` (baru), `MainActivity.kt` (1150 -> 1082 baris). 0 file lain; 0 dependency; 0 string baru.
+1. `Design.kt` = sumber token: skema calm terang/gelap, shapes, tipografi, `LagSpacing` (4/8/12/16/24), `StatusColors` per-tema via `LocalStatusColors`, `LagFixTheme` (dipindah dari MainActivity.kt, jadi `internal`). `MainActivity.kt` kini 0 `Color(0x` (P1 warna: tercapai untuk src main+test).
+2. Status Riwayat/Statistik: `successGreen`/`skippedAmber` statis dihapus; `LogLine`, `RunHistoryChart`, `StatsLegend` membaca `LocalStatusColors` (di scope Composable, bukan di DrawScope).
+3. Nilai yang BERUBAH (selain pemindahan): status terang 276F2D / 94550A, gelap 7FCB8A / E3A951; `error` terang C0524B -> B03A34; `outline` terang B8B9C6 -> 84869A, gelap 6E7180 -> 858899; `inversePrimary` gelap 4A59BD; terang: semua `surfaceContainer*` putih; gelap: Lowest..Highest 171921 / 20222B / 262933 / 2D303A / 33363F; role baru eksplisit (errorContainer, tertiary*, inverse*, outlineVariant, surfaceDim/Bright). Nilai LAIN (primary, secondary, background, surface, surfaceVariant, shapes) = identik v58.
+4. Tipografi: ukuran/line-height/letter-spacing = default M3; beda hanya `titleMedium` -> SemiBold (10 pemakaian judul kartu).
+5. Spasi: `padding(16.dp)` 11x, `spacedBy` 8/4/12 dp 14x/3x/1x -> token (nilai identik). `6.dp` (3x spacedBy) dan `.padding(top=4.dp,bottom=8.dp)`, `height(80.dp)`, `heightIn(400.dp)` sengaja tak disentuh.
+
+**Kontras setelah M1** (WCAG 2.x, dihitung dari nilai di `Design.kt`; "kartu" terang = putih):
+| Pasangan | Terang: putih / F4F4F8 / E6E6EE | Gelap: 262933 / 33363F (kartu) / 1C1E27 |
+|---|---|---|
+| success | 6.18 / 5.63 / 4.98 | 7.47 / 6.21 / 8.55 |
+| warning (dilewati) | 5.89 / 5.37 / 4.75 | 6.95 / 5.78 / 7.96 |
+| error | 6.00 / 5.47 / 4.83 | 5.94 / 4.94 / 6.80 |
+| onSurfaceVariant | 6.63 / 6.04 / 5.34 | 8.27 / 6.88 / 9.47 |
+| primary (teks) | 4.78 / 4.35 / 3.85 | 7.25 / 6.03 / 8.30 |
+| outline (non-teks, >=3) | 3.58 / 3.27 / — | 4.13 / 3.44 / 4.73 |
+Batang grafik (non-teks): terang 6.18 / 5.89 / 6.00, gelap (di kartu) 6.21 / 5.78 / 4.94 — semua >=3.
+Kolom E6E6EE = cadangan kalau Card ternyata memakai `surfaceVariant` (bukan Highest): status & error tetap >=4.5.
+**Residual (dicatat, tidak diubah — brand):** primary terang sebagai teks di F4F4F8 = 4.35 (<4.5) dan 3.85 di E6E6EE; teks primary di dalam kartu putih = 4.78 (lolos). Diperiksa lagi di M9.
+
+**INFERENSI yang menentukan tampilan (belum terbukti):** (a) BOM `2024.10.01` -> material3 1.3.0 (kalau lebih lama, parameter `surfaceContainer*` tak ada -> gagal compile, terlihat di CI); (b) `Card` filled = `surfaceContainerHighest` di versi itu -> kartu terang jadi PUTIH (sebelumnya nada baseline ungu-krem E6E0E9), kartu gelap 33363F (sebelumnya 36343B). Kalau (b) salah, kartu tetap `surfaceVariant` (E6E6EE/33363F) dan hanya warna status/error/outline yang berubah.
+
+**Checklist device M1** (user, terang + gelap, beserta screenshot):
+1. Aplikasi terbuka tanpa crash; ganti tema Ikuti sistem/Terang/Gelap langsung berubah.
+2. Kartu: terang = putih di atas latar F4F4F8 (cukup terpisah?), gelap = 33363F; nav bawah ikut.
+3. Judul kartu SemiBold; "Keandalan latar belakang (opsional)" TIDAK membungkus di layar sempit (kalau membungkus -> turunkan bobot ke Medium).
+4. Riwayat/Statistik: status OK/dilewati/gagal terbaca jelas di KEDUA tema; legenda & batang grafik berwarna sama dgn teks.
+5. Chip pilihan (tema/interval), kolom interval, switch OFF: batas terlihat; snackbar tampil dgn warna seragam calm.
+6. Layout/jarak tak bergeser dibanding v58; rotasi tak mereset tab/dialog.
+

@@ -115,7 +115,17 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    terbukti: dgn step lint terpisah + log mentah, laporan kini muncul). Temuan detekt (MagicNumber 84,
    FunctionNaming 15, MaxLineLength 10, sisanya <=4/rule; 91 di MainActivity.kt) = backlog triase,
    BUKAN bagian F1.
+   v58 (triase detekt, config-only): `config/detekt/detekt.yml` (baru) + `config.setFrom(...)` di
+   `app/build.gradle.kts` — `FunctionNaming` & `MagicNumber` dgn `ignoreAnnotated: ['Composable']`.
+   FunctionNaming 15/15 temuan terverifikasi dari source = fungsi @Composable PascalCase (false-positive).
+   Efek nyata ke jumlah temuan BELUM terbukti sampai artifact detekt run berikutnya dibaca. 0 kode app diubah.
 2. Belum ada dependency-update check otomatis (mis. Dependabot) utk `dev.rikka.shizuku`.
+
+## G. UI/UX Premium (milestone, permintaan eksplisit user v59)
+1. Dokumen utama: `PENDING_UIUX_MILESTONE.md` (DoP P1-P9, audit baseline v58, kontras warna, fase M0-M9, keputusan D1-D3).
+   M0 (dokumen) SELESAI v59, docs-only. M1 IMPLEMENTED v60 (`Design.kt` baru + `MainActivity.kt`; belum dikompilasi/diuji device).
+   M2-M9 PLANNED: tiap fase = 1 batch, visual-only, butuh "lanjut M<n>" eksplisit.
+   Temuan nyata: kontras `successGreen`/`skippedAmber` gagal 4.5:1 di tema gelap (2.83/3.42) -> diperbaiki di M1 (v60, per-tema).
 
 ## Urutan eksekusi disarankan
 - v6: compile OK + A FULLY CLOSED (A1/A2 via device evidence, A3 via source analysis).
@@ -160,6 +170,11 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
   only (brace/paren OK, YAML valid, diff pure-addition thd v17) — blm ada evidence CI nyata. Sisa
   backlog: D2 ("Prioritas rendah"), F2.
 
+- v59 (atas permintaan eksplisit user "planning + embedded doc milestone UI UX premium"): G dibuka, docs-only.
+  File: `PENDING_UIUX_MILESTONE.md` (baru), bagian ini. 0 source diubah. Sisa backlog: G/M1-M9 (butuh perintah user), D2, F2.
+- v60 (atas perintah user "Lanjut M1"): G/M1 diimplementasi — `Design.kt` (baru), `MainActivity.kt`; detail di `PENDING_UIUX_MILESTONE.md` bagian 9. Sisa backlog: G/M2-M9 (butuh perintah user), D2, F2.
+
 ## Eksplisit DI LUAR SCOPE
 Tidak ada rencana ganti arsitektur, ganti dependency utama (Shizuku/WorkManager/Compose), migrasi
-modul, atau redesign UI besar. Semua di atas incremental & non-breaking per item.
+modul, atau redesign UI big-bang. Pengecualian (v59, permintaan eksplisit user): peningkatan UI/UX bertahap di bagian G,
+visual-only per fase. Semua di atas incremental & non-breaking per item.

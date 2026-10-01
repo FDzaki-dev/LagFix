@@ -1,5 +1,8 @@
 # Changelog
 
+## v60
+- Tampilan: palet warna dirapikan. Status Riwayat & Statistik (berhasil / dilewati / gagal) kini terbaca jelas di tema gelap (sebelumnya terlalu redup), batas kolom/chip/switch lebih terlihat, dan warna kartu, bilah bawah, serta notifikasi singkat (snackbar) kini seragam dengan palet calm. Di tema terang, kartu berwarna putih. Judul kartu sedikit lebih tebal. Tidak ada perubahan fungsi, jadwal fstrim, widget, tile, maupun layanan latar depan.
+
 ## v57
 - Dicabut: layanan Aksesibilitas "LagFix (penjaga proses)" dan tombol "Buka Pengaturan Aksesibilitas" (v55). Uji logcat di HP ini menunjukkan sistem tidak menyambungkan ulang layanan itu setelah LagFix digeser dari Recents, jadi tidak mempercepat kembalinya notifikasi permanen. Kalau layanan sudah kamu aktifkan, matikan manual di Setelan > Aksesibilitas (otomatis hilang dari daftar setelah update). Tidak ada perubahan pada jadwal fstrim, widget, tile, maupun layanan latar depan persisten.
 

@@ -76,11 +76,13 @@ dependencies {
 
 // F1 (PENDING_ROADMAP.md, CI hardening): static analysis Kotlin, non-blocking utk batch pertama
 // ini (lihat build.yml — continue-on-error) supaya pipeline hijau existing tidak mendadak merah
-// krn temuan gaya-kode lama yg belum pernah dicek. Tanpa config.yml custom -> pakai ruleset
-// default Detekt apa adanya (buildUponDefaultConfig hanya relevan kalau ada config custom).
+// krn temuan gaya-kode lama yg belum pernah dicek. v58: config custom MINIMUM di
+// config/detekt/detekt.yml (override di atas ruleset default via buildUponDefaultConfig) —
+// hanya FunctionNaming & MagicNumber utk @Composable (false-positive Compose); sisanya default.
 detekt {
     buildUponDefaultConfig = true
     allRules = false
+    config.setFrom(rootProject.file("config/detekt/detekt.yml"))
 }
 
 tasks.withType<Detekt>().configureEach {

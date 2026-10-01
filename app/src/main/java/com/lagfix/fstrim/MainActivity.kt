@@ -18,7 +18,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,7 +31,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.material3.AlertDialog
@@ -46,7 +44,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Shapes
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarDuration
@@ -54,8 +51,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
@@ -102,71 +97,6 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         vm.refresh()
     }
-}
-
-// v10 (settings tab + tema): palet kustom "calm" terinspirasi Cupertino/iOS — biru-lavender lembut
-// + sage muted, BUKAN warna Material You dinamis lama & BUKAN dark statis hitam pekat (sengaja
-// pakai navy-charcoal lembut #1C1E27, bukan hitam #000000, biar tidak bikin lelah mata).
-private val calmLightScheme = lightColorScheme(
-    primary = Color(0xFF5A6ACF),
-    onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFE1E3FA),
-    onPrimaryContainer = Color(0xFF1B2560),
-    secondary = Color(0xFF6E8A7C),
-    onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFDCEAE1),
-    onSecondaryContainer = Color(0xFF1E2E26),
-    tertiary = Color(0xFFB98A5E),
-    background = Color(0xFFF4F4F8),
-    onBackground = Color(0xFF2B2C33),
-    surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF2B2C33),
-    surfaceVariant = Color(0xFFE6E6EE),
-    onSurfaceVariant = Color(0xFF5B5C66),
-    outline = Color(0xFFB8B9C6),
-    error = Color(0xFFC0524B),
-    onError = Color(0xFFFFFFFF)
-)
-
-private val calmDarkScheme = darkColorScheme(
-    primary = Color(0xFFA9B4F2),
-    onPrimary = Color(0xFF1C2557),
-    primaryContainer = Color(0xFF394487),
-    onPrimaryContainer = Color(0xFFE1E3FA),
-    secondary = Color(0xFF9FC0AE),
-    onSecondary = Color(0xFF17301F),
-    secondaryContainer = Color(0xFF32493B),
-    onSecondaryContainer = Color(0xFFDCEAE1),
-    tertiary = Color(0xFFD9B287),
-    background = Color(0xFF1C1E27),
-    onBackground = Color(0xFFE7E7ED),
-    surface = Color(0xFF262933),
-    onSurface = Color(0xFFE7E7ED),
-    surfaceVariant = Color(0xFF33363F),
-    onSurfaceVariant = Color(0xFFC2C3CC),
-    outline = Color(0xFF6E7180),
-    error = Color(0xFFE0918B),
-    onError = Color(0xFF3A1210)
-)
-
-// Sudut lebih membulat drpd default M3 — kesan kartu ala Cupertino/iOS (soft rounded), visual-only.
-private val calmShapes = Shapes(
-    extraSmall = RoundedCornerShape(6.dp),
-    small = RoundedCornerShape(10.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(22.dp),
-    extraLarge = RoundedCornerShape(28.dp)
-)
-
-@Composable
-private fun LagFixTheme(themeMode: ThemeMode, content: @Composable () -> Unit) {
-    val dark = when (themeMode) {
-        ThemeMode.SYSTEM -> isSystemInDarkTheme()
-        ThemeMode.LIGHT -> false
-        ThemeMode.DARK -> true
-    }
-    val scheme = if (dark) calmDarkScheme else calmLightScheme
-    MaterialTheme(colorScheme = scheme, shapes = calmShapes, content = content)
 }
 
 // v12 (fix delay toast): showSnackbar() bawaan ANTRE kalau dipanggil beruntun cepat (mis. user
@@ -226,8 +156,8 @@ private fun HomeScreen(vm: MainViewModel) {
         }
     ) { pad ->
         Column(
-            Modifier.padding(pad).imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            Modifier.padding(pad).imePadding().verticalScroll(rememberScrollState()).padding(LagSpacing.lg),
+            verticalArrangement = Arrangement.spacedBy(LagSpacing.md)
         ) {
             if (selectedTab == 0) {
                 MainTab(
@@ -296,7 +226,7 @@ private fun MainTab(
     ) { Text(if (ui.running) "Menjalankan…" else "Jalankan fstrim sekarang") }
 
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.xs)) {
             Text("Riwayat", style = MaterialTheme.typography.titleMedium)
             Text(
                 if (ui.lastRunMs == 0L) "Belum pernah dijalankan"
@@ -362,7 +292,7 @@ private fun SettingsTab(
 ) {
     val scope = rememberCoroutineScope()
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             Text("Jadwal", style = MaterialTheme.typography.titleMedium)
             ToggleRow("Jadwal otomatis", ui.enabled) {
                 vm.setEnabled(it)
@@ -391,7 +321,7 @@ private fun SettingsTab(
             }
             Row(
                 Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)
             ) {
                 presets.forEach { (h, label) ->
                     FilterChip(
@@ -407,7 +337,7 @@ private fun SettingsTab(
             }
             Row(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm),
                 verticalAlignment = Alignment.Top
             ) {
                 OutlinedTextField(
@@ -473,7 +403,7 @@ private fun SettingsTab(
     // Tombol hanya membuka Info Aplikasi (intent standar Android, 0 tebakan nama activity per ROM
     // -> tetap patuh alasan v24: tak ada intent Autostart khusus merek).
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             Text("Agar jadwal tetap jalan", style = MaterialTheme.typography.titleMedium)
             Text(
                 "Jadwal otomatis jalan di latar belakang, jadi HP tidak boleh mematikan LagFix. " +
@@ -526,7 +456,7 @@ private fun SettingsTab(
     // fstrim baru — cuma menjaga proses tetap hidup, jadwal periodik tetap lewat WorkManager
     // (Scheduler.apply(), 0 diubah).
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             Text("Keandalan latar belakang (opsional)", style = MaterialTheme.typography.titleMedium)
             val notifPermissionLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission()
@@ -601,9 +531,9 @@ private fun SettingsTab(
     LogReaderCard(ctx = ctx, onFeedback = onFeedback)
 
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             Text("Tema", style = MaterialTheme.typography.titleMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
                 listOf(
                     ThemeMode.SYSTEM to "Ikuti sistem",
                     ThemeMode.LIGHT to "Terang",
@@ -621,7 +551,7 @@ private fun SettingsTab(
 
     // v12: dipindah dari tab Utama biar tab Utama cuma isi fitur utama (status/aksi/riwayat/pembaruan).
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.xs)) {
             Text("Tautan", style = MaterialTheme.typography.titleMedium)
             LinkRow("Unduh rilis terbaru") { openUrl(ctx, AppLinks.releases) }
             LinkRow("Lihat kode sumber") { openUrl(ctx, AppLinks.source) }
@@ -663,14 +593,14 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
     LaunchedEffect(Unit) { load() }
 
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             Text("Log Diagnostik", style = MaterialTheme.typography.titleMedium)
             Text(
                 "Baca langsung dari dalam aplikasi — tidak bergantung file manager/folder Documents " +
                     "yang mungkin tidak menampilkan file baru di sebagian HP.",
                 style = MaterialTheme.typography.bodySmall
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
                 TextButton(onClick = { load() }) { Text(if (loading) "Memuat…" else "Muat ulang") }
                 TextButton(
                     onClick = {
@@ -812,8 +742,6 @@ private fun AboutDialog(
 // pola sama sekali tetap tampil polos (fallback aman).
 private val logLineRegex = Regex("""^(\d{2}/\d{2} \d{2}:\d{2}) (OK|FAIL)(?: \[([^\]]+)\])? (.*)$""")
 private val durationRegex = Regex("""^(\d+)ms""")
-private val successGreen = Color(0xFF2E7D32)
-private val skippedAmber = Color(0xFFB26A00) // v13 (B4): beda dari FAIL asli — precondition Shizuku, bukan error eksekusi
 
 internal data class ParsedLog(val stamp: String, val ok: Boolean, val trigger: String, val rest: String) {
     val skipped: Boolean get() = !ok && rest.contains("dilewati")
@@ -838,9 +766,10 @@ private fun LogLine(line: String) {
         Text(line, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
         return
     }
+    val statusColors = LocalStatusColors.current
     val tint = when {
-        parsed.ok -> successGreen
-        parsed.skipped -> skippedAmber
+        parsed.ok -> statusColors.success
+        parsed.skipped -> statusColors.warning
         else -> MaterialTheme.colorScheme.error
     }
     val status = if (parsed.ok) "OK" else "FAIL"
@@ -859,7 +788,7 @@ private fun LogLine(line: String) {
 
 // v37 (fitur user-facing, permintaan user "grafik statistik ... bikin project hidup, gak teknis
 // banget") + v38 (feedback user: batang grafik "kurang informatif utk user awam"): kartu "Statistik"
-// di tab Utama. PARSE-ONLY di sisi UI (reuse parseLogLine/successGreen/skippedAmber), 0 data baru.
+// di tab Utama. PARSE-ONLY di sisi UI (reuse parseLogLine/LocalStatusColors), 0 data baru.
 // Kalau riwayat kosong, kartu tidak ditampilkan.
 private data class RunStat(
     val stamp: String, val ok: Boolean, val skipped: Boolean, val durationMs: Long, val trigger: String
@@ -899,7 +828,7 @@ private fun StatsCard(log: List<String>) {
     val hasManual = withTrigger.any { it.trigger == TriggerSource.MANUAL }
 
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             Text("Statistik", style = MaterialTheme.typography.titleMedium)
             Text(
                 "Dari ${stats.size} proses terakhir: $okCount berhasil · $skippedCount dilewati · $failCount gagal" +
@@ -932,11 +861,13 @@ private fun RunHistoryChart(stats: List<RunStat>, avgOkMs: Long) {
     val maxDuration = rawMax.coerceAtLeast(1L)
     // Warna di-resolve di scope Composable (bukan di dalam DrawScope).
     val errorColor = MaterialTheme.colorScheme.error
+    val successColor = LocalStatusColors.current.success
+    val warningColor = LocalStatusColors.current.warning
     val axisColor = MaterialTheme.colorScheme.onSurfaceVariant
     val avgLineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
     val hasManualMarker = stats.any { it.trigger == TriggerSource.MANUAL }
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(Modifier.fillMaxWidth().height(80.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(LagSpacing.xs)) {
+        Row(Modifier.fillMaxWidth().height(80.dp), horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             // Sumbu vertikal: nilai tertinggi di atas, 0 di bawah — biar tinggi batang ada acuan angka.
             Column(
                 Modifier.fillMaxHeight(),
@@ -962,8 +893,8 @@ private fun RunHistoryChart(stats: List<RunStat>, avgOkMs: Long) {
                 )
                 stats.forEachIndexed { i, s ->
                     val tint = when {
-                        s.ok -> successGreen
-                        s.skipped -> skippedAmber
+                        s.ok -> successColor
+                        s.skipped -> warningColor
                         else -> errorColor
                     }
                     // Tinggi minimum kecil biar durasi 0 (dilewati) tetap kelihatan sbg bar tipis,
@@ -1016,9 +947,10 @@ private fun RunHistoryChart(stats: List<RunStat>, avgOkMs: Long) {
 @Composable
 private fun StatsLegend(hasOk: Boolean, hasSkipped: Boolean, hasFail: Boolean, hasAvg: Boolean, hasManual: Boolean = false) {
     val errorColor = MaterialTheme.colorScheme.error
+    val statusColors = LocalStatusColors.current
     val items = mutableListOf<Pair<Color, String>>()
-    if (hasOk) items.add(successGreen to "Berhasil")
-    if (hasSkipped) items.add(skippedAmber to "Dilewati")
+    if (hasOk) items.add(statusColors.success to "Berhasil")
+    if (hasSkipped) items.add(statusColors.warning to "Dilewati")
     if (hasFail) items.add(errorColor to "Gagal")
     val text = buildAnnotatedString {
         items.forEachIndexed { i, (color, label) ->
@@ -1050,7 +982,7 @@ private fun UpdateCard(
     var showChangelog by rememberSaveable { mutableStateOf(false) }
 
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             Text("Pembaruan", style = MaterialTheme.typography.titleMedium)
 
             when (result) {
@@ -1060,7 +992,7 @@ private fun UpdateCard(
                 is UpdateResult.Available -> {
                     Text("Versi terpasang: build ${result.installedBuild}")
                     Text("Versi tersedia: build ${result.info.latestBuild} (${result.info.latestName})")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
                         TextButton(onClick = { showChangelog = true }) { Text("Lihat changelog") }
                         Button(
                             onClick = { onInstall(result.info.downloadUrl) },
@@ -1115,7 +1047,7 @@ private fun StatusCard(state: ShizukuState, onGrant: () -> Unit, onOpen: () -> U
         ShizukuState.READY -> Triple("Siap", "Shizuku aktif dan izin diberikan.", null)
     }
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             Text(body)
             if (action != null) {
