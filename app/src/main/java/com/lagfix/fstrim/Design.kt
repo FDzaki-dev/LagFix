@@ -202,7 +202,8 @@ private val glassBorder = Brush.linearGradient(
 // membaca skala animasi sistem (Opsi Pengembang) -> 0x = langsung ke keadaan akhir (INFERENSI, belum
 // diuji device).
 internal object LagMotion {
-    const val TAB_MS = 200 // Crossfade ganti tab
+    const val TAB_OUT_MS = 90 // ganti tab: tab lama memudar (fade through, v74)
+    const val TAB_IN_MS = 210 // ganti tab: tab baru muncul setelah TAB_OUT_MS (total 300 ms)
     const val CONTENT_MS = 250 // kartu menyesuaikan tinggi saat isinya berubah
     const val FADE_MS = 150 // progress run muncul/hilang
 }

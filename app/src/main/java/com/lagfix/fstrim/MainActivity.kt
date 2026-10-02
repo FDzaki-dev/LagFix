@@ -17,8 +17,13 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -170,15 +175,27 @@ private fun HomeScreen(vm: MainViewModel) {
             }
         }
     ) { pad ->
-        // v71 (M4): ganti tab = Crossfade 200 ms. Column+scroll dipindah KE DALAM Crossfade supaya tiap
-        // tab punya posisi scroll sendiri (tab masuk mulai dari atas, tab keluar memudar di posisinya) —
-        // tanpa ini kedua tab berbagi 1 scroll & tinggi kotak = tab tertinggi selama fade -> konten
-        // melompat di akhir. Isi `if (tab == 0)` memakai `tab` (BUKAN selectedTab) agar tab yang sedang
-        // memudar tetap menampilkan dirinya sendiri. Callback/state/argumen tab identik v70.
-        Crossfade(
+        // v74 (fix fade tab): Crossfade (v71) memudarkan tab lama & baru BERSAMAAN -> di tengah transisi
+        // kedua tab menumpuk (teks "hantu") di atas kartu kaca translusen -> terasa patah. Diganti pola
+        // "fade through": tab lama memudar cepat (90 ms), baru tab baru muncul (210 ms, tertunda 90 ms)
+        // -> tak ada tumpang tindih; total 300 ms (P4). Easing keluar=FastOutLinearIn, masuk=LinearOutSlowIn.
+        // Column+scroll tetap DI DALAM konten (tiap tab punya scroll sendiri, mulai dari atas). Isi
+        // `if (tab == 0)` memakai `tab` (BUKAN selectedTab) agar tab yang sedang memudar tetap
+        // menampilkan dirinya sendiri. Tanpa AnimatedVisibility (aturan v73); callback/state identik v73.
+        AnimatedContent(
             targetState = selectedTab,
             modifier = Modifier.padding(pad),
-            animationSpec = tween(durationMillis = LagMotion.TAB_MS),
+            transitionSpec = {
+                fadeIn(
+                    animationSpec = tween(
+                        durationMillis = LagMotion.TAB_IN_MS,
+                        delayMillis = LagMotion.TAB_OUT_MS,
+                        easing = LinearOutSlowInEasing
+                    )
+                ) togetherWith fadeOut(
+                    animationSpec = tween(durationMillis = LagMotion.TAB_OUT_MS, easing = FastOutLinearInEasing)
+                )
+            },
             label = "tab"
         ) { tab ->
             Column(

@@ -1,5 +1,8 @@
 # Changelog
 
+## v74
+- Perpindahan tab Utama/Pengaturan diperhalus: tab lama memudar dulu, lalu tab baru muncul (total 300 ms), jadi tidak ada lagi isi dua tab yang bertumpuk di tengah transisi. Hanya animasi ganti tab yang berubah.
+
 ## v73
 - Perbaikan build: v71 dan v72 gagal dikompilasi sehingga tidak ada APK. Fitur M4 (tab memudar, kartu menyesuaikan tinggi, getaran konfirmasi) tetap sama; hanya cara progress "Menjalankan…" memudar yang diganti.
 

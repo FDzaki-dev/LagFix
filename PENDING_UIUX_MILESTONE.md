@@ -112,7 +112,7 @@ Urutan default: M1 -> M2 -> M3 -> M4 -> M5 -> M6 -> M7 -> M8 -> M9 (M1 dulu: mem
 | v65 | `UpdateCard`: tombol aksi simetris (full-width, tinggi sama) — IMPLEMENTED, belum dikompilasi/diuji device | bagian 12 |
 | v66 (M2b) | `StatusCard`: ikon status Shizuku (centang mint / peringatan amber) + `contentDescription` + 2 string — IMPLEMENTED, belum dikompilasi/diuji device | bagian 13 |
 | M3 | IMPLEMENTED (v68) — belum dikompilasi/diuji device | bagian 14 |
-| M4 | IMPLEMENTED (v71) — belum dikompilasi/diuji device | bagian 17 |
+| M4 | IMPLEMENTED (v71; fade tab diganti fade-through di v74) — belum dikompilasi/diuji device | bagian 17 |
 | M5-M9 | PLANNED | — |
 
 ## 8. Di luar scope
@@ -211,4 +211,5 @@ Kontras (WCAG 2.x, skenario TERBURUK: 3 glow menumpuk + fill kaca + glow sudut =
 **Perubahan perilaku yang disengaja:** scroll tidak lagi dibagi antar tab (sebelumnya 1 `rememberScrollState` untuk keduanya). Tanpa ini Crossfade membuat tinggi kotak = tab tertinggi selama fade dan konten melompat di akhir. Efek: pindah tab = tab tujuan mulai dari atas.
 **Verifikasi sandbox (BUKAN device):** keseimbangan `{}`/`()`/`[]` 3 file = 0; semua import baru ada (BOM 2024.10.01 -> `Crossfade(label)`, `animateContentSize`, `HapticFeedbackType.TextHandleMove` tersedia; TERBUKTI oleh CI run 58 utk `Design.kt`/`MainActivity.kt`); tak ada `LaunchedEffect`/launcher baru; `LaunchedEffect(Unit){load()}` (Pengaturan) & launcher izin notifikasi tak berubah perilaku (jalan saat tab masuk, seperti v70). 0 kompilasi/CI di sandbox (tanpa Android SDK/Gradle).
 **INFERENSI/RISIKO (cek device):** (a) gate "skala animasi 0x/1x": Compose membaca skala animasi sistem -> 0x = langsung ke akhir — belum diuji; (b) `TextHandleMove` = haptic API 27+, API 26 (minSdk) = no-op — belum diuji; (c) saat Crossfade 200 ms dua tab terkomposisi bersamaan (hanya sesaat); (d) `animateContentSize` di dalam `verticalScroll` bisa terasa "mengejar" bila isi berubah cepat berulang (mis. baris Riwayat saat run) — bila mengganggu, matikan `animateSize` HANYA di kartu itu; (e) bila build gagal lagi: kandidat pertama blok `Crossfade` di `MainActivity.kt`, lalu `GlassCard` (`.then(if/else)`) di `Design.kt` — keduanya SUDAH lolos kompilasi di CI run 58 (frontend), jadi risikonya kecil.
+**v74 (fix fade tab, laporan user "buggy, not smooth like iOS"):** `Crossfade` di `MainActivity.kt` diganti `AnimatedContent` fade-through (keluar 90 ms, masuk 210 ms tertunda 90 ms; `LagMotion.TAB_MS` -> `TAB_OUT_MS`/`TAB_IN_MS`) supaya dua tab tak menumpuk di tengah transisi. Analisis statis, BELUM diuji device.
 **Gate M4 yang masih terbuka (device):** skala animasi 0x & 1x; progress berhenti saat `running=false`; rotasi di tengah crossfade; TalkBack tetap membaca satu tab saja.
