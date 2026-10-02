@@ -61,6 +61,14 @@ object CrashLogger {
         }.onFailure { Log.e(TAG, "Gagal tulis diagnostic log ($tag)", it) }
     }
 
+    /** v84 (perintah user: perluas catch logcat): sama dgn [logDiagnostic] tapi hasil tulis
+     * dikembalikan ke caller (`Result`) supaya UI bisa melapor sukses/gagal. Aditif — isi
+     * `logDiagnostic()`/`testWrite()` tidak diubah. Dipakai `LogcatSnapshot`. */
+    fun writeDiagnostic(ctx: Context, tag: String, message: String): Result<Unit> = runCatching {
+        val body = "SDK: ${Build.VERSION.SDK_INT}\nDevice: ${Build.MANUFACTURER} ${Build.MODEL}\n\n$message"
+        writeToFile(ctx.applicationContext, "diag_$tag", body)
+    }
+
     /** v32 (laporan user: sudah pasang build v31 + spam "Muat ulang" di Log Diagnostik, 0 entri
      * sama sekali — beda dari sebelumnya krn kali ini BUKAN soal visibility file manager lagi,
      * app sendiri via ContentResolver pun 0 nemu apa-apa). Root cause paling mungkin (P0 NO

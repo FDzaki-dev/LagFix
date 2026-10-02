@@ -540,7 +540,8 @@ private fun SettingsTab(
                     "${BootTrimSetting.KEY}) ke 1 ms, supaya Android sendiri menjalankan fstrim saat boot, " +
                     "tanpa menunggu Shizuku hidup. Cara kerja ini dari laporan pengguna mFSTRIM dan " +
                     "BELUM diverifikasi di HP ini. Shizuku hanya dibutuhkan saat mengubah. Nilainya tersimpan " +
-                    "di sistem dan tetap ada walau LagFix di-uninstall: tekan Reset untuk mengembalikan.",
+                    "di sistem dan tetap ada walau LagFix di-uninstall: tekan Reset untuk mengembalikan. " +
+                    "Trim oleh sistem ini TIDAK masuk Riwayat; jejaknya bisa dicari lewat \"Ambil logcat sistem\" di Info & diagnostik.",
                 style = MaterialTheme.typography.bodySmall
             )
             val reading = bootTrim.reading
@@ -726,6 +727,7 @@ private fun SettingsTab(
 private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
     var loading by remember { mutableStateOf(false) }
     var testing by remember { mutableStateOf(false) }
+    var capturing by remember { mutableStateOf(false) } // v84: snapshot logcat
     var logs by remember { mutableStateOf<List<CrashLogger.LogFile>>(emptyList()) }
     var loadError by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedName by rememberSaveable { mutableStateOf<String?>(null) }
@@ -776,6 +778,38 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
         Text(
             "\"Tes tulis log\" langsung menulis 1 file percobaan — tanpa perlu toggle apa pun — " +
                 "untuk memastikan penulisan file bisa berhasil di HP ini.",
+            style = MaterialTheme.typography.bodySmall
+        )
+        // v84 (perintah user: perluas catch logcat): 1 file ringkasan bukti tanpa adb/PC.
+        TextButton(
+            onClick = {
+                if (!capturing) {
+                    capturing = true
+                    scope.launch(Dispatchers.IO) {
+                        val result = LogcatSnapshot.capture(ctx)
+                        withContext(Dispatchers.Main) {
+                            capturing = false
+                            result.onSuccess {
+                                onFeedback(
+                                    if (it.shizukuReady) {
+                                        "Snapshot tersimpan: ${it.appLines} baris LagFix, ${it.fstrimLines} baris fstrim sistem, " +
+                                            "${it.exitRecords} catatan proses mati."
+                                    } else {
+                                        "Snapshot tersimpan TANPA logcat sistem (Shizuku belum siap); ${it.exitRecords} catatan proses mati."
+                                    }
+                                )
+                                load()
+                            }.onFailure { onFeedback("Snapshot GAGAL: ${it.message ?: "error tidak diketahui"}") }
+                        }
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text(if (capturing) "Mengambil…" else "Ambil logcat sistem", Modifier.weight(1f)) }
+        Text(
+            "Menyimpan 1 file: alasan proses LagFix terakhir dimatikan (Android 11+), jejak fstrim oleh " +
+                "sistem (mis. saat boot), dan baris logcat terkait LagFix. Bagian logcat butuh Shizuku siap. " +
+                "Buffer logcat terhapus saat reboot & berputar, jadi ambil secepatnya setelah kejadian.",
             style = MaterialTheme.typography.bodySmall
         )
         when {

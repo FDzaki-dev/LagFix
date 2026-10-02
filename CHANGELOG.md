@@ -1,5 +1,9 @@
 # Changelog
 
+## v84
+- Pengaturan > Info & diagnostik > Log diagnostik: tombol baru "Ambil logcat sistem". Menyimpan 1 file di Documents/LagFix berisi: alasan proses LagFix terakhir dimatikan Android (Android 11+, tanpa Shizuku), jejak fstrim yang dijalankan sistem (mis. saat boot), serta baris logcat terkait LagFix (siklus layanan persisten, proses dimatikan, FGS dihentikan). Bagian logcat butuh Shizuku siap; tanpa Shizuku, file tetap dibuat dengan bagian alasan proses mati saja. File hanya dibuat saat tombol ditekan (tidak otomatis).
+- Kartu "Paksa trim saat reboot": ditambah catatan bahwa trim oleh sistem tidak masuk Riwayat (karena dijalankan Android sendiri), beserta petunjuk mencari jejaknya lewat tombol di atas.
+
 ## v83
 - Pengaturan: kartu baru "Paksa trim saat reboot". Mengatur setting sistem Android `fstrim_mandatory_interval` ke 1 ms lewat Shizuku supaya Android menjalankan fstrim sendiri saat boot (cara kerja dari aplikasi mFSTRIM; efeknya BELUM diverifikasi di HP ini). Nilai sistem saat ini dibaca dan ditampilkan lebih dulu (tidak menimpa diam-diam), hasil perubahan dibuktikan dengan membaca ulang, dan tombol "Reset ke default Android" menghapus nilainya (nilai ini tetap ada di sistem walau LagFix di-uninstall). Shizuku hanya dibutuhkan untuk membaca/mengubah. Jadwal otomatis tidak berubah.
 

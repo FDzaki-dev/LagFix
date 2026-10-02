@@ -7,6 +7,9 @@ Menjalankan `sm fstrim` (fallback `sm idle-maint run`) sebagai shell UID lewat *
 ## Paksa trim saat reboot (v83)
 Kartu di tab Pengaturan menulis setting sistem `fstrim_mandatory_interval` = 1 ms lewat Shizuku (`settings put global`), supaya Android sendiri memaksa fstrim saat boot (cara kerja ala mFSTRIM; efeknya belum diverifikasi di perangkat). Nilai dibaca dulu dan dibaca ulang setelah ditulis; tombol Reset menghapus kuncinya (`settings delete global`) karena nilainya bertahan walau app di-uninstall.
 
+## Snapshot logcat (v84)
+Tombol "Ambil logcat sistem" (Pengaturan > Info & diagnostik > Log diagnostik) menulis `LagFix_diag_logcat_*.txt` ke `Documents/LagFix`: `ApplicationExitInfo` (Android 11+), jejak fstrim sistem, dan baris logcat terkait LagFix (butuh Shizuku siap; shell UID membaca buffer logcat — belum diuji di perangkat). Buffer logcat hilang saat reboot, jadi ambil secepatnya setelah kejadian.
+
 ## Syarat
 - Android 8.0+ (API 26)
 - Shizuku aktif (Wireless debugging) + izin diberikan ke LagFix
