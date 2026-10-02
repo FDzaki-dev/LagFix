@@ -111,6 +111,33 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         ui = ui.copy(persistentServiceEnabled = v)
     }
 
+    // v83 (H2(1), perintah user): kartu "Paksa trim saat reboot". State TERPISAH dari UiState krn
+    // dibaca lewat shell Shizuku (blocking) -> tak boleh masuk read() yg jalan di Main thread.
+    var bootTrim by mutableStateOf(BootTrimUi())
+        private set
+
+    fun refreshBootTrim() {
+        if (bootTrim.busy) return
+        bootTrim = bootTrim.copy(busy = true)
+        viewModelScope.launch(Dispatchers.IO) {
+            val ready = FstrimExecutor.state(getApplication<Application>()) == ShizukuState.READY
+            bootTrim = BootTrimUi(reading = if (ready) BootTrimSetting.read() else null)
+        }
+    }
+
+    fun changeBootTrim(enable: Boolean) {
+        if (bootTrim.busy) return
+        bootTrim = bootTrim.copy(busy = true, note = null)
+        viewModelScope.launch(Dispatchers.IO) {
+            if (FstrimExecutor.state(getApplication<Application>()) != ShizukuState.READY) {
+                bootTrim = BootTrimUi(note = "Shizuku belum siap.")
+                return@launch
+            }
+            val o = if (enable) BootTrimSetting.enableEveryReboot() else BootTrimSetting.reset()
+            bootTrim = BootTrimUi(reading = o.reading, note = o.message)
+        }
+    }
+
     fun requestPermission() {
         runCatching {
             if (Shizuku.pingBinder() && !Shizuku.isPreV11()) Shizuku.requestPermission(1001)

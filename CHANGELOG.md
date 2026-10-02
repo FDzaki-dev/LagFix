@@ -1,5 +1,8 @@
 # Changelog
 
+## v83
+- Pengaturan: kartu baru "Paksa trim saat reboot". Mengatur setting sistem Android `fstrim_mandatory_interval` ke 1 ms lewat Shizuku supaya Android menjalankan fstrim sendiri saat boot (cara kerja dari aplikasi mFSTRIM; efeknya BELUM diverifikasi di HP ini). Nilai sistem saat ini dibaca dan ditampilkan lebih dulu (tidak menimpa diam-diam), hasil perubahan dibuktikan dengan membaca ulang, dan tombol "Reset ke default Android" menghapus nilainya (nilai ini tetap ada di sistem walau LagFix di-uninstall). Shizuku hanya dibutuhkan untuk membaca/mengubah. Jadwal otomatis tidak berubah.
+
 ## v82
 - Aksesibilitas (TalkBack): setiap saklar di Pengaturan kini terbaca lengkap dengan namanya dan seluruh barisnya bisa diketuk (minimal 48dp); grafik Statistik punya satu ringkasan yang dibaca TalkBack; judul kartu bisa dilompati sebagai heading; lipatan mengumumkan status terbuka/tertutup; simbol hias (panah, titik, centang) tidak lagi dibacakan. Tampilan hampir tidak berubah (baris saklar sedikit lebih tinggi).
 

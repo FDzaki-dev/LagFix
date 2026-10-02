@@ -62,7 +62,8 @@ object FstrimExecutor {
     }
 
     // Shizuku.newProcess bersifat private sejak API 13 → akses via reflection.
-    private fun sh(cmd: String): Pair<Int, String> {
+    // v83 (H2): private -> internal SAJA (isi tak diubah) agar BootTrimSetting memakai jalur Shizuku yg sama.
+    internal fun sh(cmd: String): Pair<Int, String> {
         val m = Shizuku::class.java.getDeclaredMethod(
             "newProcess",
             Array<String>::class.java,

@@ -4,6 +4,9 @@ Utilitas Android non-root untuk memicu dan menjadwalkan `fstrim` (TRIM pada UFS/
 ## Cara kerja
 Menjalankan `sm fstrim` (fallback `sm idle-maint run`) sebagai shell UID lewat **Shizuku**. Penjadwalan: WorkManager (preset 6 jam – 7 hari atau interval kustom isi sendiri mulai 15 menit).
 
+## Paksa trim saat reboot (v83)
+Kartu di tab Pengaturan menulis setting sistem `fstrim_mandatory_interval` = 1 ms lewat Shizuku (`settings put global`), supaya Android sendiri memaksa fstrim saat boot (cara kerja ala mFSTRIM; efeknya belum diverifikasi di perangkat). Nilai dibaca dulu dan dibaca ulang setelah ditulis; tombol Reset menghapus kuncinya (`settings delete global`) karena nilainya bertahan walau app di-uninstall.
+
 ## Syarat
 - Android 8.0+ (API 26)
 - Shizuku aktif (Wireless debugging) + izin diberikan ke LagFix

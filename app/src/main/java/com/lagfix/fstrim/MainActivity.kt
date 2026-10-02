@@ -525,6 +525,50 @@ private fun SettingsTab(
         }
     }
 
+    // v83 (H2(1), perintah user): atur setting sistem `fstrim_mandatory_interval` lewat Shizuku
+    // supaya Android memaksa fstrim saat boot. Nilai sistem DIBACA dulu & ditampilkan (tak menimpa
+    // diam-diam), hasil tulis dibuktikan baca-ulang, dan ada Reset (nilai bertahan stlh uninstall).
+    // Tombol vertikal (fillMaxWidth) spy tak terpotong di font scale besar. 0 perubahan Jadwal.
+    val bootTrim = vm.bootTrim
+    val shizukuReady = ui.shizuku == ShizukuState.READY
+    LaunchedEffect(ui.shizuku) { vm.refreshBootTrim() }
+    GlassCard(Modifier.fillMaxWidth(), animateSize = true) {
+        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
+            CardTitle("Paksa trim saat reboot")
+            Text(
+                "Mengatur batas \"paksa fstrim\" bawaan Android (setting sistem " +
+                    "${BootTrimSetting.KEY}) ke 1 ms, supaya Android sendiri menjalankan fstrim saat boot, " +
+                    "tanpa menunggu Shizuku hidup. Cara kerja ini dari laporan pengguna mFSTRIM dan " +
+                    "BELUM diverifikasi di HP ini. Shizuku hanya dibutuhkan saat mengubah. Nilainya tersimpan " +
+                    "di sistem dan tetap ada walau LagFix di-uninstall: tekan Reset untuk mengembalikan.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            val reading = bootTrim.reading
+            Text(
+                when {
+                    !shizukuReady -> "Nilai sistem: tak bisa dibaca, Shizuku belum siap."
+                    reading == null -> "Nilai sistem: membaca…"
+                    else -> "Nilai sistem sekarang: ${describeBootTrim(reading)}"
+                }
+            )
+            bootTrim.note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            val alreadyOn = reading == BootTrimReading.Value(BootTrimSetting.EVERY_REBOOT_MS)
+            val canChange = shizukuReady && !bootTrim.busy && reading != null
+            Button(
+                onClick = { vm.changeBootTrim(true) },
+                enabled = canChange && !alreadyOn,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (reading is BootTrimReading.Value) "Timpa dengan 1 ms (tiap reboot)" else "Aktifkan (tiap reboot)")
+            }
+            TextButton(
+                onClick = { vm.changeBootTrim(false) },
+                enabled = canChange && reading != BootTrimReading.Unset,
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Reset ke default Android") }
+        }
+    }
+
     // v49 (milestone "Kartu panduan jadwal", dipilih user; menggantikan paragraf teks "Autostart"
     // v24 yg dulu di kartu Jadwal — DIPINDAH ke sini & dilengkapi, bukan diduplikasi).
     // Dasar bukti: logcat v41 (XOS `TranManualCleanMgr` SIGKILL saat swipe-Recents + tolak restart
