@@ -1,0 +1,9 @@
+<resources>
+    <!-- v81 (M8): Android 12+ (API 31) menampilkan splash sistem sebelum Activity siap. Latarnya dikunci eksplisit ke
+         midnight (bukan mengandalkan turunan windowBackground). Style ini MENGGANTIKAN penuh Theme.LagFix di values/
+         untuk API 31+, jadi item windowBackground diulang. Ikon splash = ikon adaptive app (default sistem), 0 dependency. -->
+    <style name="Theme.LagFix" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/lag_window_background</item>
+        <item name="android:windowSplashScreenBackground">@color/lag_window_background</item>
+    </style>
+</resources>

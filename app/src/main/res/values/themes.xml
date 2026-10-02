@@ -1,6 +1,9 @@
 <resources>
-    <!-- v61: dark-only. Parent gelap + windowBackground midnight (= awal backdrop Compose) -> tak ada flash terang saat cold start. -->
+    <!-- v61: dark-only. Parent gelap + windowBackground midnight (= awal backdrop Compose) -> tak ada flash terang saat cold start.
+         v81 (M8): warna dipindah ke @color/lag_window_background (dipakai bersama values-v31). Bilah status/navigasi
+         SENGAJA tak disentuh di tema: atribut statusBarColor/navigationBarColor deprecated di Android 15 (targetSdk 35) dan
+         edge-to-edge sudah diatur enableEdgeToEdge() di MainActivity. -->
     <style name="Theme.LagFix" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">#FF060A1E</item>
+        <item name="android:windowBackground">@color/lag_window_background</item>
     </style>
 </resources>

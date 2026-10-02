@@ -1,5 +1,8 @@
 # Changelog
 
+## v81
+- Layar saat aplikasi baru dibuka (termasuk splash bawaan Android 12 ke atas) dikunci ke warna gelap midnight yang sama dengan latar aplikasi, supaya tidak ada kilatan warna lain sebelum tampilan utama muncul. Tidak ada perubahan fitur.
+
 ## v80
 - Riwayat dan Statistik dipoles: garis dasar grafik dibuat lebih terang agar jelas terlihat, garis putus-putus rata-rata kini tetap terlihat saat melintasi batang, batang bersudut membulat, dan ukuran garis mengikuti kepadatan layar sehingga tidak terlalu tipis di HP beresolusi tinggi. Baris Riwayat yang dilewati kini berlabel SKIP (sebelumnya FAIL) agar sesuai dengan legenda Statistik. Data dan format riwayat tidak berubah.
 
