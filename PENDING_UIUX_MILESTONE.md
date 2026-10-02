@@ -113,7 +113,8 @@ Urutan default: M1 -> M2 -> M3 -> M4 -> M5 -> M6 -> M7 -> M8 -> M9 (M1 dulu: mem
 | v66 (M2b) | `StatusCard`: ikon status Shizuku (centang mint / peringatan amber) + `contentDescription` + 2 string — IMPLEMENTED, belum dikompilasi/diuji device | bagian 13 |
 | M3 | IMPLEMENTED (v68) — belum dikompilasi/diuji device | bagian 14 |
 | M4 | IMPLEMENTED (v71; fade tab diganti fade-through di v74, lalu fade manual `Animatable`+`graphicsLayer` di v75, lalu pre-compose tab tujuan sebelum fade di v76) — belum dikompilasi/diuji device | bagian 17 |
-| M5-M9 | PLANNED | — |
+| M5 | IMPLEMENTED (v79) — belum dikompilasi/diuji device | bagian 18 |
+| M6-M9 | PLANNED | — |
 
 ## 8. Di luar scope
 Ganti arsitektur/dependency utama (Shizuku/WorkManager/Compose), migrasi modul, hitam murni, Material You dinamis (diganti calm di v10), fitur non-visual, jalur revive/notifikasi persistent.
@@ -215,3 +216,12 @@ Kontras (WCAG 2.x, skenario TERBURUK: 3 glow menumpuk + fill kaca + glow sudut =
 **v75 (fix fade tab, rekaman layar user v74):** `AnimatedContent` diganti fade manual (`Animatable` + `graphicsLayer`, state `displayedTab` terpisah dari `selectedTab`): tab lama memudar 90 ms -> tab diganti saat alpha 0 -> tab baru memudar masuk 180 ms. Alasan: komposisi tab baru yang berat jatuh di tengah fade dan menelan animasi (rekaman: beku 80-170 ms lalu tab muncul utuh). Analisis dari rekaman + statis, BELUM diuji device; APK debug lebih lambat dari release.
 **v76 (fix fade tab, rekaman layar ke-2 build v75):** layar kosong 83-200 ms di antara fade-out & fade-in (8/8 pindah tab). Tab tujuan kini dikomposisi dulu (alpha 0) selagi tab lama tampil penuh, frame berat dilewati, baru fade lama 100 ms -> baru 200 ms; sentuhan diblokir selama transisi. Analisis dari rekaman + statis, BELUM diuji device.
 **Gate M4 yang masih terbuka (device):** skala animasi 0x & 1x; progress berhenti saat `running=false`; rotasi di tengah crossfade; TalkBack tetap membaca satu tab saja.
+
+## 18. M5 — IA Pengaturan (v79, perintah user "Lanjutkan"; preseden v68/v71 "Lanjutkan milestone!!") — IMPLEMENTED, BELUM dikompilasi & BELUM diuji device
+Hanya `MainActivity.kt` (`SettingsTab`, `LogReaderCard`). Kondisi nyata sebelum M5 = 5 kartu (bukan 6 spt rancangan v58: kartu Tema sudah hilang sejak dark-only v61) -> bagian "Tampilan" TIDAK ADA isinya, jadi hasilnya 3 bagian, bukan 4 (deviasi dari baris M5 di tabel fase, disengaja: bagian kosong = UI palsu).
+- Jadwal: tak diubah (toggle, chip, interval kustom, baris baterai).
+- Keandalan latar belakang: kartu "Agar jadwal tetap jalan" (v49) DIGABUNG ke kartu servis persisten (v27). Panduan = baris tombol "Panduan agar jadwal tetap jalan ▾/▴" + isi (teks, tombol Info Aplikasi) tampil hanya saat dibuka. Toggle servis persisten + peringatan notifikasi nonaktif tetap selalu terlihat. Teks panduan & toggle TIDAK diubah satu kata pun.
+- Info & diagnostik: `LogReaderCard` (judul & `GlassCard` sendiri dibuang; dirender di dalam kartu induk) + Tautan + Tentang digabung. Log dilipat ("Log diagnostik ▾/▴"); karena `LogReaderCard` hanya dikomposisi saat dibuka, `listLogs()` (query MediaStore) kini baru jalan saat dibuka, bukan tiap tab Pengaturan tampil.
+- State lipat = `rememberSaveable` (`guideOpen`, `logOpen`, default tertutup) -> tahan rotasi. Kartu gabungan `GlassCard(animateSize = true)` (M4) -> tinggi halus. Pola tombol = `TextButton` + glif ▾/▴ (sama dgn `LinkRow` + "↗"): 0 import baru, 0 dependency, tap target bawaan 48dp, role Button bawaan.
+- Semua callback identik (persisten toggle + launcher izin notifikasi + log diagnostik `toggle_pressed`, Muat ulang, Tes tulis log, baca/salin log, 3 tautan, Tentang, Info Aplikasi).
+- RISIKO (INFERENSI, belum diuji device): (1) pengguna yg mencari panduan XOS kini harus membuka lipatan dulu (default tertutup); (2) isi log yg sedang dibuka di dialog tak bertahan bila kartu dilipat ulang (dialog menutupi layar, jadi praktis tak terjadi). Uji: buka/tutup kedua lipatan, rotasi saat terbuka, toggle persisten, Tes tulis log, buka satu log -> Salin, 3 tautan, Tentang.

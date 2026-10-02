@@ -409,6 +409,9 @@ private fun SettingsTab(
     onAboutClick: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    // v79 (M5): bagian yang jarang dipakai dilipat; state tahan rotasi. Default tertutup.
+    var guideOpen by rememberSaveable { mutableStateOf(false) }
+    var logOpen by rememberSaveable { mutableStateOf(false) }
     GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             Text("Jadwal", style = MaterialTheme.typography.titleMedium)
@@ -521,62 +524,63 @@ private fun SettingsTab(
     // umum ROM, BELUM diverifikasi di HP ini -> teksnya sengaja berhati-hati, tanpa klaim pasti.
     // Tombol hanya membuka Info Aplikasi (intent standar Android, 0 tebakan nama activity per ROM
     // -> tetap patuh alasan v24: tak ada intent Autostart khusus merek).
-    GlassCard(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-            Text("Agar jadwal tetap jalan", style = MaterialTheme.typography.titleMedium)
-            Text(
-                "Jadwal otomatis jalan di latar belakang, jadi HP tidak boleh mematikan LagFix. " +
-                    "Yang paling berpengaruh:",
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                "• Jangan geser LagFix dari daftar aplikasi terbaru (Recents). Di HP seperti " +
-                    "Infinix/Tecno (XOS), menggesernya langsung mematikan proses LagFix. " +
-                    "Untuk keluar cukup tekan Home.",
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                "• Kunci LagFix di Recents kalau HP punya opsinya (biasanya tahan kartu aplikasi, " +
-                    "lalu pilih Kunci). Ini melindungi dari \"Bersihkan semua\"; menggeser satu " +
-                    "kartu tetap bisa mematikannya di sebagian HP.",
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                "• Izinkan \"Autostart\" / \"Latar belakang\" di App Management atau Phone " +
-                    "Master/Security App bawaan HP. Nama menu beda-beda tiap merek & versi.",
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                "Tidak ada jaminan 100%: sistem HP tetap bisa mematikan aplikasi kapan saja.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            TextButton(
-                onClick = {
-                    runCatching {
-                        ctx.startActivity(
-                            Intent(
-                                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                Uri.fromParts("package", ctx.packageName, null)
-                            )
-                        )
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Buka Info Aplikasi LagFix", Modifier.weight(1f))
-                Text("↗")
-            }
-        }
-    }
-
     // v27 (fitur opsional, HANYA utk user yg sudah coba opsi baterai/Autostart di atas & masih
     // bermasalah — konsultasi eksplisit dgn user sebelum dibuat, lihat riwayat v25/v26, dikerjakan v27). 0 logic
     // fstrim baru — cuma menjaga proses tetap hidup, jadwal periodik tetap lewat WorkManager
     // (Scheduler.apply(), 0 diubah).
-    GlassCard(Modifier.fillMaxWidth()) {
+    GlassCard(Modifier.fillMaxWidth(), animateSize = true) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-            Text("Keandalan latar belakang (opsional)", style = MaterialTheme.typography.titleMedium)
+            Text("Keandalan latar belakang", style = MaterialTheme.typography.titleMedium)
+            // v79 (M5): kartu "Agar jadwal tetap jalan" (v49) digabung ke sini sbg panduan yang bisa dilipat.
+            TextButton(onClick = { guideOpen = !guideOpen }, modifier = Modifier.fillMaxWidth()) {
+                Text("Panduan agar jadwal tetap jalan", Modifier.weight(1f))
+                Text(if (guideOpen) "▴" else "▾")
+            }
+            if (guideOpen) {
+                Text(
+                    "Jadwal otomatis jalan di latar belakang, jadi HP tidak boleh mematikan LagFix. " +
+                        "Yang paling berpengaruh:",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    "• Jangan geser LagFix dari daftar aplikasi terbaru (Recents). Di HP seperti " +
+                        "Infinix/Tecno (XOS), menggesernya langsung mematikan proses LagFix. " +
+                        "Untuk keluar cukup tekan Home.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    "• Kunci LagFix di Recents kalau HP punya opsinya (biasanya tahan kartu aplikasi, " +
+                        "lalu pilih Kunci). Ini melindungi dari \"Bersihkan semua\"; menggeser satu " +
+                        "kartu tetap bisa mematikannya di sebagian HP.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    "• Izinkan \"Autostart\" / \"Latar belakang\" di App Management atau Phone " +
+                        "Master/Security App bawaan HP. Nama menu beda-beda tiap merek & versi.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    "Tidak ada jaminan 100%: sistem HP tetap bisa mematikan aplikasi kapan saja.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                TextButton(
+                    onClick = {
+                        runCatching {
+                            ctx.startActivity(
+                                Intent(
+                                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                    Uri.fromParts("package", ctx.packageName, null)
+                                )
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Buka Info Aplikasi LagFix", Modifier.weight(1f))
+                    Text("↗")
+                }
+            }
             val notifPermissionLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission()
             ) {
@@ -647,12 +651,16 @@ private fun SettingsTab(
     // v31 (laporan user: fix v30 blm cukup — folder Download/LagFix/ tetap 0 muncul di file
     // manager HP ini). Pembaca log LANGSUNG di dalam aplikasi (lepas dari ketergantungan file
     // manager/OS pihak lain menampilkan folder baru) + tombol salin teks.
-    LogReaderCard(ctx = ctx, onFeedback = onFeedback)
-
-    // v12: dipindah dari tab Utama biar tab Utama cuma isi fitur utama (status/aksi/riwayat/pembaruan).
-    GlassCard(Modifier.fillMaxWidth()) {
+    // v79 (M5): Log Diagnostik (dilipat; daftar log baru dimuat saat dibuka) + Tautan jadi 1 kartu "Info & diagnostik".
+    // v12: tautan dipindah dari tab Utama biar tab Utama cuma isi fitur utama (status/aksi/riwayat/pembaruan).
+    GlassCard(Modifier.fillMaxWidth(), animateSize = true) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.xs)) {
-            Text("Tautan", style = MaterialTheme.typography.titleMedium)
+            Text("Info & diagnostik", style = MaterialTheme.typography.titleMedium)
+            TextButton(onClick = { logOpen = !logOpen }, modifier = Modifier.fillMaxWidth()) {
+                Text("Log diagnostik", Modifier.weight(1f))
+                Text(if (logOpen) "▴" else "▾")
+            }
+            if (logOpen) LogReaderCard(ctx = ctx, onFeedback = onFeedback)
             LinkRow("Unduh rilis terbaru") { openUrl(ctx, AppLinks.releases) }
             LinkRow("Lihat kode sumber") { openUrl(ctx, AppLinks.source) }
             LinkRow("Laporkan masalah") { openUrl(ctx, AppLinks.newIssue) }
@@ -692,69 +700,67 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
     }
     LaunchedEffect(Unit) { load() }
 
-    GlassCard(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-            Text("Log Diagnostik", style = MaterialTheme.typography.titleMedium)
-            Text(
-                "Baca langsung dari dalam aplikasi — tidak bergantung file manager/folder Documents " +
-                    "yang mungkin tidak menampilkan file baru di sebagian HP.",
-                style = MaterialTheme.typography.bodySmall
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-                TextButton(onClick = { load() }) { Text(if (loading) "Memuat…" else "Muat ulang") }
-                TextButton(
-                    onClick = {
-                        testing = true
-                        scope.launch(Dispatchers.IO) {
-                            val result = CrashLogger.testWrite(ctx)
-                            withContext(Dispatchers.Main) {
-                                testing = false
-                                if (result.isSuccess) {
-                                    onFeedback("Tes tulis BERHASIL — daftar log dimuat ulang otomatis.")
-                                    load()
-                                } else {
-                                    onFeedback("Tes tulis GAGAL: ${result.exceptionOrNull()?.message ?: "error tidak diketahui"}")
-                                }
+    // v79 (M5): dirender di dalam kartu "Info & diagnostik" -> tanpa GlassCard/judul sendiri.
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
+        Text(
+            "Baca langsung dari dalam aplikasi — tidak bergantung file manager/folder Documents " +
+                "yang mungkin tidak menampilkan file baru di sebagian HP.",
+            style = MaterialTheme.typography.bodySmall
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
+            TextButton(onClick = { load() }) { Text(if (loading) "Memuat…" else "Muat ulang") }
+            TextButton(
+                onClick = {
+                    testing = true
+                    scope.launch(Dispatchers.IO) {
+                        val result = CrashLogger.testWrite(ctx)
+                        withContext(Dispatchers.Main) {
+                            testing = false
+                            if (result.isSuccess) {
+                                onFeedback("Tes tulis BERHASIL — daftar log dimuat ulang otomatis.")
+                                load()
+                            } else {
+                                onFeedback("Tes tulis GAGAL: ${result.exceptionOrNull()?.message ?: "error tidak diketahui"}")
                             }
                         }
                     }
-                ) { Text(if (testing) "Menguji…" else "Tes tulis log") }
-            }
-            Text(
-                "\"Tes tulis log\" langsung menulis 1 file percobaan — tanpa perlu toggle apa pun — " +
-                    "untuk memastikan penulisan file bisa berhasil di HP ini.",
+                }
+            ) { Text(if (testing) "Menguji…" else "Tes tulis log") }
+        }
+        Text(
+            "\"Tes tulis log\" langsung menulis 1 file percobaan — tanpa perlu toggle apa pun — " +
+                "untuk memastikan penulisan file bisa berhasil di HP ini.",
+            style = MaterialTheme.typography.bodySmall
+        )
+        when {
+            loadError != null -> Text(
+                "Error: $loadError",
+                color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall
             )
-            when {
-                loadError != null -> Text(
-                    "Error: $loadError",
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                !loading && logs.isEmpty() -> Text(
-                    "Belum ada file log ditemukan (baik di Documents/LagFix, Download/LagFix lama, maupun cadangan internal app).",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-            logs.forEach { log ->
-                TextButton(
-                    onClick = {
-                        scope.launch(Dispatchers.IO) {
-                            val text = runCatching { log.readText() }.getOrElse { "(gagal baca: ${it.message})" }
-                            withContext(Dispatchers.Main) {
-                                selectedName = log.displayName
-                                selectedContent = text
-                            }
+            !loading && logs.isEmpty() -> Text(
+                "Belum ada file log ditemukan (baik di Documents/LagFix, Download/LagFix lama, maupun cadangan internal app).",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+        logs.forEach { log ->
+            TextButton(
+                onClick = {
+                    scope.launch(Dispatchers.IO) {
+                        val text = runCatching { log.readText() }.getOrElse { "(gagal baca: ${it.message})" }
+                        withContext(Dispatchers.Main) {
+                            selectedName = log.displayName
+                            selectedContent = text
                         }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        "${log.displayName} · ${log.source}",
-                        Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    "${log.displayName} · ${log.source}",
+                    Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
         }
     }

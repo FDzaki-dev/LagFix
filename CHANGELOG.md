@@ -1,5 +1,8 @@
 # Changelog
 
+## v79
+- Tab Pengaturan dirapikan: 5 kartu menjadi 3 bagian (Jadwal, Keandalan latar belakang, Info & diagnostik). Panduan agar jadwal tetap jalan kini digabung ke Keandalan latar belakang dan Log diagnostik digabung ke Info & diagnostik; keduanya bisa dilipat (tertutup secara bawaan) dengan tombol di dalam kartu. Isi, teks, dan semua tombol tidak berubah.
+
 ## v78
 - Notifikasi "Layanan latar depan persisten" kini dipulihkan otomatis saat jadwal interval berjalan: di awal dan akhir tiap run, bila toggle aktif tetapi notifikasi tidak tampil (hilang atau diturunkan sistem), notifikasi dimunculkan lagi. Tidak ada timer, alarm, atau file log tambahan. Ini upaya mitigasi, bukan jaminan: ROM tetap bisa mencabutnya lagi atau mematikan proses.
 
