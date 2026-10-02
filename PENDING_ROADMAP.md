@@ -126,6 +126,14 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    `lint-results-debug.txt`. `app/build.gradle.kts`: `lint { abortOnError = true; warningsAsErrors = true }`.
    Referensi sebelum diperketat: lint 0 error/15 warning (v54), detekt 127 weighted issue (v54; sesudah
    config v58 & kode v55-v87 belum terukur). Merah di awal DIHARAPKAN; triase temuan = pekerjaan lanjutan.
+   v89 (triase log CI #73): hasil nyata setelah blocking = lint 17 error (+1 informational), detekt 149
+   weighted issue (MagicNumber 83, MaxLineLength ~41, TooGenericExceptionCaught 10, LongMethod 7,
+   CyclomaticComplexMethod 4, LongParameterList 3, TooManyFunctions 3, NestedBlockDepth 2, EmptyFunctionBlock 2,
+   LoopWithTooManyJumpStatements 1). Unit test HIJAU. Lint v89: `app/lint.xml` (baru; `lintConfig` eksplisit) +
+   manifest `dataExtractionRules` + `mipmap-anydpi-v26` -> `mipmap-anydpi`. Detekt v89: hanya override struktural
+   Compose/test di `config/detekt/detekt.yml`. SISA detekt (pekerjaan batch berikut): MagicNumber, MaxLineLength,
+   TooGenericExceptionCaught, NestedBlockDepth, LoopWithTooManyJumpStatements, LongMethod `capture`,
+   LongParameterList `RawOutcome`, TooManyFunctions (LogcatSnapshot, MainViewModel).
 2. Belum ada dependency-update check otomatis (mis. Dependabot) utk `dev.rikka.shizuku`.
 
 ## G. UI/UX Premium (milestone, permintaan eksplisit user v59)

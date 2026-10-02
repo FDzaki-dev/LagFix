@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- v89 triase lint (log CI #73: 17 error setelah lint dijadikan blocking di v88).
+     Prinsip: temuan nyata diperbaiki di sumbernya; yang di bawah ini DIKECUALIKAN dgn alasan tertulis.
+     Pengecualian per-berkas (bukan global) supaya cek yg sama TETAP aktif di berkas lain. -->
+<lint>
+    <!-- Cek bergantung waktu (versi library & targetSdk "terbaru" berubah tanpa perubahan kode):
+         kalau blocking, CI bisa merah sendiri. Tetap DILAPORKAN (informational), tak menggagalkan
+         build. Pemantauan versi = backlog F2 (Dependabot); upgrade = batch tersendiri (butuh AGP /
+         compileSdk naik, tak bisa diverifikasi tanpa build). -->
+    <issue id="GradleDependency" severity="informational" />
+    <issue id="OldTargetApi" severity="informational" />
+
+    <!-- CrashLogger.kt: VOLUME_EXTERNAL_PRIMARY hanya dipakai di jalur ber-guard SDK_INT >= 29
+         (writeToFile / pembaca log). minSdk 26 tetap didukung lewat fallback app files dir. -->
+    <issue id="InlinedApi">
+        <ignore path="src/main/java/com/lagfix/fstrim/CrashLogger.kt" />
+    </issue>
+
+    <!-- widget_lagfix_info.xml: targetCellWidth/Height & previewLayout sengaja dipakai utk API 31+;
+         API 26-30 mengabaikannya dan memakai minWidth/minHeight/resizeMode (fallback sudah ada). -->
+    <issue id="UnusedAttribute">
+        <ignore path="src/main/res/xml/widget_lagfix_info.xml" />
+    </issue>
+
+    <!-- MainViewModel.kt: dialog pengecualian optimasi baterai = fitur opsional (layanan latar depan
+         persisten), dipicu eksplisit oleh user. Aplikasi didistribusikan via GitHub Release
+         (sideload), bukan Google Play, jadi kebijakan Play tak berlaku. -->
+    <issue id="BatteryLife">
+        <ignore path="src/main/java/com/lagfix/fstrim/MainViewModel.kt" />
+    </issue>
+
+    <!-- PersistentTrimService.kt: cek SDK_INT >= O redundan (minSdk 26) tapi tak berbahaya & berkas ini
+         DO-NOT-TOUCH; hapus cek ini bila servis disentuh karena alasan lain. -->
+    <issue id="ObsoleteSdkInt">
+        <ignore path="src/main/java/com/lagfix/fstrim/PersistentTrimService.kt" />
+    </issue>
+
+    <!-- Ikon (chip memori) berupa path panjang; disederhanakan = risiko perubahan visual, dan ikon
+         ini statis (bukan animasi / jalur kritis performa). -->
+    <issue id="VectorPath">
+        <ignore path="src/main/res/drawable/ic_launcher_foreground.xml" />
+        <ignore path="src/main/res/drawable/ic_launcher_monochrome.xml" />
+        <ignore path="src/main/res/drawable/ic_tile_fstrim.xml" />
+    </issue>
+</lint>

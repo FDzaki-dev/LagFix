@@ -60,6 +60,8 @@ android {
     lint {
         abortOnError = true
         warningsAsErrors = true
+        // v89: pengecualian beralasan per-berkas + cek bergantung-waktu jadi informational.
+        lintConfig = file("lint.xml")
     }
 }
 

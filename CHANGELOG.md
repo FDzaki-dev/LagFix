@@ -1,5 +1,8 @@
 # Changelog
 
+## v89
+- Tidak ada perubahan perilaku aplikasi. Pemeriksaan lint dibereskan: ikon peluncur dipindah ke folder `mipmap-anydpi`, aturan ekstraksi data Android 12+ ditambahkan (hasilnya tetap tanpa backup), dan pengecualian lint yang disengaja kini tercatat beralasan di `app/lint.xml`. Konfigurasi detekt disesuaikan untuk fungsi Compose.
+
 ## v88
 - Tidak ada perubahan pada aplikasi. Pemeriksaan kualitas kode otomatis (lint dan detekt) di CI kini wajib lolos sebelum APK dibuat dan dirilis; temuannya menggagalkan build dan rinciannya ikut masuk ke log kegagalan.
 
