@@ -790,14 +790,7 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
                         withContext(Dispatchers.Main) {
                             capturing = false
                             result.onSuccess {
-                                onFeedback(
-                                    if (it.shizukuReady) {
-                                        "Snapshot tersimpan: ${it.appLines} baris LagFix, ${it.fstrimLines} baris fstrim sistem, " +
-                                            "${it.exitRecords} catatan proses mati."
-                                    } else {
-                                        "Snapshot tersimpan TANPA logcat sistem (Shizuku belum siap); ${it.exitRecords} catatan proses mati."
-                                    }
-                                )
+                                onFeedback(it.feedback())
                                 load()
                             }.onFailure { onFeedback("Snapshot GAGAL: ${it.message ?: "error tidak diketahui"}") }
                         }
@@ -807,9 +800,12 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
             modifier = Modifier.fillMaxWidth()
         ) { Text(if (capturing) "Mengambil…" else "Ambil logcat sistem", Modifier.weight(1f)) }
         Text(
-            "Menyimpan 1 file: alasan proses LagFix terakhir dimatikan (Android 11+), jejak fstrim oleh " +
-                "sistem (mis. saat boot), dan baris logcat terkait LagFix. Bagian logcat butuh Shizuku siap. " +
-                "Buffer logcat terhapus saat reboot & berputar, jadi ambil secepatnya setelah kejadian.",
+            "Menyimpan 2 file di Documents/LagFix: ringkasan (.txt, bisa dibaca di sini) dan dump mentah " +
+                "logcat LENGKAP tanpa filter (.zip, tidak tampil di daftar ini — kirim file ini bila ringkasan " +
+                "kurang). Ringkasan memuat status sistem (notifikasi, servis, jadwal, baterai) dan alasan proses " +
+                "mati. Setelah dump, buffer logcat diperbesar sementara (kembali normal saat reboot) agar " +
+                "pengambilan berikutnya mencakup lebih lama — jadi tekan sekali SEBELUM menguji, lalu sekali lagi " +
+                "sesudahnya. Bagian logcat butuh Shizuku siap.",
             style = MaterialTheme.typography.bodySmall
         )
         when {

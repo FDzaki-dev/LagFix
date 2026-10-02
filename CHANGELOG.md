@@ -1,5 +1,14 @@
 # Changelog
 
+## v87
+- Tidak ada perubahan pada aplikasi. Build v85 gagal di CI karena kode tes tidak terkompilasi (konstanta pola filter belum dikualifikasi nama object); perbaikannya sudah ada di v86 dan rilis ini memastikan perbaikan tersebut ikut dipublikasikan.
+
+## v86
+- Snapshot logcat dibuat totalitas, bukan sekadar ringkasan terfilter. Tombol "Ambil logcat sistem" kini menyimpan 2 berkas di Documents/LagFix: ringkasan (.txt) dan dump mentah logcat lengkap tanpa filter (.zip, main+system+events+crash) yang dialirkan langsung ke zip sehingga tidak ada filter yang bisa menyembunyikan bukti dan tidak memenuhi memori. Kegagalan salah satu bagian tidak lagi menggagalkan bagian lain, dan kegagalan dump mentah selalu dilaporkan.
+- Ringkasan kini memuat status saat ini yang tidak ikut berputar seperti logcat: status sisi-aplikasi (toggle persisten, notifikasi aktif, servis berjalan, pengecualian baterai, standby bucket), jadwal WorkManager (jobscheduler), notifikasi, servis, appops, baterai, Doze, dan waktu `last-fstrim` dengan presisi detik. Catatan proses mati diperluas dari 10 ke 30.
+- Setelah dump, buffer logcat diperbesar ke 16M (sementara, kembali normal saat reboot). Sebelumnya buffer hanya menyimpan sekitar 30 detik terakhir sehingga kejadian beberapa menit lalu sudah hilang. Tekan tombol sekali sebelum menguji dan sekali lagi sesudahnya.
+- Perbaikan tes: konstanta pola filter di tes v85 belum dikualifikasi nama object sehingga tes tidak akan terkompilasi.
+
 ## v85
 - Tombol "Ambil logcat sistem" diperbaiki: bagian "Jejak fstrim oleh sistem" dan "Logcat terkait LagFix" sebelumnya terisi ratusan baris derau karena kata "fstrim"/"lagfix" juga cocok dengan nama paket aplikasi sendiri (com.lagfix.fstrim), sehingga baris yang dicari tergeser. Kini baris yang menyebut nama paket dibuang dari bagian fstrim, dan bagian LagFix hanya memuat baris peristiwa (lifecycle servis persisten, start proses, kill, FGS stop, job). Header snapshot kini mencantumkan zona waktu aplikasi supaya jam `dumpsys mount` (UTC) mudah dibandingkan dengan jam lokal.
 

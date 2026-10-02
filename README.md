@@ -7,8 +7,8 @@ Menjalankan `sm fstrim` (fallback `sm idle-maint run`) sebagai shell UID lewat *
 ## Paksa trim saat reboot (v83)
 Kartu di tab Pengaturan menulis setting sistem `fstrim_mandatory_interval` = 1 ms lewat Shizuku (`settings put global`), supaya Android sendiri memaksa fstrim saat boot (cara kerja ala mFSTRIM; efeknya belum diverifikasi di perangkat). Nilai dibaca dulu dan dibaca ulang setelah ditulis; tombol Reset menghapus kuncinya (`settings delete global`) karena nilainya bertahan walau app di-uninstall.
 
-## Snapshot logcat (v84)
-Tombol "Ambil logcat sistem" (Pengaturan > Info & diagnostik > Log diagnostik) menulis `LagFix_diag_logcat_*.txt` ke `Documents/LagFix`: `ApplicationExitInfo` (Android 11+), jejak fstrim sistem, dan baris logcat terkait LagFix (butuh Shizuku siap; shell UID membaca buffer logcat — belum diuji di perangkat). Buffer logcat hilang saat reboot, jadi ambil secepatnya setelah kejadian.
+## Snapshot logcat (v84, diperluas v86)
+Tombol "Ambil logcat sistem" (Pengaturan > Info & diagnostik > Log diagnostik) menyimpan 2 berkas di `Documents/LagFix`: (1) `LagFix_diag_logcat_*.txt` = ringkasan yang bisa dibaca di dalam aplikasi (alasan proses mati `ApplicationExitInfo` 30 terbaru, status sisi-aplikasi, status sistem: jobscheduler/WorkManager, notifikasi, servis, appops, standby bucket, baterai, Doze, `last-fstrim` dengan presisi detik, plus tampilan logcat terfilter); (2) `LagFix_diag_logcatraw_*.zip` = dump mentah logcat lengkap tanpa filter (main+system+events+crash) yang dialirkan ke zip. Berkas .zip tidak tampil di daftar log aplikasi; ambil dari file manager. Setelah dump, buffer logcat diperbesar ke 16M (sementara, kembali normal saat reboot) agar pengambilan berikutnya mencakup puluhan menit. Bagian logcat/sistem butuh Shizuku siap.
 
 ## Syarat
 - Android 8.0+ (API 26)
