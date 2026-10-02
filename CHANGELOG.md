@@ -1,5 +1,8 @@
 # Changelog
 
+## v85
+- Tombol "Ambil logcat sistem" diperbaiki: bagian "Jejak fstrim oleh sistem" dan "Logcat terkait LagFix" sebelumnya terisi ratusan baris derau karena kata "fstrim"/"lagfix" juga cocok dengan nama paket aplikasi sendiri (com.lagfix.fstrim), sehingga baris yang dicari tergeser. Kini baris yang menyebut nama paket dibuang dari bagian fstrim, dan bagian LagFix hanya memuat baris peristiwa (lifecycle servis persisten, start proses, kill, FGS stop, job). Header snapshot kini mencantumkan zona waktu aplikasi supaya jam `dumpsys mount` (UTC) mudah dibandingkan dengan jam lokal.
+
 ## v84
 - Pengaturan > Info & diagnostik > Log diagnostik: tombol baru "Ambil logcat sistem". Menyimpan 1 file di Documents/LagFix berisi: alasan proses LagFix terakhir dimatikan Android (Android 11+, tanpa Shizuku), jejak fstrim yang dijalankan sistem (mis. saat boot), serta baris logcat terkait LagFix (siklus layanan persisten, proses dimatikan, FGS dihentikan). Bagian logcat butuh Shizuku siap; tanpa Shizuku, file tetap dibuat dengan bagian alasan proses mati saja. File hanya dibuat saat tombol ditekan (tidak otomatis).
 - Kartu "Paksa trim saat reboot": ditambah catatan bahwa trim oleh sistem tidak masuk Riwayat (karena dijalankan Android sendiri), beserta petunjuk mencari jejaknya lewat tombol di atas.

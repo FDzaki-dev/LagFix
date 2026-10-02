@@ -9,6 +9,7 @@ import androidx.annotation.RequiresApi
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 private const val TRUNC_MARK = "(…terpotong, hanya bagian akhir)\n"
 
@@ -17,6 +18,14 @@ internal fun capTail(s: String, max: Int): String =
     if (s.length <= max) s else TRUNC_MARK + s.takeLast(max)
 
 internal fun countNonBlankLines(s: String): Int = s.lineSequence().count { it.isNotBlank() }
+
+/** Offset zona waktu sbg "UTC+08:00" / "UTC-03:30" / "UTC+00:00" dari milidetik (pembanding jam `dumpsys mount`). */
+internal fun formatUtcOffset(offsetMs: Int): String {
+    val totalMin = offsetMs / 60_000
+    val sign = if (totalMin < 0) '-' else '+'
+    val abs = if (totalMin < 0) -totalMin else totalMin
+    return "UTC%c%02d:%02d".format(Locale.US, sign, abs / 60, abs % 60)
+}
 
 /** Ringkasan hasil [LogcatSnapshot.capture] untuk umpan balik UI. */
 data class SnapshotSummary(val shizukuReady: Boolean, val fstrimLines: Int, val appLines: Int, val exitRecords: Int)
@@ -36,16 +45,24 @@ data class SnapshotSummary(val shizukuReady: Boolean, val fstrimLines: Int, val 
  */
 object LogcatSnapshot {
     private const val BUFFERS = "-b main -b system -b events -b crash"
-    private const val PATTERN_FSTRIM = "fstrim|idle maint|disk maintenance"
-    private const val PATTERN_APP = "lagfix|PersistentTrimService|TranManualCleanMgr|FGS stop"
+
+    // v85 (akar masalah dari snapshot v84): "fstrim" ikut cocok dgn NAMA PAKET `com.lagfix.fstrim`, jadi
+    // 80 baris hasil grep terisi derau modul OEM; "lagfix" juga memenuhi 500 baris. Perbaikan: tahap 1
+    // = cakupan, tahap 2 = buang baris yg mengandung nama paket (fstrim) / hanya simpan baris peristiwa (app).
+    internal const val PATTERN_FSTRIM = "fstrim|idle maint|disk maintenance"
+    internal const val PATTERN_FSTRIM_EXCLUDE = "lagfix"
+    internal const val PATTERN_APP_SCOPE = "lagfix|PersistentTrimService|TranManualCleanMgr|FGS stop"
+    internal const val PATTERN_APP_EVENT =
+        "PersistentTrimService|LIFECYCLE|TranManualCleanMgr|FGS stop|Killing|am_kill|kill proc|SIGKILL|died|" +
+            "am_proc|Start proc|ForegroundService|JobScheduler|SystemJobService|WorkManager"
 
     fun capture(ctx: Context): Result<SnapshotSummary> = runCatching {
         val app = ctx.applicationContext
         val ready = FstrimExecutor.state(app) == ShizukuState.READY
         val sb = StringBuilder()
         val now = System.currentTimeMillis()
-        sb.append("Snapshot logcat LagFix (v84)\n")
-        sb.append("Waktu: ${stamp(now)}\n")
+        sb.append("Snapshot logcat LagFix (v85)\n")
+        sb.append("Waktu: ${stamp(now)} (zona app ${formatUtcOffset(TimeZone.getDefault().getOffset(now))})\n")
         sb.append("Perkiraan boot terakhir: ${stamp(now - SystemClock.elapsedRealtime())}\n")
         sb.append("Shizuku: ${if (ready) "READY" else "BELUM SIAP (bagian logcat sistem dilewati)"}\n")
         if (ready) sb.append("fstrim_mandatory_interval (sistem): ${describeBootTrim(BootTrimSetting.read())}\n")
@@ -63,7 +80,7 @@ object LogcatSnapshot {
             sb.append(section("logcat -d -v threadtime -b system 2>&1 | head -n 3").first).append('\n')
 
             sb.append("\n== Jejak fstrim oleh sistem (logcat; boot = 'Running fstrim idle maintenance') ==\n")
-            val f = section("logcat -d -v threadtime $BUFFERS 2>&1 | grep -Ei '$PATTERN_FSTRIM' | tail -n 80")
+            val f = section("logcat -d -v threadtime $BUFFERS 2>&1 | grep -Ei '$PATTERN_FSTRIM' | grep -vi '$PATTERN_FSTRIM_EXCLUDE' | tail -n 80")
             fstrimLines = f.second
             sb.append(capTail(f.first, 12_000)).append('\n')
 
@@ -74,7 +91,7 @@ object LogcatSnapshot {
             sb.append(capTail(section("dumpsys mount 2>&1 | grep -Ei 'maint|trim' | head -n 10").first, 4_000)).append('\n')
 
             sb.append("\n== Logcat terkait LagFix (500 baris terakhir; LIFECYCLE, kill, FGS stop) ==\n")
-            val a = section("logcat -d -v threadtime $BUFFERS 2>&1 | grep -Ei '$PATTERN_APP' | tail -n 500")
+            val a = section("logcat -d -v threadtime $BUFFERS 2>&1 | grep -Ei '$PATTERN_APP_SCOPE' | grep -Ei '$PATTERN_APP_EVENT' | tail -n 500")
             appLines = a.second
             sb.append(capTail(a.first, 60_000)).append('\n')
         }
