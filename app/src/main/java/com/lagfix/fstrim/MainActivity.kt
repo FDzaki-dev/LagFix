@@ -17,16 +17,14 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -63,15 +61,18 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -154,6 +155,24 @@ private fun HomeScreen(vm: MainViewModel) {
         wasRunning = ui.running
     }
 
+    // v75 (fix fade tab, dari rekaman layar user): AnimatedContent v74 menyusun tab baru (berat: Riwayat/
+    // Statistik/Pengaturan) DI AWAL transisi, saat tab lama masih tampak -> frame berat itu jatuh di tengah
+    // fade-out; jam animasi jalan berdasar waktu nyata, jadi fade ketelan & layar "loncat" (rekaman: beku
+    // 80-170 ms lalu tab baru muncul utuh). Kini fade pakai Animatable + graphicsLayer (fase gambar saja,
+    // 0 rekomposisi per frame): tab lama memudar DULU, baru tab diganti saat alpha = 0 (jank tak terlihat),
+    // lalu tab baru memudar masuk SETELAH frame berat lewat. Hanya 1 tab terkomposisi (a11y/sentuh/scroll
+    // per tab sama seperti v73). Ketuk cepat bolak-balik: efek restart, alpha lanjut dari nilai terkini.
+    var displayedTab by rememberSaveable { mutableStateOf(selectedTab) }
+    val tabAlpha = remember { Animatable(1f) }
+    LaunchedEffect(selectedTab) {
+        if (displayedTab != selectedTab) {
+            tabAlpha.animateTo(0f, tween(durationMillis = LagMotion.TAB_OUT_MS, easing = FastOutLinearInEasing))
+            displayedTab = selectedTab // komposisi tab baru jatuh di sini, saat tak terlihat
+            withFrameNanos { } // lewati frame berat itu dulu; fade-in baru mulai sesudahnya
+        }
+        tabAlpha.animateTo(1f, tween(durationMillis = LagMotion.TAB_IN_MS, easing = FastOutSlowInEasing))
+    }
+
     Scaffold(
         containerColor = Color.Transparent, // v61: backdrop berglow dari LagFixTheme tampil di belakang
         topBar = { TopAppBar(title = { Text("LagFix (fstrim)") }, colors = glassTopBarColors()) },
@@ -175,51 +194,34 @@ private fun HomeScreen(vm: MainViewModel) {
             }
         }
     ) { pad ->
-        // v74 (fix fade tab): Crossfade (v71) memudarkan tab lama & baru BERSAMAAN -> di tengah transisi
-        // kedua tab menumpuk (teks "hantu") di atas kartu kaca translusen -> terasa patah. Diganti pola
-        // "fade through": tab lama memudar cepat (90 ms), baru tab baru muncul (210 ms, tertunda 90 ms)
-        // -> tak ada tumpang tindih; total 300 ms (P4). Easing keluar=FastOutLinearIn, masuk=LinearOutSlowIn.
-        // Column+scroll tetap DI DALAM konten (tiap tab punya scroll sendiri, mulai dari atas). Isi
-        // `if (tab == 0)` memakai `tab` (BUKAN selectedTab) agar tab yang sedang memudar tetap
-        // menampilkan dirinya sendiri. Tanpa AnimatedVisibility (aturan v73); callback/state identik v73.
-        AnimatedContent(
-            targetState = selectedTab,
-            modifier = Modifier.padding(pad),
-            transitionSpec = {
-                fadeIn(
-                    animationSpec = tween(
-                        durationMillis = LagMotion.TAB_IN_MS,
-                        delayMillis = LagMotion.TAB_OUT_MS,
-                        easing = LinearOutSlowInEasing
-                    )
-                ) togetherWith fadeOut(
-                    animationSpec = tween(durationMillis = LagMotion.TAB_OUT_MS, easing = FastOutLinearInEasing)
-                )
-            },
-            label = "tab"
-        ) { tab ->
-            Column(
-                Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(LagSpacing.lg),
-                verticalArrangement = Arrangement.spacedBy(LagSpacing.md)
-            ) {
-                if (tab == 0) {
-                    MainTab(
-                        ui = ui,
-                        ctx = ctx,
-                        versionName = versionName,
-                        onRunNow = { showRunConfirm = true }, // v11: minta konfirmasi dulu
-                        onGrant = vm::requestPermission,
-                        onCheckUpdate = vm::checkUpdate,
-                        onInstallUpdate = vm::installUpdate
-                    )
-                } else {
-                    SettingsTab(
-                        ui = ui,
-                        ctx = ctx,
-                        vm = vm,
-                        onFeedback = onFeedback,
-                        onAboutClick = { showAbout = true }
-                    )
+        // v75: lihat efek `tabAlpha` di atas. `key(displayedTab)` = tiap tab punya posisi scroll sendiri
+        // & mulai dari atas (seperti v71/v73). Isi memakai `displayedTab` (BUKAN selectedTab) agar tab
+        // yang sedang memudar tetap menampilkan dirinya sendiri. Callback/state/argumen tab identik v73.
+        Box(Modifier.padding(pad).fillMaxSize().graphicsLayer { alpha = tabAlpha.value }) {
+            key(displayedTab) {
+                Column(
+                    Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(LagSpacing.lg),
+                    verticalArrangement = Arrangement.spacedBy(LagSpacing.md)
+                ) {
+                    if (displayedTab == 0) {
+                        MainTab(
+                            ui = ui,
+                            ctx = ctx,
+                            versionName = versionName,
+                            onRunNow = { showRunConfirm = true }, // v11: minta konfirmasi dulu
+                            onGrant = vm::requestPermission,
+                            onCheckUpdate = vm::checkUpdate,
+                            onInstallUpdate = vm::installUpdate
+                        )
+                    } else {
+                        SettingsTab(
+                            ui = ui,
+                            ctx = ctx,
+                            vm = vm,
+                            onFeedback = onFeedback,
+                            onAboutClick = { showAbout = true }
+                        )
+                    }
                 }
             }
         }

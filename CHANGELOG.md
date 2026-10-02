@@ -1,5 +1,8 @@
 # Changelog
 
+## v75
+- Perpindahan tab diperbaiki berdasarkan rekaman layar: sebelumnya layar sempat membeku sesaat lalu tab baru muncul tiba-tiba tanpa fade. Sekarang tab lama memudar dulu, baru tab baru disiapkan saat layar tak terlihat berubah, lalu memudar masuk. Hanya animasi ganti tab yang berubah.
+
 ## v74
 - Perpindahan tab Utama/Pengaturan diperhalus: tab lama memudar dulu, lalu tab baru muncul (total 300 ms), jadi tidak ada lagi isi dua tab yang bertumpuk di tengah transisi. Hanya animasi ganti tab yang berubah.
 
