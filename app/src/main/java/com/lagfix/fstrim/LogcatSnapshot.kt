@@ -26,6 +26,21 @@ import java.util.zip.ZipOutputStream
 
 private const val TRUNC_MARK = "(…terpotong, hanya bagian akhir)\n"
 private const val COPY_BUFFER = 64 * 1024
+private const val MS_PER_MINUTE = 60_000
+private const val MINUTES_PER_HOUR = 60
+private const val MS_PER_SECOND = 1000L
+private const val BYTES_PER_KIB = 1024L
+private const val BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB
+
+// Nilai `UsageStatsManager.STANDBY_BUCKET_*` (sebagian @SystemApi) disalin sbg konstanta lokal supaya
+// tetap terkompilasi di SDK publik; angka mentah ikut dicetak pemanggil.
+private const val BUCKET_EXEMPTED = 5
+private const val BUCKET_ACTIVE = 10
+private const val BUCKET_WORKING_SET = 20
+private const val BUCKET_FREQUENT = 30
+private const val BUCKET_RARE = 40
+private const val BUCKET_RESTRICTED = 45
+private const val BUCKET_NEVER = 50
 
 /** Ambil [max] karakter TERAKHIR (yang terbaru paling penting); tandai bila terpotong. */
 internal fun capTail(s: String, max: Int): String =
@@ -35,29 +50,50 @@ internal fun countNonBlankLines(s: String): Int = s.lineSequence().count { it.is
 
 /** Offset zona waktu sbg "UTC+08:00" / "UTC-03:30" / "UTC+00:00" dari milidetik (pembanding jam `dumpsys mount`). */
 internal fun formatUtcOffset(offsetMs: Int): String {
-    val totalMin = offsetMs / 60_000
+    val totalMin = offsetMs / MS_PER_MINUTE
     val sign = if (totalMin < 0) '-' else '+'
     val abs = if (totalMin < 0) -totalMin else totalMin
-    return "UTC%c%02d:%02d".format(Locale.US, sign, abs / 60, abs % 60)
+    return "UTC%c%02d:%02d".format(Locale.US, sign, abs / MINUTES_PER_HOUR, abs % MINUTES_PER_HOUR)
 }
 
 /** Ukuran byte yg mudah dibaca: "512 B", "1.5 KiB", "3.2 MiB". */
 internal fun formatBytes(b: Long): String = when {
-    b < 1024L -> "$b B"
-    b < 1024L * 1024L -> "%.1f KiB".format(Locale.US, b / 1024.0)
-    else -> "%.1f MiB".format(Locale.US, b / (1024.0 * 1024.0))
+    b < BYTES_PER_KIB -> "$b B"
+    b < BYTES_PER_MIB -> "%.1f KiB".format(Locale.US, b / BYTES_PER_KIB.toDouble())
+    else -> "%.1f MiB".format(Locale.US, b / BYTES_PER_MIB.toDouble())
 }
 
-/** Nama bucket App Standby (nilai konstanta `UsageStatsManager.STANDBY_BUCKET_*`); angka mentah ikut dicetak pemanggil. */
+/** Nama bucket App Standby (nilai `UsageStatsManager.STANDBY_BUCKET_*`); angka mentah ikut dicetak pemanggil. */
 internal fun standbyBucketName(b: Int): String = when (b) {
-    5 -> "EXEMPTED"
-    10 -> "ACTIVE"
-    20 -> "WORKING_SET"
-    30 -> "FREQUENT"
-    40 -> "RARE"
-    45 -> "RESTRICTED"
-    50 -> "NEVER"
+    BUCKET_EXEMPTED -> "EXEMPTED"
+    BUCKET_ACTIVE -> "ACTIVE"
+    BUCKET_WORKING_SET -> "WORKING_SET"
+    BUCKET_FREQUENT -> "FREQUENT"
+    BUCKET_RARE -> "RARE"
+    BUCKET_RESTRICTED -> "RESTRICTED"
+    BUCKET_NEVER -> "NEVER"
     else -> "bucket#$b"
+}
+
+private fun stamp(ms: Long): String =
+    SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(ms))
+
+/** Nama alasan; angka mentah selalu ikut dicetak di pemanggil, jadi nama tak dikenal aman. */
+private fun exitReasonName(r: Int): String = when (r) {
+    ApplicationExitInfo.REASON_EXIT_SELF -> "EXIT_SELF"
+    ApplicationExitInfo.REASON_SIGNALED -> "SIGNALED"
+    ApplicationExitInfo.REASON_LOW_MEMORY -> "LOW_MEMORY"
+    ApplicationExitInfo.REASON_CRASH -> "CRASH"
+    ApplicationExitInfo.REASON_CRASH_NATIVE -> "CRASH_NATIVE"
+    ApplicationExitInfo.REASON_ANR -> "ANR"
+    ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> "INITIALIZATION_FAILURE"
+    ApplicationExitInfo.REASON_PERMISSION_CHANGE -> "PERMISSION_CHANGE"
+    ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE -> "EXCESSIVE_RESOURCE_USAGE"
+    ApplicationExitInfo.REASON_USER_REQUESTED -> "USER_REQUESTED"
+    ApplicationExitInfo.REASON_DEPENDENCY_DIED -> "DEPENDENCY_DIED"
+    ApplicationExitInfo.REASON_OTHER -> "OTHER"
+    ApplicationExitInfo.REASON_UNKNOWN -> "UNKNOWN"
+    else -> "reason#$r"
 }
 
 internal data class CopyResult(val bytes: Long, val truncated: Boolean)
@@ -139,6 +175,28 @@ object LogcatSnapshot {
     private const val BUFFER_RESIZE_CMD = "logcat $BUFFERS -G 16M"
     private const val RAW_CAP_BYTES = 192L * 1024L * 1024L // pagar pengaman; buffer 16M ~ <130 MiB
 
+    // Batas karakter tiap bagian ringkasan (capTail) & panjang pesan galat; angka sama dgn v86.
+    private const val CAP_FINGERPRINT = 600
+    private const val CAP_STANDBY = 400
+    private const val CAP_BATTERY = 1_500
+    private const val CAP_POWER = 2_000
+    private const val CAP_DEVICEIDLE = 2_500
+    private const val CAP_PACKAGE = 2_000
+    private const val CAP_APPOPS = 6_000
+    private const val CAP_SERVICES = 8_000
+    private const val CAP_NOTIFICATION = 10_000
+    private const val CAP_JOBS = 12_000
+    private const val CAP_APP_SIDE = 6_000
+    private const val CAP_FSTRIM_LOG = 12_000
+    private const val CAP_FSTRIM_MARKER = 2_000
+    private const val CAP_MOUNT = 4_000
+    private const val CAP_APP_LOG = 40_000
+    private const val ERR_MAX_SHELL = 300
+    private const val ERR_MAX_ITEM = 160
+    private const val ERR_MAX_SECTION = 200
+    private const val MAX_RUNNING_SERVICES = 100
+    private const val MAX_EXIT_RECORDS = 30
+
     // v85 (akar masalah dari snapshot v84): "fstrim" ikut cocok dgn NAMA PAKET `com.lagfix.fstrim`, jadi
     // 80 baris hasil grep terisi derau modul OEM; "lagfix" juga memenuhi 500 baris. Perbaikan: tahap 1
     // = cakupan, tahap 2 = buang baris yg mengandung nama paket (fstrim) / hanya simpan baris peristiwa (app).
@@ -154,33 +212,37 @@ object LogcatSnapshot {
     // Status SISTEM saat ini (tak berputar seperti logcat). Format keluaran tiap ROM bisa beda: filter
     // yg tak cocok hanya menghasilkan "(kosong)", bukan error — dan tak menghalangi bagian lain.
     private fun stateCommands(pkg: String): List<StateCmd> = listOf(
-        StateCmd("Build fingerprint", "getprop ro.build.fingerprint", 600),
-        StateCmd("Standby bucket (am get-standby-bucket)", "am get-standby-bucket $pkg", 400),
-        StateCmd("Baterai (dumpsys battery)", "dumpsys battery | head -n 20", 1_500),
+        StateCmd("Build fingerprint", "getprop ro.build.fingerprint", CAP_FINGERPRINT),
+        StateCmd("Standby bucket (am get-standby-bucket)", "am get-standby-bucket $pkg", CAP_STANDBY),
+        StateCmd("Baterai (dumpsys battery)", "dumpsys battery | head -n 20", CAP_BATTERY),
         StateCmd(
             "Power (wakefulness/charging/hemat daya; format belum terbukti)",
             "dumpsys power | grep -Ei 'mWakefulness=|mIsPowered=|mPlugType|BatterySaver|Low Power' | head -n 20",
-            2_000
+            CAP_POWER
         ),
         StateCmd(
             "Doze/deviceidle (format belum terbukti)",
             "dumpsys deviceidle | grep -Ei 'mState=|mLightState=|mCharging=|mScreenOn=|$pkg' | head -n 20",
-            2_500
+            CAP_DEVICEIDLE
         ),
         StateCmd(
             "Paket (versi & waktu pasang)",
             "dumpsys package $pkg | grep -Ei 'versionName|versionCode|firstInstallTime|lastUpdateTime|" +
                 "installerPackageName|stopped=' | head -n 12",
-            2_000
+            CAP_PACKAGE
         ),
-        StateCmd("AppOps (cmd appops get)", "cmd appops get $pkg | head -n 80", 6_000),
-        StateCmd("Servis (dumpsys activity services)", "dumpsys activity services $pkg | head -n 120", 8_000),
+        StateCmd("AppOps (cmd appops get)", "cmd appops get $pkg | head -n 80", CAP_APPOPS),
+        StateCmd("Servis (dumpsys activity services)", "dumpsys activity services $pkg | head -n 120", CAP_SERVICES),
         StateCmd(
             "Notifikasi (dumpsys notification)",
             "dumpsys notification --noredact | grep -i -B2 -A14 'pkg=$pkg' | head -n 160",
-            10_000
+            CAP_NOTIFICATION
         ),
-        StateCmd("JobScheduler / WorkManager (dumpsys jobscheduler)", "dumpsys jobscheduler $pkg | head -n 150", 12_000)
+        StateCmd(
+            "JobScheduler / WorkManager (dumpsys jobscheduler)",
+            "dumpsys jobscheduler $pkg | head -n 150",
+            CAP_JOBS
+        )
     )
 
     fun capture(ctx: Context): Result<SnapshotSummary> = runCatching {
@@ -207,54 +269,14 @@ object LogcatSnapshot {
         sb.append(describeRaw(raw, ready)).append('\n')
 
         sb.append("\n== Status sisi-app (tanpa Shizuku) ==\n")
-        sb.append(capTail(appSideState(app, now), 6_000)).append('\n')
+        sb.append(capTail(appSideState(app, now), CAP_APP_SIDE)).append('\n')
 
         sb.append("\n== Alasan proses LagFix terakhir mati (ApplicationExitInfo) ==\n")
-        val (exitText, exitCount) = if (Build.VERSION.SDK_INT >= 30) exitReasons(app)
+        val (exitText, exitCount) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) exitReasons(app)
         else "(butuh Android 11+)" to 0
         sb.append(exitText).append('\n')
 
-        var fstrimLines = 0
-        var appLines = 0
-        if (ready) {
-            sb.append("\n== Ukuran buffer logcat & entri tertua buffer system (SEBELUM diperbesar) ==\n")
-            sb.append(section("logcat -g 2>&1 | head -n 8").first).append('\n')
-            sb.append(section("logcat -d -v threadtime -b system 2>&1 | head -n 3").first).append('\n')
-
-            sb.append("\n== Jejak fstrim oleh sistem (logcat; boot = 'Running fstrim idle maintenance') ==\n")
-            val f = section(
-                "logcat -d -v threadtime $BUFFERS 2>&1 | grep -Ei '$PATTERN_FSTRIM' | " +
-                    "grep -vi '$PATTERN_FSTRIM_EXCLUDE' | tail -n 80"
-            )
-            fstrimLines = f.second
-            sb.append(capTail(f.first, 12_000)).append('\n')
-
-            sb.append("\n== Berkas penanda fstrim terakhir (ls = presisi menit; stat = presisi detik) ==\n")
-            sb.append(capTail(section("ls -l /data/system/last-fstrim 2>&1").first, 2_000)).append('\n')
-            sb.append(capTail(section("stat /data/system/last-fstrim 2>&1").first, 2_000)).append('\n')
-
-            sb.append("\n== dumpsys mount (baris maint/trim; jam kemungkinan UTC — bandingkan dgn zona app di atas) ==\n")
-            sb.append(capTail(section("dumpsys mount 2>&1 | grep -Ei 'maint|trim' | head -n 10").first, 4_000)).append('\n')
-
-            for (c in stateCommands(app.packageName)) {
-                sb.append("\n== ${c.title} ==\n")
-                sb.append(capTail(section(c.cmd).first, c.cap)).append('\n')
-            }
-
-            sb.append("\n== Logcat terkait LagFix, hanya baris peristiwa (300 baris terakhir; versi lengkap ada di zip) ==\n")
-            val a = section(
-                "logcat -d -v threadtime $BUFFERS 2>&1 | grep -Ei '$PATTERN_APP_SCOPE' | " +
-                    "grep -Ei '$PATTERN_APP_EVENT' | tail -n 300"
-            )
-            appLines = a.second
-            sb.append(capTail(a.first, 40_000)).append('\n')
-
-            // Perbesar buffer SETELAH semua pengambilan (tak mengubah data yg sedang ditangkap).
-            sb.append("\n== Perbesar buffer logcat ke 16M (sementara, kembali normal saat reboot) ==\n")
-            sb.append("perintah: ").append(BUFFER_RESIZE_CMD).append('\n')
-            sb.append("hasil: ").append(section("$BUFFER_RESIZE_CMD 2>&1").first).append('\n')
-            sb.append(section("logcat -g 2>&1 | head -n 8").first).append('\n')
-        }
+        val (fstrimLines, appLines) = if (ready) appendSystemSections(app, sb) else 0 to 0
 
         CrashLogger.writeDiagnostic(app, "logcat", sb.toString()).getOrThrow()
         SnapshotSummary(
@@ -264,10 +286,55 @@ object LogcatSnapshot {
             exitRecords = exitCount,
             rawName = raw?.takeIf { it.error == null }?.name,
             rawBytes = raw?.zipBytes ?: 0L,
-            rawLogBytes = raw?.logBytes ?: 0L,
-            rawTruncated = raw?.truncated ?: false,
+            rawLogBytes = raw?.log?.bytes ?: 0L,
+            rawTruncated = raw?.log?.truncated ?: false,
             rawError = raw?.error
         )
+    }
+
+    /** Bagian yg butuh Shizuku READY. Mengembalikan (jumlah baris fstrim, jumlah baris app) utk ringkasan UI. */
+    private fun appendSystemSections(app: Context, sb: StringBuilder): Pair<Int, Int> {
+        sb.append("\n== Ukuran buffer logcat & entri tertua buffer system (SEBELUM diperbesar) ==\n")
+        sb.append(section("logcat -g 2>&1 | head -n 8").first).append('\n')
+        sb.append(section("logcat -d -v threadtime -b system 2>&1 | head -n 3").first).append('\n')
+
+        sb.append("\n== Jejak fstrim oleh sistem (logcat; boot = 'Running fstrim idle maintenance') ==\n")
+        val f = section(
+            "logcat -d -v threadtime $BUFFERS 2>&1 | grep -Ei '$PATTERN_FSTRIM' | " +
+                "grep -vi '$PATTERN_FSTRIM_EXCLUDE' | tail -n 80"
+        )
+        sb.append(capTail(f.first, CAP_FSTRIM_LOG)).append('\n')
+
+        sb.append("\n== Berkas penanda fstrim terakhir (ls = presisi menit; stat = presisi detik) ==\n")
+        sb.append(capTail(section("ls -l /data/system/last-fstrim 2>&1").first, CAP_FSTRIM_MARKER)).append('\n')
+        sb.append(capTail(section("stat /data/system/last-fstrim 2>&1").first, CAP_FSTRIM_MARKER)).append('\n')
+
+        sb.append(
+            "\n== dumpsys mount (baris maint/trim; jam kemungkinan UTC — bandingkan dgn zona app di atas) ==\n"
+        )
+        val mount = section("dumpsys mount 2>&1 | grep -Ei 'maint|trim' | head -n 10").first
+        sb.append(capTail(mount, CAP_MOUNT)).append('\n')
+
+        for (c in stateCommands(app.packageName)) {
+            sb.append("\n== ${c.title} ==\n")
+            sb.append(capTail(section(c.cmd).first, c.cap)).append('\n')
+        }
+
+        sb.append(
+            "\n== Logcat terkait LagFix, hanya baris peristiwa (300 baris terakhir; versi lengkap ada di zip) ==\n"
+        )
+        val a = section(
+            "logcat -d -v threadtime $BUFFERS 2>&1 | grep -Ei '$PATTERN_APP_SCOPE' | " +
+                "grep -Ei '$PATTERN_APP_EVENT' | tail -n 300"
+        )
+        sb.append(capTail(a.first, CAP_APP_LOG)).append('\n')
+
+        // Perbesar buffer SETELAH semua pengambilan (tak mengubah data yg sedang ditangkap).
+        sb.append("\n== Perbesar buffer logcat ke 16M (sementara, kembali normal saat reboot) ==\n")
+        sb.append("perintah: ").append(BUFFER_RESIZE_CMD).append('\n')
+        sb.append("hasil: ").append(section("$BUFFER_RESIZE_CMD 2>&1").first).append('\n')
+        sb.append(section("logcat -g 2>&1 | head -n 8").first).append('\n')
+        return f.second to a.second
     }
 
     // ---------------------------------------------------------------- dump mentah (streaming -> zip)
@@ -276,8 +343,7 @@ object LogcatSnapshot {
         val name: String,
         val where: String,
         val zipBytes: Long,
-        val logBytes: Long,
-        val truncated: Boolean,
+        val log: CopyResult,
         val exit: Int?,
         val error: String?
     )
@@ -286,10 +352,13 @@ object LogcatSnapshot {
         !ready -> "(dilewati: butuh Shizuku READY)"
         r == null -> "(tidak dijalankan)"
         r.error != null -> "GAGAL: ${r.error}"
-        else -> "${r.name} -> ${r.where}; zip ${formatBytes(r.zipBytes)}, logcat ${formatBytes(r.logBytes)}" +
-            ", exit=${r.exit ?: "?"}, terpotong=${r.truncated}. Kirim berkas .zip ini bila ringkasan kurang."
+        else -> "${r.name} -> ${r.where}; zip ${formatBytes(r.zipBytes)}, logcat ${formatBytes(r.log.bytes)}" +
+            ", exit=${r.exit ?: "?"}, terpotong=${r.log.truncated}. Kirim berkas .zip ini bila ringkasan kurang."
     }
 
+    // Batas shell/I-O: logcat HARUS selalu menghasilkan bukti (prinsip v86) — Throwable apa pun (termasuk galat
+    // refleksi Shizuku) dicatat ke dalam zip/laporan, bukan dilempar & membatalkan seluruh snapshot.
+    @Suppress("TooGenericExceptionCaught")
     private fun captureRaw(app: Context, name: String, now: Long): RawOutcome {
         var logBytes = 0L
         var truncated = false
@@ -313,7 +382,7 @@ object LogcatSnapshot {
                         exit = runCatching { p.waitFor() }.getOrNull()
                     }
                 } catch (e: Throwable) {
-                    shellError = "${e.javaClass.simpleName}: ${e.message}".take(300)
+                    shellError = "${e.javaClass.simpleName}: ${e.message}".take(ERR_MAX_SHELL)
                     runCatching { zip.write("\n[ERROR dump: $shellError]\n".toByteArray(Charsets.UTF_8)) }
                 }
                 zip.closeEntry()
@@ -325,9 +394,10 @@ object LogcatSnapshot {
                 zip.write(meta.toByteArray(Charsets.UTF_8))
                 zip.closeEntry()
             }
-            RawOutcome(name, written.where, written.zipBytes, logBytes, truncated, exit, shellError)
+            RawOutcome(name, written.where, written.zipBytes, CopyResult(logBytes, truncated), exit, shellError)
         } catch (e: Throwable) {
-            RawOutcome(name, "-", 0L, logBytes, truncated, exit, "${e.javaClass.simpleName}: ${e.message}".take(300))
+            val err = "${e.javaClass.simpleName}: ${e.message}".take(ERR_MAX_SHELL)
+            RawOutcome(name, "-", 0L, CopyResult(logBytes, truncated), exit, err)
         }
     }
 
@@ -359,7 +429,7 @@ object LogcatSnapshot {
      */
     private fun writeRawZip(ctx: Context, name: String, fill: (ZipOutputStream) -> Unit): RawWrite {
         var mediaError: Throwable? = null
-        if (Build.VERSION.SDK_INT >= 29) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val resolver = ctx.contentResolver
             val values = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, name)
@@ -383,7 +453,8 @@ object LogcatSnapshot {
                 }
                 if (attempt.isSuccess) {
                     runCatching {
-                        resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+                        val done = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
+                        resolver.update(uri, done, null, null)
                     }
                     return RawWrite("Documents/LagFix/$name", attempt.getOrDefault(0L))
                 }
@@ -418,31 +489,35 @@ object LogcatSnapshot {
         val lines = mutableListOf<String>()
         fun item(label: String, block: () -> Any?) {
             lines += "$label: " + runCatching { block().toString() }
-                .getOrElse { "(gagal: ${it.javaClass.simpleName}: ${it.message})".take(160) }
+                .getOrElse { "(gagal: ${it.javaClass.simpleName}: ${it.message})".take(ERR_MAX_ITEM) }
         }
         item("Toggle layanan persisten (Prefs)") { Prefs(ctx).persistentServiceEnabled }
         item("Umur proses app") {
-            "${(SystemClock.elapsedRealtime() - android.os.Process.getStartElapsedRealtime()) / 1000} dtk"
+            val ageMs = SystemClock.elapsedRealtime() - android.os.Process.getStartElapsedRealtime()
+            "${ageMs / MS_PER_SECOND} dtk"
         }
-        item("Notifikasi diizinkan") { ctx.getSystemService(NotificationManager::class.java)?.areNotificationsEnabled() }
+        item("Notifikasi diizinkan") {
+            ctx.getSystemService(NotificationManager::class.java)?.areNotificationsEnabled()
+        }
         item("Notifikasi aktif milik app") {
             val list = ctx.getSystemService(NotificationManager::class.java)?.activeNotifications.orEmpty()
             if (list.isEmpty()) "(tidak ada)" else list.joinToString(" | ") {
                 "id=${it.id} channel=${it.notification.channelId} " +
-                    "flags=0x${Integer.toHexString(it.notification.flags)} umur=${(now - it.postTime) / 1000}dtk"
+                    "flags=0x${Integer.toHexString(it.notification.flags)} " +
+                    "umur=${(now - it.postTime) / MS_PER_SECOND}dtk"
             }
         }
         item("Servis PersistentTrimService berjalan") {
             val am = ctx.getSystemService(ActivityManager::class.java)
             @Suppress("DEPRECATION") // sejak API 26 hanya mengembalikan servis milik app sendiri — cukup.
-            val svc = am?.getRunningServices(100).orEmpty()
+            val svc = am?.getRunningServices(MAX_RUNNING_SERVICES).orEmpty()
                 .firstOrNull { it.service.className == PersistentTrimService::class.java.name }
             if (svc == null) "tidak" else "ya (foreground=${svc.foreground})"
         }
         item("Pengecualian optimasi baterai") {
             ctx.getSystemService(PowerManager::class.java)?.isIgnoringBatteryOptimizations(ctx.packageName)
         }
-        if (Build.VERSION.SDK_INT >= 28) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             item("Dibatasi di latar belakang (isBackgroundRestricted)") {
                 ctx.getSystemService(ActivityManager::class.java)?.isBackgroundRestricted
             }
@@ -456,24 +531,27 @@ object LogcatSnapshot {
 
     // ---------------------------------------------------------------- helper
 
-    private fun stamp(ms: Long): String =
-        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(ms))
-
-    /** Jalankan [cmd] lewat Shizuku; (teks, jumlah baris non-kosong). Tak pernah melempar. */
+    /**
+     * Jalankan [cmd] lewat Shizuku; (teks, jumlah baris non-kosong). Tak pernah melempar: batas shell/I-O,
+     * galat apa pun (Throwable) dicatat sbg teks bagian itu supaya bagian lain tetap terambil (prinsip v86).
+     */
+    @Suppress("TooGenericExceptionCaught")
     private fun section(cmd: String): Pair<String, Int> = try {
         val (code, out) = FstrimExecutor.sh(cmd)
         val t = out.trim()
         if (t.isEmpty()) "(kosong, exit=$code)" to 0 else t to countNonBlankLines(t)
     } catch (e: Throwable) {
-        "(gagal: ${e.javaClass.simpleName}: ${e.message})".take(200) to 0
+        "(gagal: ${e.javaClass.simpleName}: ${e.message})".take(ERR_MAX_SECTION) to 0
     }
 
-    @RequiresApi(30)
+    // Batas sistem (ActivityManager): galat apa pun dicatat sbg teks, tak membatalkan snapshot (prinsip v86).
+    @Suppress("TooGenericExceptionCaught")
+    @RequiresApi(Build.VERSION_CODES.R)
     private fun exitReasons(ctx: Context): Pair<String, Int> {
         return try {
             val am = ctx.getSystemService(ActivityManager::class.java)
                 ?: return "(ActivityManager tidak tersedia)" to 0
-            val list = am.getHistoricalProcessExitReasons(null, 0, 30)
+            val list = am.getHistoricalProcessExitReasons(null, 0, MAX_EXIT_RECORDS)
             if (list.isEmpty()) {
                 "(kosong)" to 0
             } else {
@@ -483,25 +561,7 @@ object LogcatSnapshot {
                 } to list.size
             }
         } catch (e: Throwable) {
-            "(gagal: ${e.javaClass.simpleName}: ${e.message})".take(200) to 0
+            "(gagal: ${e.javaClass.simpleName}: ${e.message})".take(ERR_MAX_SECTION) to 0
         }
-    }
-
-    /** Nama alasan; angka mentah selalu ikut dicetak di pemanggil, jadi nama tak dikenal aman. */
-    private fun exitReasonName(r: Int): String = when (r) {
-        ApplicationExitInfo.REASON_EXIT_SELF -> "EXIT_SELF"
-        ApplicationExitInfo.REASON_SIGNALED -> "SIGNALED"
-        ApplicationExitInfo.REASON_LOW_MEMORY -> "LOW_MEMORY"
-        ApplicationExitInfo.REASON_CRASH -> "CRASH"
-        ApplicationExitInfo.REASON_CRASH_NATIVE -> "CRASH_NATIVE"
-        ApplicationExitInfo.REASON_ANR -> "ANR"
-        ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> "INITIALIZATION_FAILURE"
-        ApplicationExitInfo.REASON_PERMISSION_CHANGE -> "PERMISSION_CHANGE"
-        ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE -> "EXCESSIVE_RESOURCE_USAGE"
-        ApplicationExitInfo.REASON_USER_REQUESTED -> "USER_REQUESTED"
-        ApplicationExitInfo.REASON_DEPENDENCY_DIED -> "DEPENDENCY_DIED"
-        ApplicationExitInfo.REASON_OTHER -> "OTHER"
-        ApplicationExitInfo.REASON_UNKNOWN -> "UNKNOWN"
-        else -> "reason#$r"
     }
 }

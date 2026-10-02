@@ -134,6 +134,9 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    Compose/test di `config/detekt/detekt.yml`. SISA detekt (pekerjaan batch berikut): MagicNumber, MaxLineLength,
    TooGenericExceptionCaught, NestedBlockDepth, LoopWithTooManyJumpStatements, LongMethod `capture`,
    LongParameterList `RawOutcome`, TooManyFunctions (LogcatSnapshot, MainViewModel).
+   v90 (log CI #74: lint 1 error = DataExtractionRules; detekt 134 weighted): keputusan user = STRICT, perbaiki
+   di kode, ~4 batch. Batch 1: lint `fullBackupContent` (`backup_rules.xml`) + `LogcatSnapshot.kt` &
+   `LogcatSnapshotTest.kt` (sisa detekt dihitung dari log #74: 70 weighted di 12 berkas). BELUM terbukti CI.
 2. Belum ada dependency-update check otomatis (mis. Dependabot) utk `dev.rikka.shizuku`.
 
 ## G. UI/UX Premium (milestone, permintaan eksplisit user v59)

@@ -35,23 +35,42 @@ class LogcatSnapshotTest {
     // ---- v85: pola filter (ERE sederhana -> Regex setara; grep -Ei = IGNORE_CASE) ----
     private fun rx(p: String) = Regex(p, RegexOption.IGNORE_CASE)
     private fun fstrimKept(line: String) =
-        rx(LogcatSnapshot.PATTERN_FSTRIM).containsMatchIn(line) && !rx(LogcatSnapshot.PATTERN_FSTRIM_EXCLUDE).containsMatchIn(line)
+        rx(LogcatSnapshot.PATTERN_FSTRIM).containsMatchIn(line) &&
+            !rx(LogcatSnapshot.PATTERN_FSTRIM_EXCLUDE).containsMatchIn(line)
     private fun appKept(line: String) =
-        rx(LogcatSnapshot.PATTERN_APP_SCOPE).containsMatchIn(line) && rx(LogcatSnapshot.PATTERN_APP_EVENT).containsMatchIn(line)
+        rx(LogcatSnapshot.PATTERN_APP_SCOPE).containsMatchIn(line) &&
+            rx(LogcatSnapshot.PATTERN_APP_EVENT).containsMatchIn(line)
 
     @Test
     fun fstrimFilter_dropsOwnPackageNoise_keepsSystemLine() {
-        assertTrue(fstrimKept("10-02 16:31:33.100  1000  1200 I StorageManagerService: Running fstrim idle maintenance"))
-        assertTrue(!fstrimKept("10-02 16:32:33.826  4975  5417 D THubApi : isTheMainScreen classname: com.lagfix.fstrim.MainActivity"))
+        assertTrue(
+            fstrimKept("10-02 16:31:33.100  1000  1200 I StorageManagerService: Running fstrim idle maintenance")
+        )
+        assertTrue(
+            !fstrimKept(
+                "10-02 16:32:33.826  4975  5417 D THubApi : isTheMainScreen classname: " +
+                    "com.lagfix.fstrim.MainActivity"
+            )
+        )
     }
 
     @Test
     fun appFilter_keepsLifecycleStartProcAndKill_dropsOemNoise() {
         assertTrue(appKept("W PersistentTrimService: LIFECYCLE ensureShowing from=run-start shown=true"))
         assertTrue(appKept("I ActivityManager: Start proc 5705:com.lagfix.fstrim/u0a88 for broadcast"))
-        assertTrue(appKept("D tranpm/TranManualCleanMgr: kill proc pid:7460, uid:10462, processName:moe.shizuku.privileged.api"))
+        assertTrue(
+            appKept(
+                "D tranpm/TranManualCleanMgr: kill proc pid:7460, uid:10462, " +
+                    "processName:moe.shizuku.privileged.api"
+            )
+        )
         assertTrue(!appKept("D TranAppm/MTKModule: pkgName: com.lagfix.fstrim,pid: 0"))
-        assertTrue(!appKept("I snet_event_log: updateFrameRateVote [pkg = com.lagfix.fstrim title = com.lagfix.fstrim/com.lagfix.fstrim.MainActivity refreshRate = 60.0]"))
+        assertTrue(
+            !appKept(
+                "I snet_event_log: updateFrameRateVote [pkg = com.lagfix.fstrim " +
+                    "title = com.lagfix.fstrim/com.lagfix.fstrim.MainActivity refreshRate = 60.0]"
+            )
+        )
     }
 
     @Test

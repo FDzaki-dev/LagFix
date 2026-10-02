@@ -1,5 +1,8 @@
 # Changelog
 
+## v90
+- Tidak ada perubahan perilaku aplikasi. Pemeriksaan lint dibereskan dengan menambahkan aturan backup untuk Android 11 ke bawah (hasilnya tetap tanpa backup). Batch pertama perapian detekt pada kode snapshot logcat: angka literal diganti konstanta bernama, baris panjang dipecah, penangkapan galat di batas shell/I-O diberi alasan tertulis, dan fungsi `capture` dipecah menjadi bagian-bagian lebih kecil dengan isi dan urutan keluaran yang sama.
+
 ## v89
 - Tidak ada perubahan perilaku aplikasi. Pemeriksaan lint dibereskan: ikon peluncur dipindah ke folder `mipmap-anydpi`, aturan ekstraksi data Android 12+ ditambahkan (hasilnya tetap tanpa backup), dan pengecualian lint yang disengaja kini tercatat beralasan di `app/lint.xml`. Konfigurasi detekt disesuaikan untuk fungsi Compose.
 
