@@ -54,6 +54,13 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
+
+    // v88 (perintah user: lint/detekt diperketat): lintDebug blocking di CI; warning dihitung error.
+    // Tanpa baseline & tanpa disable rule: temuan harus diperbaiki di sumbernya.
+    lint {
+        abortOnError = true
+        warningsAsErrors = true
+    }
 }
 
 dependencies {
@@ -74,9 +81,9 @@ dependencies {
     testImplementation("org.mockito:mockito-core:5.23.0")
 }
 
-// F1 (PENDING_ROADMAP.md, CI hardening): static analysis Kotlin, non-blocking utk batch pertama
-// ini (lihat build.yml — continue-on-error) supaya pipeline hijau existing tidak mendadak merah
-// krn temuan gaya-kode lama yg belum pernah dicek. v58: config custom MINIMUM di
+// F1 (PENDING_ROADMAP.md, CI hardening): static analysis Kotlin. v88: BLOCKING (perintah user;
+// lihat step "Gerbang lint & detekt" di build.yml) — temuan detekt (maxIssues default 0)
+// menggagalkan build. v58: config custom MINIMUM di
 // config/detekt/detekt.yml (override di atas ruleset default via buildUponDefaultConfig) —
 // hanya FunctionNaming & MagicNumber utk @Composable (false-positive Compose); sisanya default.
 detekt {

@@ -25,20 +25,25 @@ jobs:
           gradle --no-daemon --stacktrace testDebugUnitTest 2>&1 | tee build_output.log
 
       # F1 (PENDING_ROADMAP.md): lint (Android, bawaan AGP) + detekt (static analysis Kotlin).
-      # continue-on-error SENGAJA true: batch pertama, belum ada baseline/triage temuan lama ->
-      # non-blocking dulu supaya pipeline hijau existing (Unit test/Build/Release) tidak
-      # mendadak merah krn gaya-kode lama yg belum pernah dicek. Tidak mempengaruhi step
-      # "Simpan/Unggah log kegagalan" (if: failure()) krn continue-on-error meredam itu by design.
+      # v88 (perintah user: "lintDebug/detekt tolong diperketat"): BLOCKING. Step Lint & Detekt
+      # memakai continue-on-error HANYA supaya KEDUANYA selalu jalan & semua temuan terlihat dalam
+      # satu run; keputusan gagal dipegang step "Gerbang lint & detekt" di bawah (exit 1 bila salah
+      # satunya `failure`) -> build MERAH SEBELUM step Build/Release (0 APK/rilis dari kode yg
+      # melanggar). Merah di awal DISENGAJA (backlog temuan lama belum ditriase); jangan kembalikan
+      # ke non-blocking tanpa perintah user. Warning lint dihitung error: lihat `lint {}` di
+      # app/build.gradle.kts. detekt: ruleset default, maxIssues 0 (detekt.yml hanya override minimum).
       # v52: lint & detekt DIPISAH jadi 2 step (dulu satu command `gradle lintDebug detekt` tanpa
       # --continue: kegagalan task pertama menghentikan task kedua & menutupi penyebabnya). Log
-      # mentah tiap step disimpan (tee) lalu diunggah bersama laporan, supaya penyebab
-      # lint-results-debug.html yg tak muncul (run #20) bisa dibaca langsung, bukan ditebak.
-      - name: Lint (non-blocking)
+      # mentah tiap step disimpan (tee) lalu diunggah bersama laporan DAN dimasukkan ke log
+      # kegagalan (step "Simpan log kegagalan").
+      - name: Lint
+        id: lint
         continue-on-error: true
         run: |
           set -o pipefail
           gradle --no-daemon --stacktrace lintDebug 2>&1 | tee lint_output.log
-      - name: Detekt (non-blocking)
+      - name: Detekt
+        id: detekt
         continue-on-error: true
         run: |
           set -o pipefail
@@ -63,6 +68,14 @@ jobs:
           path: lint_artifacts/
           if-no-files-found: ignore
 
+      # v88: gerbang BLOCKING. `outcome` = hasil mentah step (tidak terpengaruh continue-on-error).
+      - name: Gerbang lint & detekt (BLOCKING)
+        if: ${{ steps.lint.outcome == 'failure' || steps.detekt.outcome == 'failure' }}
+        run: |
+          echo "lint=${{ steps.lint.outcome }} detekt=${{ steps.detekt.outcome }}"
+          echo "Build dihentikan: temuan lint/detekt wajib diperbaiki (rincian: log kegagalan & artifact lint-detekt-report)."
+          exit 1
+
       - name: Decode keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -83,7 +96,15 @@ jobs:
         if: failure()
         run: |
           mkdir -p logs
-          cp build_output.log "logs/LagFix_build_fail_log_${{ github.run_number }}.txt"
+          OUT="logs/LagFix_build_fail_log_${{ github.run_number }}.txt"
+          : > "$OUT"
+          # v88: lint & detekt kini blocking -> log-nya WAJIB ikut (dulu hanya build_output.log,
+          # yg pada kegagalan lint/detekt cuma berisi log Unit test yg hijau). Urutan = urutan pipeline.
+          for f in build_output.log lint_output.log detekt_output.log; do
+            if [ -f "$f" ]; then { echo "===== $f ====="; cat "$f"; echo; } >> "$OUT"; fi
+          done
+          LINT_TXT="$(find app/build -name 'lint-results-debug.txt' -type f 2>/dev/null | head -n 1)"
+          if [ -n "$LINT_TXT" ]; then { echo "===== $LINT_TXT ====="; cat "$LINT_TXT"; } >> "$OUT"; fi
       - name: Unggah log kegagalan
         if: failure()
         uses: actions/upload-artifact@v4

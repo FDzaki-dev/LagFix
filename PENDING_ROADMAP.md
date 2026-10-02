@@ -119,6 +119,13 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    `app/build.gradle.kts` — `FunctionNaming` & `MagicNumber` dgn `ignoreAnnotated: ['Composable']`.
    FunctionNaming 15/15 temuan terverifikasi dari source = fungsi @Composable PascalCase (false-positive).
    Efek nyata ke jumlah temuan BELUM terbukti sampai artifact detekt run berikutnya dibaca. 0 kode app diubah.
+   v88 (perintah user: "lintDebug/detekt tolong diperketat; gapapa build merah diawal"): lint & detekt
+   kini BLOCKING. `build.yml`: step Lint/Detekt tetap jalan keduanya (continue-on-error + `id`), lalu step
+   "Gerbang lint & detekt (BLOCKING)" exit 1 bila salah satu `failure` -> Build/Release terlewati;
+   "Simpan log kegagalan" kini menggabung `build_output.log` + `lint_output.log` + `detekt_output.log` +
+   `lint-results-debug.txt`. `app/build.gradle.kts`: `lint { abortOnError = true; warningsAsErrors = true }`.
+   Referensi sebelum diperketat: lint 0 error/15 warning (v54), detekt 127 weighted issue (v54; sesudah
+   config v58 & kode v55-v87 belum terukur). Merah di awal DIHARAPKAN; triase temuan = pekerjaan lanjutan.
 2. Belum ada dependency-update check otomatis (mis. Dependabot) utk `dev.rikka.shizuku`.
 
 ## G. UI/UX Premium (milestone, permintaan eksplisit user v59)

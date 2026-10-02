@@ -1,5 +1,8 @@
 # Changelog
 
+## v88
+- Tidak ada perubahan pada aplikasi. Pemeriksaan kualitas kode otomatis (lint dan detekt) di CI kini wajib lolos sebelum APK dibuat dan dirilis; temuannya menggagalkan build dan rinciannya ikut masuk ke log kegagalan.
+
 ## v87
 - Tidak ada perubahan pada aplikasi. Build v85 gagal di CI karena kode tes tidak terkompilasi (konstanta pola filter belum dikualifikasi nama object); perbaikannya sudah ada di v86 dan rilis ini memastikan perbaikan tersebut ikut dipublikasikan.
 
