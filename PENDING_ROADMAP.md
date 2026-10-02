@@ -137,6 +137,9 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    v90 (log CI #74: lint 1 error = DataExtractionRules; detekt 134 weighted): keputusan user = STRICT, perbaiki
    di kode, ~4 batch. Batch 1: lint `fullBackupContent` (`backup_rules.xml`) + `LogcatSnapshot.kt` &
    `LogcatSnapshotTest.kt` (sisa detekt dihitung dari log #74: 70 weighted di 12 berkas). BELUM terbukti CI.
+   v91 (log CI #75 = hasil v90): TERBUKTI build+tes hijau, lint 0 error, detekt 134 -> 70 weighted (tepat sesuai
+   perkiraan; 0 temuan di `LogcatSnapshot*`). Batch 2/4: `MainActivity.kt` (15 baris panjang + 9 magic number),
+   `HomeHero.kt` (3 baris), `Design.kt` (1 baris). Sisa dihitung: 42 weighted. BELUM terbukti CI.
 2. Belum ada dependency-update check otomatis (mis. Dependabot) utk `dev.rikka.shizuku`.
 
 ## G. UI/UX Premium (milestone, permintaan eksplisit user v59)

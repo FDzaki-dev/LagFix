@@ -1,5 +1,8 @@
 # Changelog
 
+## v91
+- Tidak ada perubahan perilaku aplikasi. Hasil CI v90: build dan tes hijau, lint 0 error, dan detekt turun dari 134 ke 70 temuan. Batch kedua perapian detekt: angka literal pada format interval dan durasi diganti konstanta bernama, baris panjang di layar utama dan komponen desain dipecah, dan satu pesan galat tes tulis dipisah ke variabel tanpa mengubah teksnya.
+
 ## v90
 - Tidak ada perubahan perilaku aplikasi. Pemeriksaan lint dibereskan dengan menambahkan aturan backup untuk Android 11 ke bawah (hasilnya tetap tanpa backup). Batch pertama perapian detekt pada kode snapshot logcat: angka literal diganti konstanta bernama, baris panjang dipecah, penangkapan galat di batas shell/I-O diberi alasan tertulis, dan fungsi `capture` dipecah menjadi bagian-bagian lebih kecil dengan isi dan urutan keluaran yang sama.
 

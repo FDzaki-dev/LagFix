@@ -51,9 +51,21 @@ internal fun HeroStatusCard(
     onRunNow: () -> Unit
 ) {
     val (title, body, action) = when (state) {
-        ShizukuState.NOT_INSTALLED -> Triple("Shizuku belum terpasang", "Pasang Shizuku, aktifkan via Wireless debugging (tanpa root).", "Unduh Shizuku")
-        ShizukuState.NOT_RUNNING -> Triple("Shizuku tidak aktif", "Buka Shizuku lalu jalankan layanannya.", "Buka Shizuku")
-        ShizukuState.NEED_PERMISSION -> Triple("Izin diperlukan", "Beri izin LagFix untuk memakai Shizuku.", "Beri izin")
+        ShizukuState.NOT_INSTALLED -> Triple(
+            "Shizuku belum terpasang",
+            "Pasang Shizuku, aktifkan via Wireless debugging (tanpa root).",
+            "Unduh Shizuku"
+        )
+        ShizukuState.NOT_RUNNING -> Triple(
+            "Shizuku tidak aktif",
+            "Buka Shizuku lalu jalankan layanannya.",
+            "Buka Shizuku"
+        )
+        ShizukuState.NEED_PERMISSION -> Triple(
+            "Izin diperlukan",
+            "Beri izin LagFix untuk memakai Shizuku.",
+            "Beri izin"
+        )
         ShizukuState.READY -> Triple("Siap", "Shizuku aktif dan izin diberikan.", null)
     }
     val ready = state == ShizukuState.READY

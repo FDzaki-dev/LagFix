@@ -257,8 +257,11 @@ internal fun GlassCard(
                 }
                 .border(1.dp, glassBorder, shape)
                 .then(
-                    if (animateSize) Modifier.animateContentSize(animationSpec = tween(durationMillis = LagMotion.CONTENT_MS))
-                    else Modifier
+                    if (animateSize) {
+                        Modifier.animateContentSize(animationSpec = tween(durationMillis = LagMotion.CONTENT_MS))
+                    } else {
+                        Modifier
+                    }
                 ),
             content = content
         )

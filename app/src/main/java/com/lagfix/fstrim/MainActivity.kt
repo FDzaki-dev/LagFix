@@ -176,7 +176,9 @@ private fun HomeScreen(vm: MainViewModel) {
     // (scroll per tab, mulai dari atas; komposisi tab tak diulang saat tab lain dibuang). Selama transisi
     // (~300 ms) 2 tab terkomposisi & sentuhan diblokir (`transitioning`) agar tak menekan widget tak
     // terlihat. Ketuk bolak-balik cepat: efek restart, alpha lanjut dari nilai terkini.
-    val tabAlphas = remember { listOf(Animatable(if (selectedTab == 0) 1f else 0f), Animatable(if (selectedTab == 1) 1f else 0f)) }
+    val tabAlphas = remember {
+        listOf(Animatable(if (selectedTab == 0) 1f else 0f), Animatable(if (selectedTab == 1) 1f else 0f))
+    }
     val tabComposed = remember { mutableStateListOf(selectedTab == 0, selectedTab == 1) }
     var transitioning by remember { mutableStateOf(false) }
     LaunchedEffect(selectedTab) {
@@ -206,7 +208,8 @@ private fun HomeScreen(vm: MainViewModel) {
                 NavigationBarItem(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    icon = { Icon(painterResource(R.drawable.ic_nav_home), contentDescription = null) }, // v62 (M2): label "Utama" sudah dibaca TalkBack
+                    // v62 (M2): label "Utama" sudah dibaca TalkBack
+                    icon = { Icon(painterResource(R.drawable.ic_nav_home), contentDescription = null) },
                     label = { Text("Utama") }
                 )
                 NavigationBarItem(
@@ -312,7 +315,8 @@ private fun HomeScreen(vm: MainViewModel) {
                 confirmButton = {
                     TextButton(onClick = {
                         showRunConfirm = false
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) // v71 (M4): tick ringan; ikut pengaturan sentuhan sistem
+                        // v71 (M4): tick ringan; ikut pengaturan sentuhan sistem
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         vm.runNow()
                     }) { Text("Jalankan") }
                 },
@@ -393,11 +397,14 @@ private fun MainTab(
     )
 }
 
+private const val INTERVAL_MIN_PER_DAY = 1440L
+private const val INTERVAL_MIN_PER_HOUR = 60L
+
 // v44: menit -> teks manusiawi ("15 menit", "1 jam 30 menit", "3 hari"). Murni format, 0 side-effect.
 internal fun formatInterval(minutes: Long): String {
-    val d = minutes / 1440L
-    val h = (minutes % 1440L) / 60L
-    val m = minutes % 60L
+    val d = minutes / INTERVAL_MIN_PER_DAY
+    val h = (minutes % INTERVAL_MIN_PER_DAY) / INTERVAL_MIN_PER_HOUR
+    val m = minutes % INTERVAL_MIN_PER_HOUR
     val parts = buildList {
         if (d > 0) add("$d hari")
         if (h > 0) add("$h jam")
@@ -473,7 +480,8 @@ private fun SettingsTab(
                     value = customText,
                     onValueChange = { customText = it.filter(Char::isDigit).take(6) },
                     modifier = Modifier.weight(1f),
-                    // v64: label dipersingkat + 1 baris (sebelumnya membungkus 2 baris & merusak notch outline di kolom setengah lebar).
+                    // v64: label dipersingkat + 1 baris (sebelumnya membungkus 2 baris & merusak notch outline
+                    // di kolom setengah lebar).
                     label = { Text("Kustom (menit)", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     singleLine = true,
                     isError = customText.isNotEmpty() && !customValid,
@@ -541,7 +549,8 @@ private fun SettingsTab(
                     "tanpa menunggu Shizuku hidup. Cara kerja ini dari laporan pengguna mFSTRIM dan " +
                     "BELUM diverifikasi di HP ini. Shizuku hanya dibutuhkan saat mengubah. Nilainya tersimpan " +
                     "di sistem dan tetap ada walau LagFix di-uninstall: tekan Reset untuk mengembalikan. " +
-                    "Trim oleh sistem ini TIDAK masuk Riwayat; jejaknya bisa dicari lewat \"Ambil logcat sistem\" di Info & diagnostik.",
+                    "Trim oleh sistem ini TIDAK masuk Riwayat; jejaknya bisa dicari lewat " +
+                        "\"Ambil logcat sistem\" di Info & diagnostik.",
                 style = MaterialTheme.typography.bodySmall
             )
             val reading = bootTrim.reading
@@ -560,7 +569,13 @@ private fun SettingsTab(
                 enabled = canChange && !alreadyOn,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (reading is BootTrimReading.Value) "Timpa dengan 1 ms (tiap reboot)" else "Aktifkan (tiap reboot)")
+                Text(
+                    if (reading is BootTrimReading.Value) {
+                        "Timpa dengan 1 ms (tiap reboot)"
+                    } else {
+                        "Aktifkan (tiap reboot)"
+                    }
+                )
             }
             TextButton(
                 onClick = { vm.changeBootTrim(false) },
@@ -768,7 +783,8 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
                                 onFeedback("Tes tulis BERHASIL — daftar log dimuat ulang otomatis.")
                                 load()
                             } else {
-                                onFeedback("Tes tulis GAGAL: ${result.exceptionOrNull()?.message ?: "error tidak diketahui"}")
+                                val writeFailReason = result.exceptionOrNull()?.message ?: "error tidak diketahui"
+                                onFeedback("Tes tulis GAGAL: $writeFailReason")
                             }
                         }
                     }
@@ -815,7 +831,8 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
                 style = MaterialTheme.typography.bodySmall
             )
             !loading && logs.isEmpty() -> Text(
-                "Belum ada file log ditemukan (baik di Documents/LagFix, Download/LagFix lama, maupun cadangan internal app).",
+                "Belum ada file log ditemukan (baik di Documents/LagFix, Download/LagFix lama, " +
+                    "maupun cadangan internal app).",
                 style = MaterialTheme.typography.bodySmall
             )
         }
@@ -955,7 +972,8 @@ private fun LogLine(line: String) {
         parsed.skipped -> statusColors.warning
         else -> MaterialTheme.colorScheme.error
     }
-    // v80 (M6): baris "dilewati" (amber) sebelumnya berlabel FAIL padahal legenda Statistik membedakan Dilewati vs Gagal.
+    // v80 (M6): baris "dilewati" (amber) sebelumnya berlabel FAIL padahal legenda Statistik
+    // membedakan Dilewati vs Gagal.
     val status = when {
         parsed.ok -> "OK"
         parsed.skipped -> "SKIP"
@@ -989,12 +1007,16 @@ private fun parseRunStats(log: List<String>): List<RunStat> =
         RunStat(p.stamp, p.ok, p.skipped, ms, p.trigger)
     }
 
+private const val DURATION_MS_PER_TENTH = 100L
+private const val DURATION_HALF_TENTH_MS = 50L
+private const val DURATION_TENTHS_PER_SECOND = 10L
+
 // v38: "820ms" tak bermakna bagi user awam -> tampilkan dalam detik (1 desimal, koma gaya
 // Indonesia). Di bawah 0,1 detik ditulis "< 0,1 detik" supaya tak jadi "0,0 detik" yg membingungkan.
 private fun formatDuration(ms: Long): String {
-    if (ms < 100L) return "< 0,1 detik"
-    val tenths = (ms + 50L) / 100L
-    return "${tenths / 10},${tenths % 10} detik"
+    if (ms < DURATION_MS_PER_TENTH) return "< 0,1 detik"
+    val tenths = (ms + DURATION_HALF_TENTH_MS) / DURATION_MS_PER_TENTH
+    return "${tenths / DURATION_TENTHS_PER_SECOND},${tenths % DURATION_TENTHS_PER_SECOND} detik"
 }
 
 @Composable
@@ -1055,7 +1077,8 @@ private fun RunHistoryChart(stats: List<RunStat>, avgOkMs: Long) {
     val avgLineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
     val haloColor = MaterialTheme.colorScheme.surface // v80 (M6): halo gelap di bawah garis rata-rata
     val hasManualMarker = stats.any { it.trigger == TriggerSource.MANUAL }
-    // v82 (M9): Canvas tak punya semantik -> TalkBack dulu membaca sumbu terpotong-potong / diam. Satu ringkasan menggantikan semuanya.
+    // v82 (M9): Canvas tak punya semantik -> TalkBack dulu membaca sumbu terpotong-potong / diam.
+    // Satu ringkasan menggantikan semuanya.
     val chartDescription = buildString {
         append("Grafik lama tiap proses: ${stats.size} proses, ")
         append(if (stats.size > 1) "dari ${stats.first().stamp} sampai ${stats.last().stamp}" else stats.first().stamp)
@@ -1067,7 +1090,10 @@ private fun RunHistoryChart(stats: List<RunStat>, avgOkMs: Long) {
         Modifier.clearAndSetSemantics { contentDescription = chartDescription },
         verticalArrangement = Arrangement.spacedBy(LagSpacing.xs)
     ) {
-        Row(Modifier.fillMaxWidth().height(LagChart.HEIGHT), horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
+        Row(
+            Modifier.fillMaxWidth().height(LagChart.HEIGHT),
+            horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)
+        ) {
             // Sumbu vertikal: nilai tertinggi di atas, 0 di bawah — biar tinggi batang ada acuan angka.
             Column(
                 Modifier.fillMaxHeight(),
@@ -1083,7 +1109,8 @@ private fun RunHistoryChart(stats: List<RunStat>, avgOkMs: Long) {
             }
             Canvas(Modifier.weight(1f).fillMaxHeight()) {
                 // v80 (M6): semua ukuran dari token LagChart (dp -> px), bukan px literal; alpha garis dasar 0.4->0.6
-                // (kontras 2.8 -> 4.7, lihat Design.kt); garis rata-rata diberi halo gelap agar tetap terlihat di atas batang.
+                // (kontras 2.8 -> 4.7, lihat Design.kt); garis rata-rata diberi halo gelap agar tetap
+                // terlihat di atas batang.
                 val barGapPx = LagChart.BAR_GAP.toPx()
                 val n = stats.size.coerceAtLeast(1)
                 val barWidth = ((size.width - barGapPx * (n - 1)) / n).coerceAtLeast(1f)
@@ -1162,7 +1189,13 @@ private fun RunHistoryChart(stats: List<RunStat>, avgOkMs: Long) {
 // v38: legenda warna — satu Text ber-AnnotatedString (bukan Row berlapis) supaya otomatis turun
 // baris & tidak terpotong di layar sempit/font besar. Hanya kategori yang MEMANG ada yang ditampilkan.
 @Composable
-private fun StatsLegend(hasOk: Boolean, hasSkipped: Boolean, hasFail: Boolean, hasAvg: Boolean, hasManual: Boolean = false) {
+private fun StatsLegend(
+    hasOk: Boolean,
+    hasSkipped: Boolean,
+    hasFail: Boolean,
+    hasAvg: Boolean,
+    hasManual: Boolean = false
+) {
     val errorColor = MaterialTheme.colorScheme.error
     val statusColors = LocalStatusColors.current
     val items = mutableListOf<Pair<Color, String>>()
@@ -1267,7 +1300,8 @@ private fun UpdateCard(
 @Composable
 private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     // v82 (M9): seluruh baris = SATU target Switch (`toggleable`): TalkBack membaca label + status "aktif/nonaktif"
-    // (sebelumnya Switch terbaca tanpa label), target sentuh >= 48dp (dulu hanya Switch ~32dp). Callback `onChange` sama.
+    // (sebelumnya Switch terbaca tanpa label), target sentuh >= 48dp (dulu hanya Switch ~32dp).
+    // Callback `onChange` sama.
     Row(
         Modifier
             .fillMaxWidth()
@@ -1287,7 +1321,8 @@ private fun CardTitle(text: String) {
     Text(text, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
 }
 
-// v82 (M9): baris lipat (Pengaturan) — glif ▾/▴ dekoratif (dulu dibaca "segitiga hitam"), status dibaca "Terbuka/Tertutup".
+// v82 (M9): baris lipat (Pengaturan) — glif ▾/▴ dekoratif (dulu dibaca "segitiga hitam"),
+// status dibaca "Terbuka/Tertutup".
 @Composable
 private fun FoldHeader(label: String, expanded: Boolean, onToggle: () -> Unit) {
     TextButton(
