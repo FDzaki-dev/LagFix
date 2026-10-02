@@ -1,5 +1,8 @@
 # Changelog
 
+## v78
+- Notifikasi "Layanan latar depan persisten" kini dipulihkan otomatis saat jadwal interval berjalan: di awal dan akhir tiap run, bila toggle aktif tetapi notifikasi tidak tampil (hilang atau diturunkan sistem), notifikasi dimunculkan lagi. Tidak ada timer, alarm, atau file log tambahan. Ini upaya mitigasi, bukan jaminan: ROM tetap bisa mencabutnya lagi atau mematikan proses.
+
 ## v77
 - Pindah tab dengan geser (swipe): geser ke kiri membuka Pengaturan, geser ke kanan kembali ke Utama, tanpa harus menekan ikon di bawah. Animasi ganti tab sama seperti saat menekan ikon. Menggeser baris chip interval tetap menggulir chip, bukan pindah tab.
 - Semua jam kini memakai format 12 jam (AM/PM), mis. "02/10 07:05 PM": Riwayat, sumbu waktu grafik Statistik, ringkasan terakhir dijalankan, dan widget (widget memakai "2/10 7:05 PM" agar baris status tidak terpotong). Riwayat lama tetap terbaca. Nama file log (mis. LagFix_diag_..._073121.txt) tetap 24 jam karena itu nama file, bukan tampilan jam.

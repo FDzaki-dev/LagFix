@@ -22,6 +22,8 @@ import java.util.concurrent.TimeUnit
 class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val prefs = Prefs(applicationContext)
+        // v78: jaga notifikasi servis persisten (hilang saat interval berjalan, laporan user) — cek di awal...
+        PersistentTrimService.ensureShowing(applicationContext, "worker-start")
         // v19 hotfix (laporan user: widget "nol feedback" — tap tak ada hasil terlihat): flag ini
         // HANYA true kalau datang dari Scheduler.runOnce() (widget/tile, manual). Jadwal periodik
         // (Scheduler.apply()) tidak pernah set input data ini -> default false -> toast TIDAK
@@ -50,12 +52,14 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             // berikutnya. Panggil UNCONDITIONAL (bukan cuma `manual`) supaya jadwal otomatis pun,
             // kalau/kapan jalan, langsung sinkron ke widget/tile juga — bukan cuma trigger manual.
             Scheduler.notifyChanged(applicationContext)
+            PersistentTrimService.ensureShowing(applicationContext, "worker-end") // v78
             if (manual) toast(applicationContext.getString(R.string.toast_shizuku_not_ready))
             return@withContext Result.retry()
         }
         val r = FstrimExecutor.run()
         prefs.record(r, trigger)
         Scheduler.notifyChanged(applicationContext)
+        PersistentTrimService.ensureShowing(applicationContext, "worker-end") // v78: ...dan setelah run selesai
         if (manual) {
             val msg = if (r.ok) {
                 applicationContext.getString(R.string.toast_run_ok)

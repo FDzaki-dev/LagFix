@@ -86,6 +86,10 @@ class PersistentTrimService : Service() {
         // importance channel asli, & hasil startForeground() (sukses/exception apa). Channel itu
         // sendiri dibuat di onCreate() (sebelum onStartCommand() ini pernah jalan), jadi nilainya
         // identik dibaca sebelum atau sesudah startForeground() — aman dipindah ke sini.
+        // v78: start "quiet" (re-assert dari TrimWorker tiap interval, lihat `ensureShowing`) HANYA log
+        // logcat, TANPA file diagnostik — interval 15 mnt = 96 file/hari di Documents/LagFix (user sudah
+        // pernah minta folder log tak penuh, v51). Start biasa (toggle/cold start/sticky) tak berubah.
+        if (intent?.getBooleanExtra(EXTRA_QUIET, false) == true) return START_STICKY
         val notifMgrCompat = NotificationManagerCompat.from(this)
         val preCheck = "areNotificationsEnabled() = ${notifMgrCompat.areNotificationsEnabled()}\n" +
             "channel importance (getNotificationChannelCompat) = " +
@@ -140,17 +144,55 @@ class PersistentTrimService : Service() {
         private const val NOTIF_ID = 42
 
         private const val TAG = "PersistentTrimService"
+        private const val EXTRA_QUIET = "quiet"
 
         // v49: umur proses (ms) sejak dibuat. Kecil (< beberapa detik) saat onCreate servis =
         // servis lahir bersamaan proses baru (cold start / revive), bukan servis lama yg hidup terus.
         // `getStartElapsedRealtime()` API 24+, minSdk 26.
         private fun procAgeMs(): Long = SystemClock.elapsedRealtime() - Process.getStartElapsedRealtime()
 
-        fun start(ctx: Context) {
+        fun start(ctx: Context, quiet: Boolean = false) {
             val app = ctx.applicationContext
-            ContextCompat.startForegroundService(app, Intent(app, PersistentTrimService::class.java))
-            Log.i(TAG, "LIFECYCLE start() -> startForegroundService() dipanggil pid=${Process.myPid()}")
+            ContextCompat.startForegroundService(
+                app,
+                Intent(app, PersistentTrimService::class.java).putExtra(EXTRA_QUIET, quiet)
+            )
+            Log.i(TAG, "LIFECYCLE start() -> startForegroundService() dipanggil quiet=$quiet pid=${Process.myPid()}")
         }
+
+        /**
+         * v78 (laporan user: notifikasi persisten mendadak hilang saat interval otomatis berjalan
+         * sementara app terbuka/nangkring di Recents). Audit kode: TIDAK ada jalur app yang menghentikan
+         * servis/notifikasi saat interval jalan (`stop()` cuma dari toggle OFF; 0 `stopForeground`/
+         * `stopSelf`/`cancel`) -> penghentiannya datang dari SISTEM (atau user menggeser notifikasi).
+         * Mitigasi: `TrimWorker` memanggil ini di awal & akhir tiap run. Bila toggle ON tapi notifikasi
+         * TIDAK tampil sebagai FGS (hilang / diturunkan sistem), servis di-start ulang -> `startForeground()`
+         * memostingnya lagi. Idempoten, tanpa timer/alarm/loop (guard Battery). Start dari background
+         * bisa ditolak OS Android 12+ -> ditangkap, bukan crash. Tak ada jaminan 100% (ROM tetap bisa
+         * mencabutnya lagi / membunuh proses).
+         */
+        fun ensureShowing(ctx: Context, from: String) {
+            val app = ctx.applicationContext
+            val enabled = Prefs(app).persistentServiceEnabled
+            val shown = isForegroundNotificationShown(app)
+            Log.i(
+                TAG,
+                "LIFECYCLE ensureShowing from=$from pid=${Process.myPid()} procAge=${procAgeMs()}ms " +
+                    "toggleOn=$enabled shown=$shown"
+            )
+            if (!enabled || shown) return
+            runCatching { start(app, quiet = true) }
+                .onFailure { Log.w(TAG, "Re-assert notifikasi persisten ditolak OS (from=$from)", it) }
+        }
+
+        // Notifikasi id 42 tampil DAN masih berflag FOREGROUND_SERVICE (kalau sistem menurunkan FGS,
+        // notifikasi bisa tetap ada tanpa flag itu -> dianggap tidak tampil). Gagal baca -> false (aman:
+        // start ulang itu idempoten).
+        private fun isForegroundNotificationShown(ctx: Context): Boolean = runCatching {
+            ctx.getSystemService(NotificationManager::class.java)?.activeNotifications?.any {
+                it.id == NOTIF_ID && (it.notification.flags and Notification.FLAG_FOREGROUND_SERVICE) != 0
+            } ?: false
+        }.getOrDefault(false)
 
         /**
          * v40: nyalakan lagi servis kalau toggle persisten aktif — dipanggil dari
