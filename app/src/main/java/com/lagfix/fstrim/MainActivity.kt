@@ -64,6 +64,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -73,6 +74,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -155,22 +158,34 @@ private fun HomeScreen(vm: MainViewModel) {
         wasRunning = ui.running
     }
 
-    // v75 (fix fade tab, dari rekaman layar user): AnimatedContent v74 menyusun tab baru (berat: Riwayat/
-    // Statistik/Pengaturan) DI AWAL transisi, saat tab lama masih tampak -> frame berat itu jatuh di tengah
-    // fade-out; jam animasi jalan berdasar waktu nyata, jadi fade ketelan & layar "loncat" (rekaman: beku
-    // 80-170 ms lalu tab baru muncul utuh). Kini fade pakai Animatable + graphicsLayer (fase gambar saja,
-    // 0 rekomposisi per frame): tab lama memudar DULU, baru tab diganti saat alpha = 0 (jank tak terlihat),
-    // lalu tab baru memudar masuk SETELAH frame berat lewat. Hanya 1 tab terkomposisi (a11y/sentuh/scroll
-    // per tab sama seperti v73). Ketuk cepat bolak-balik: efek restart, alpha lanjut dari nilai terkini.
-    var displayedTab by rememberSaveable { mutableStateOf(selectedTab) }
-    val tabAlpha = remember { Animatable(1f) }
+    // v76 (fix fade tab, rekaman layar ke-2): v75 mengganti tab SAAT alpha 0 -> komposisi tab baru yang
+    // berat jatuh di tengah fade -> layar kosong 83-200 ms (8 dari 8 pindah tab di rekaman) di antara
+    // fade-out & fade-in. Kini tab tujuan DIKOMPOSISI DULU (alpha 0) selagi tab lama masih tampak penuh
+    // & diam; frame berat itu lewat DULU (2x withFrameNanos), BARU fade dimulai: lama 1->0 (TAB_OUT_MS),
+    // lalu baru 0->1 (TAB_IN_MS) -> fade murni di fase gambar (graphicsLayer), 0 rekomposisi/frame, tanpa
+    // layar kosong. Tab lama dibuang dari komposisi setelah alpha 0. Tiap tab pakai `key(tab)` sendiri
+    // (scroll per tab, mulai dari atas; komposisi tab tak diulang saat tab lain dibuang). Selama transisi
+    // (~300 ms) 2 tab terkomposisi & sentuhan diblokir (`transitioning`) agar tak menekan widget tak
+    // terlihat. Ketuk bolak-balik cepat: efek restart, alpha lanjut dari nilai terkini.
+    val tabAlphas = remember { listOf(Animatable(if (selectedTab == 0) 1f else 0f), Animatable(if (selectedTab == 1) 1f else 0f)) }
+    val tabComposed = remember { mutableStateListOf(selectedTab == 0, selectedTab == 1) }
+    var transitioning by remember { mutableStateOf(false) }
     LaunchedEffect(selectedTab) {
-        if (displayedTab != selectedTab) {
-            tabAlpha.animateTo(0f, tween(durationMillis = LagMotion.TAB_OUT_MS, easing = FastOutLinearInEasing))
-            displayedTab = selectedTab // komposisi tab baru jatuh di sini, saat tak terlihat
-            withFrameNanos { } // lewati frame berat itu dulu; fade-in baru mulai sesudahnya
+        val target = selectedTab
+        val other = 1 - target
+        val needsFade = tabAlphas[target].value < 1f || tabAlphas[other].value > 0f
+        if (needsFade) {
+            transitioning = true
+            if (!tabComposed[target]) {
+                tabComposed[target] = true // tab tujuan masuk komposisi, alpha 0 (tak terlihat)
+                withFrameNanos { } // frame komposisi/layout berat jatuh di sini, tab lama masih utuh
+                withFrameNanos { } // pastikan frame itu selesai sebelum animasi mulai
+            }
+            tabAlphas[other].animateTo(0f, tween(durationMillis = LagMotion.TAB_OUT_MS, easing = FastOutLinearInEasing))
+            tabComposed[other] = false
+            tabAlphas[target].animateTo(1f, tween(durationMillis = LagMotion.TAB_IN_MS, easing = FastOutSlowInEasing))
+            transitioning = false
         }
-        tabAlpha.animateTo(1f, tween(durationMillis = LagMotion.TAB_IN_MS, easing = FastOutSlowInEasing))
     }
 
     Scaffold(
@@ -194,35 +209,55 @@ private fun HomeScreen(vm: MainViewModel) {
             }
         }
     ) { pad ->
-        // v75: lihat efek `tabAlpha` di atas. `key(displayedTab)` = tiap tab punya posisi scroll sendiri
-        // & mulai dari atas (seperti v71/v73). Isi memakai `displayedTab` (BUKAN selectedTab) agar tab
-        // yang sedang memudar tetap menampilkan dirinya sendiri. Callback/state/argumen tab identik v73.
-        Box(Modifier.padding(pad).fillMaxSize().graphicsLayer { alpha = tabAlpha.value }) {
-            key(displayedTab) {
-                Column(
-                    Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(LagSpacing.lg),
-                    verticalArrangement = Arrangement.spacedBy(LagSpacing.md)
-                ) {
-                    if (displayedTab == 0) {
-                        MainTab(
-                            ui = ui,
-                            ctx = ctx,
-                            versionName = versionName,
-                            onRunNow = { showRunConfirm = true }, // v11: minta konfirmasi dulu
-                            onGrant = vm::requestPermission,
-                            onCheckUpdate = vm::checkUpdate,
-                            onInstallUpdate = vm::installUpdate
-                        )
-                    } else {
-                        SettingsTab(
-                            ui = ui,
-                            ctx = ctx,
-                            vm = vm,
-                            onFeedback = onFeedback,
-                            onAboutClick = { showAbout = true }
-                        )
+        // v76: lihat efek `tabAlphas` di atas. Isi tiap tab memakai `tab` dari loop (BUKAN selectedTab)
+        // agar tab yang sedang memudar tetap menampilkan dirinya sendiri. Callback/state/argumen tab
+        // identik v73.
+        Box(Modifier.padding(pad).fillMaxSize()) {
+            for (tab in 0..1) {
+                if (tabComposed[tab]) {
+                    key(tab) {
+                        Column(
+                            Modifier
+                                .fillMaxSize()
+                                .graphicsLayer { alpha = tabAlphas[tab].value }
+                                .imePadding()
+                                .verticalScroll(rememberScrollState())
+                                .padding(LagSpacing.lg),
+                            verticalArrangement = Arrangement.spacedBy(LagSpacing.md)
+                        ) {
+                            if (tab == 0) {
+                                MainTab(
+                                    ui = ui,
+                                    ctx = ctx,
+                                    versionName = versionName,
+                                    onRunNow = { showRunConfirm = true }, // v11: minta konfirmasi dulu
+                                    onGrant = vm::requestPermission,
+                                    onCheckUpdate = vm::checkUpdate,
+                                    onInstallUpdate = vm::installUpdate
+                                )
+                            } else {
+                                SettingsTab(
+                                    ui = ui,
+                                    ctx = ctx,
+                                    vm = vm,
+                                    onFeedback = onFeedback,
+                                    onAboutClick = { showAbout = true }
+                                )
+                            }
+                        }
                     }
                 }
+            }
+            if (transitioning) { // blokir sentuhan selama transisi (~300 ms): tab tujuan belum terlihat
+                Box(
+                    Modifier.fillMaxSize().pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+                            }
+                        }
+                    }
+                )
             }
         }
 

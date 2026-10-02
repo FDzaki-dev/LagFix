@@ -1,5 +1,8 @@
 # Changelog
 
+## v76
+- Perpindahan tab: layar tidak lagi kosong sesaat di antara fade-out dan fade-in. Tab tujuan disiapkan lebih dulu selagi tab lama masih tampil, baru kemudian tab lama memudar dan tab baru muncul. Sentuhan ditahan selama transisi (sekitar 0,3 detik). Hanya animasi ganti tab yang berubah.
+
 ## v75
 - Perpindahan tab diperbaiki berdasarkan rekaman layar: sebelumnya layar sempat membeku sesaat lalu tab baru muncul tiba-tiba tanpa fade. Sekarang tab lama memudar dulu, baru tab baru disiapkan saat layar tak terlihat berubah, lalu memudar masuk. Hanya animasi ganti tab yang berubah.
 
