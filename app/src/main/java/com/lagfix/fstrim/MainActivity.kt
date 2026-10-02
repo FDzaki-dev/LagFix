@@ -23,6 +23,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -84,6 +85,12 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontFamily
@@ -343,7 +350,7 @@ private fun MainTab(
 
     GlassCard(Modifier.fillMaxWidth(), animateSize = true) { // v71 (M4): tinggi kartu halus saat isi berubah
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.xs)) {
-            Text("Riwayat", style = MaterialTheme.typography.titleMedium)
+            CardTitle("Riwayat")
             if (ui.lastRunMs == 0L) {
                 HistoryEmptyState() // v68 (M3): copy lama "Belum pernah dijalankan" + petunjuk aksi
             } else {
@@ -415,7 +422,7 @@ private fun SettingsTab(
     var logOpen by rememberSaveable { mutableStateOf(false) }
     GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-            Text("Jadwal", style = MaterialTheme.typography.titleMedium)
+            CardTitle("Jadwal")
             ToggleRow("Jadwal otomatis", ui.enabled) {
                 vm.setEnabled(it)
                 onFeedback(if (it) "Jadwal otomatis diaktifkan." else "Jadwal otomatis dinonaktifkan.")
@@ -500,7 +507,7 @@ private fun SettingsTab(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text("Baterai: berjalan tanpa batas", Modifier.weight(1f))
-                    Text("✓")
+                    Text("✓", Modifier.decorative())
                 }
             } else {
                 Text(
@@ -512,7 +519,7 @@ private fun SettingsTab(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Izinkan berjalan tanpa batas", Modifier.weight(1f))
-                    Text("↗")
+                    Text("↗", Modifier.decorative())
                 }
             }
         }
@@ -531,12 +538,9 @@ private fun SettingsTab(
     // (Scheduler.apply(), 0 diubah).
     GlassCard(Modifier.fillMaxWidth(), animateSize = true) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-            Text("Keandalan latar belakang", style = MaterialTheme.typography.titleMedium)
+            CardTitle("Keandalan latar belakang")
             // v79 (M5): kartu "Agar jadwal tetap jalan" (v49) digabung ke sini sbg panduan yang bisa dilipat.
-            TextButton(onClick = { guideOpen = !guideOpen }, modifier = Modifier.fillMaxWidth()) {
-                Text("Panduan agar jadwal tetap jalan", Modifier.weight(1f))
-                Text(if (guideOpen) "▴" else "▾")
-            }
+            FoldHeader("Panduan agar jadwal tetap jalan", guideOpen) { guideOpen = !guideOpen }
             if (guideOpen) {
                 Text(
                     "Jadwal otomatis jalan di latar belakang, jadi HP tidak boleh mematikan LagFix. " +
@@ -579,7 +583,7 @@ private fun SettingsTab(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Buka Info Aplikasi LagFix", Modifier.weight(1f))
-                    Text("↗")
+                    Text("↗", Modifier.decorative())
                 }
             }
             val notifPermissionLauncher = rememberLauncherForActivityResult(
@@ -656,11 +660,8 @@ private fun SettingsTab(
     // v12: tautan dipindah dari tab Utama biar tab Utama cuma isi fitur utama (status/aksi/riwayat/pembaruan).
     GlassCard(Modifier.fillMaxWidth(), animateSize = true) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.xs)) {
-            Text("Info & diagnostik", style = MaterialTheme.typography.titleMedium)
-            TextButton(onClick = { logOpen = !logOpen }, modifier = Modifier.fillMaxWidth()) {
-                Text("Log diagnostik", Modifier.weight(1f))
-                Text(if (logOpen) "▴" else "▾")
-            }
+            CardTitle("Info & diagnostik")
+            FoldHeader("Log diagnostik", logOpen) { logOpen = !logOpen }
             if (logOpen) LogReaderCard(ctx = ctx, onFeedback = onFeedback)
             LinkRow("Unduh rilis terbaru") { openUrl(ctx, AppLinks.releases) }
             LinkRow("Lihat kode sumber") { openUrl(ctx, AppLinks.source) }
@@ -798,7 +799,7 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
 private fun LinkRow(label: String, onClick: () -> Unit) {
     TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Text(label, Modifier.weight(1f))
-        Text("↗")
+        Text("↗", Modifier.decorative())
     }
 }
 
@@ -811,7 +812,7 @@ private fun openUrl(ctx: Context, url: String) {
 private fun AboutRow(label: String, onClick: () -> Unit) {
     TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Text(label, Modifier.weight(1f))
-        Text("›")
+        Text("›", Modifier.decorative())
     }
 }
 
@@ -835,7 +836,7 @@ private fun AboutDialog(
                 Text("Paket: $packageName")
                 TextButton(onClick = onOpenSource, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
                     Text("Source & developer", Modifier.weight(1f))
-                    Text("↗")
+                    Text("↗", Modifier.decorative())
                 }
             }
         }
@@ -889,7 +890,7 @@ private fun LogLine(line: String) {
     // v38: tampilkan pemicu run (Manual/Otomatis) kalau ada; baris lama tanpa token -> tanpa tag.
     val triggerTag = if (parsed.trigger.isNotEmpty()) " (${parsed.trigger})" else ""
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("●", color = tint, style = MaterialTheme.typography.bodySmall)
+        Text("●", modifier = Modifier.decorative(), color = tint, style = MaterialTheme.typography.bodySmall)
         Text(
             "${parsed.stamp} $status$triggerTag ${parsed.rest}",
             style = MaterialTheme.typography.bodySmall,
@@ -942,7 +943,7 @@ private fun StatsCard(log: List<String>) {
 
     GlassCard(Modifier.fillMaxWidth(), animateSize = true) { // v71 (M4): tinggi kartu halus saat isi berubah
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-            Text("Statistik", style = MaterialTheme.typography.titleMedium)
+            CardTitle("Statistik")
             Text(
                 "Dari ${stats.size} proses terakhir: $okCount berhasil · $skippedCount dilewati · $failCount gagal" +
                     if (withTrigger.isNotEmpty()) " ($autoCount otomatis · $manualCount manual)" else "",
@@ -980,7 +981,18 @@ private fun RunHistoryChart(stats: List<RunStat>, avgOkMs: Long) {
     val avgLineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
     val haloColor = MaterialTheme.colorScheme.surface // v80 (M6): halo gelap di bawah garis rata-rata
     val hasManualMarker = stats.any { it.trigger == TriggerSource.MANUAL }
-    Column(verticalArrangement = Arrangement.spacedBy(LagSpacing.xs)) {
+    // v82 (M9): Canvas tak punya semantik -> TalkBack dulu membaca sumbu terpotong-potong / diam. Satu ringkasan menggantikan semuanya.
+    val chartDescription = buildString {
+        append("Grafik lama tiap proses: ${stats.size} proses, ")
+        append(if (stats.size > 1) "dari ${stats.first().stamp} sampai ${stats.last().stamp}" else stats.first().stamp)
+        append(". Terlama ${formatDuration(rawMax)}")
+        if (avgOkMs > 0L) append(", rata-rata proses berhasil ${formatDuration(avgOkMs)}")
+        append(".")
+    }
+    Column(
+        Modifier.clearAndSetSemantics { contentDescription = chartDescription },
+        verticalArrangement = Arrangement.spacedBy(LagSpacing.xs)
+    ) {
         Row(Modifier.fillMaxWidth().height(LagChart.HEIGHT), horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             // Sumbu vertikal: nilai tertinggi di atas, 0 di bawah — biar tinggi batang ada acuan angka.
             Column(
@@ -1114,7 +1126,7 @@ private fun UpdateCard(
 
     GlassCard(Modifier.fillMaxWidth(), animateSize = true) { // v71 (M4): tinggi kartu halus saat isi berubah
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-            Text("Pembaruan", style = MaterialTheme.typography.titleMedium)
+            CardTitle("Pembaruan")
 
             when (result) {
                 null -> Text(if (checking) "Memeriksa pembaruan…" else "Ketuk untuk memeriksa versi terbaru di GitHub.")
@@ -1180,15 +1192,41 @@ private fun UpdateCard(
 
 @Composable
 private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    // v82 (M9): seluruh baris = SATU target Switch (`toggleable`): TalkBack membaca label + status "aktif/nonaktif"
+    // (sebelumnya Switch terbaca tanpa label), target sentuh >= 48dp (dulu hanya Switch ~32dp). Callback `onChange` sama.
     Row(
-        Modifier.fillMaxWidth(),
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onChange),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(label, Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onChange)
+        Switch(checked = checked, onCheckedChange = null)
     }
 }
+
+// v82 (M9): judul kartu = heading (TalkBack bisa lompat antar judul).
+@Composable
+private fun CardTitle(text: String) {
+    Text(text, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+}
+
+// v82 (M9): baris lipat (Pengaturan) — glif ▾/▴ dekoratif (dulu dibaca "segitiga hitam"), status dibaca "Terbuka/Tertutup".
+@Composable
+private fun FoldHeader(label: String, expanded: Boolean, onToggle: () -> Unit) {
+    TextButton(
+        onClick = onToggle,
+        modifier = Modifier.fillMaxWidth().semantics { stateDescription = if (expanded) "Terbuka" else "Tertutup" }
+    ) {
+        Text(label, Modifier.weight(1f))
+        Text(if (expanded) "▴" else "▾", Modifier.decorative())
+    }
+}
+
+// v82 (M9): glif hias (↗ › ✓ ● ▾) disembunyikan dari TalkBack; maknanya sudah ada di teks sebelahnya.
+private fun Modifier.decorative(): Modifier = clearAndSetSemantics { }
 
 private fun openShizuku(ctx: Context, state: ShizukuState) {
     val intent = if (state == ShizukuState.NOT_INSTALLED) {

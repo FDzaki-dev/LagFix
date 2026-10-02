@@ -1,5 +1,8 @@
 # Changelog
 
+## v82
+- Aksesibilitas (TalkBack): setiap saklar di Pengaturan kini terbaca lengkap dengan namanya dan seluruh barisnya bisa diketuk (minimal 48dp); grafik Statistik punya satu ringkasan yang dibaca TalkBack; judul kartu bisa dilompati sebagai heading; lipatan mengumumkan status terbuka/tertutup; simbol hias (panah, titik, centang) tidak lagi dibacakan. Tampilan hampir tidak berubah (baris saklar sedikit lebih tinggi).
+
 ## v81
 - Layar saat aplikasi baru dibuka (termasuk splash bawaan Android 12 ke atas) dikunci ke warna gelap midnight yang sama dengan latar aplikasi, supaya tidak ada kilatan warna lain sebelum tampilan utama muncul. Tidak ada perubahan fitur.
 
