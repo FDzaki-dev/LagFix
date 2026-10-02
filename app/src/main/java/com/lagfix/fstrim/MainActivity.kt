@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.material3.AlertDialog
@@ -879,7 +880,12 @@ private fun LogLine(line: String) {
         parsed.skipped -> statusColors.warning
         else -> MaterialTheme.colorScheme.error
     }
-    val status = if (parsed.ok) "OK" else "FAIL"
+    // v80 (M6): baris "dilewati" (amber) sebelumnya berlabel FAIL padahal legenda Statistik membedakan Dilewati vs Gagal.
+    val status = when {
+        parsed.ok -> "OK"
+        parsed.skipped -> "SKIP"
+        else -> "FAIL"
+    }
     // v38: tampilkan pemicu run (Manual/Otomatis) kalau ada; baris lama tanpa token -> tanpa tag.
     val triggerTag = if (parsed.trigger.isNotEmpty()) " (${parsed.trigger})" else ""
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -972,9 +978,10 @@ private fun RunHistoryChart(stats: List<RunStat>, avgOkMs: Long) {
     val warningColor = LocalStatusColors.current.warning
     val axisColor = MaterialTheme.colorScheme.onSurfaceVariant
     val avgLineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+    val haloColor = MaterialTheme.colorScheme.surface // v80 (M6): halo gelap di bawah garis rata-rata
     val hasManualMarker = stats.any { it.trigger == TriggerSource.MANUAL }
     Column(verticalArrangement = Arrangement.spacedBy(LagSpacing.xs)) {
-        Row(Modifier.fillMaxWidth().height(80.dp), horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
+        Row(Modifier.fillMaxWidth().height(LagChart.HEIGHT), horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             // Sumbu vertikal: nilai tertinggi di atas, 0 di bawah — biar tinggi batang ada acuan angka.
             Column(
                 Modifier.fillMaxHeight(),
@@ -989,14 +996,20 @@ private fun RunHistoryChart(stats: List<RunStat>, avgOkMs: Long) {
                 Text("0", style = MaterialTheme.typography.labelSmall, color = axisColor)
             }
             Canvas(Modifier.weight(1f).fillMaxHeight()) {
-                val barGapPx = 4f
+                // v80 (M6): semua ukuran dari token LagChart (dp -> px), bukan px literal; alpha garis dasar 0.4->0.6
+                // (kontras 2.8 -> 4.7, lihat Design.kt); garis rata-rata diberi halo gelap agar tetap terlihat di atas batang.
+                val barGapPx = LagChart.BAR_GAP.toPx()
                 val n = stats.size.coerceAtLeast(1)
                 val barWidth = ((size.width - barGapPx * (n - 1)) / n).coerceAtLeast(1f)
+                val baselinePx = LagChart.BASELINE_STROKE.toPx()
+                val minBarPx = LagChart.MIN_BAR_HEIGHT.toPx()
+                val radiusPx = minOf(LagChart.BAR_RADIUS.toPx(), barWidth / 2f)
+                val markerRadiusPx = LagChart.MARKER_RADIUS.toPx()
                 drawLine(
-                    color = axisColor.copy(alpha = 0.4f),
-                    start = Offset(0f, size.height - 1f),
-                    end = Offset(size.width, size.height - 1f),
-                    strokeWidth = 2f
+                    color = axisColor.copy(alpha = LagChart.BASELINE_ALPHA),
+                    start = Offset(0f, size.height - baselinePx / 2f),
+                    end = Offset(size.width, size.height - baselinePx / 2f),
+                    strokeWidth = baselinePx
                 )
                 stats.forEachIndexed { i, s ->
                     val tint = when {
@@ -1007,19 +1020,20 @@ private fun RunHistoryChart(stats: List<RunStat>, avgOkMs: Long) {
                     // Tinggi minimum kecil biar durasi 0 (dilewati) tetap kelihatan sbg bar tipis,
                     // bukan hilang total — murni visual, 0 pengaruh ke data asli.
                     val ratio = (s.durationMs.toFloat() / maxDuration).coerceIn(0f, 1f)
-                    val barHeight = (size.height * ratio).coerceAtLeast(4f)
-                    drawRect(
+                    val barHeight = (size.height * ratio).coerceAtLeast(minBarPx)
+                    drawRoundRect(
                         color = tint,
                         topLeft = Offset(i * (barWidth + barGapPx), size.height - barHeight),
-                        size = Size(barWidth, barHeight)
+                        size = Size(barWidth, barHeight),
+                        cornerRadius = CornerRadius(radiusPx)
                     )
                     if (hasManualMarker && s.trigger == TriggerSource.MANUAL) {
                         drawCircle(
                             color = axisColor,
-                            radius = 3f,
+                            radius = markerRadiusPx,
                             center = Offset(
                                 i * (barWidth + barGapPx) + barWidth / 2f,
-                                (size.height - barHeight - 8f).coerceAtLeast(3f)
+                                (size.height - barHeight - LagChart.MARKER_OFFSET.toPx()).coerceAtLeast(markerRadiusPx)
                             )
                         )
                     }
@@ -1027,12 +1041,22 @@ private fun RunHistoryChart(stats: List<RunStat>, avgOkMs: Long) {
                 // Garis putus-putus = rata-rata proses yang berhasil: acuan cepat "di atas/di bawah biasanya".
                 if (avgOkMs > 0L) {
                     val y = size.height - (size.height * (avgOkMs.toFloat() / maxDuration)).coerceIn(0f, size.height)
+                    val dash = PathEffect.dashPathEffect(
+                        floatArrayOf(LagChart.AVG_DASH.toPx(), LagChart.AVG_DASH_GAP.toPx()), 0f
+                    )
+                    drawLine(
+                        color = haloColor.copy(alpha = LagChart.AVG_HALO_ALPHA),
+                        start = Offset(0f, y),
+                        end = Offset(size.width, y),
+                        strokeWidth = LagChart.AVG_HALO_STROKE.toPx(),
+                        pathEffect = dash
+                    )
                     drawLine(
                         color = avgLineColor,
                         start = Offset(0f, y),
                         end = Offset(size.width, y),
-                        strokeWidth = 2f,
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 8f), 0f)
+                        strokeWidth = LagChart.AVG_STROKE.toPx(),
+                        pathEffect = dash
                     )
                 }
             }

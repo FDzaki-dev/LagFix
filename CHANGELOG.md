@@ -1,5 +1,8 @@
 # Changelog
 
+## v80
+- Riwayat dan Statistik dipoles: garis dasar grafik dibuat lebih terang agar jelas terlihat, garis putus-putus rata-rata kini tetap terlihat saat melintasi batang, batang bersudut membulat, dan ukuran garis mengikuti kepadatan layar sehingga tidak terlalu tipis di HP beresolusi tinggi. Baris Riwayat yang dilewati kini berlabel SKIP (sebelumnya FAIL) agar sesuai dengan legenda Statistik. Data dan format riwayat tidak berubah.
+
 ## v79
 - Tab Pengaturan dirapikan: 5 kartu menjadi 3 bagian (Jadwal, Keandalan latar belakang, Info & diagnostik). Panduan agar jadwal tetap jalan kini digabung ke Keandalan latar belakang dan Log diagnostik digabung ke Info & diagnostik; keduanya bisa dilipat (tertutup secara bawaan) dengan tombol di dalam kartu. Isi, teks, dan semua tombol tidak berubah.
 

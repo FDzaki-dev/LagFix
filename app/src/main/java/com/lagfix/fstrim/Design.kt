@@ -208,6 +208,29 @@ internal object LagMotion {
     const val FADE_MS = 150 // progress run muncul/hilang
 }
 
+// --- Grafik Statistik (v80, M6) ------------------------------------------------------------------
+// Ukuran grafik dalam dp (sebelumnya px literal di MainActivity.kt -> makin tipis di layar padat).
+// Kontras elemen non-teks (WCAG 1.4.11, >=3:1) DIHITUNG dari nilai Color di atas vs latar kartu
+// (permukaan 0E1634; skenario terburuk = glow biru 22% + kaca 10%): garis dasar onSurfaceVariant
+// alpha 0.4 = 2.80 / 2.48 (GAGAL) -> alpha 0.6 = 4.72 / 3.75 (lolos); batang mint/amber/error
+// 10.3-11.7 / 7.0-7.9; titik manual 11.1 / 7.5; garis rata-rata di latar 9.2 / 6.7 TAPI di atas
+// batang cuma 1.1-1.3 -> diberi halo gelap (surface) di bawahnya (halo vs batang 10.3-11.7).
+internal object LagChart {
+    val HEIGHT = 80.dp
+    val BAR_GAP = 2.dp
+    val BAR_RADIUS = 2.dp
+    val MIN_BAR_HEIGHT = 3.dp // durasi 0 (dilewati) tetap tampak sbg batang tipis
+    val BASELINE_STROKE = 1.dp
+    const val BASELINE_ALPHA = 0.6f
+    val AVG_STROKE = 1.5.dp
+    val AVG_HALO_STROKE = 3.5.dp
+    const val AVG_HALO_ALPHA = 0.9f
+    val AVG_DASH = 4.dp
+    val AVG_DASH_GAP = 3.dp
+    val MARKER_RADIUS = 2.dp
+    val MARKER_OFFSET = 5.dp
+}
+
 // `animateSize = true` -> tinggi kartu berubah halus saat isinya berubah (mis. baris Riwayat baru,
 // status pembaruan). animateContentSize diletakkan PALING DALAM (setelah border) supaya latar kaca &
 // tepi ikut tumbuh bersama isi, bukan terpotong. Default false = semua pemanggil lama identik.

@@ -114,7 +114,8 @@ Urutan default: M1 -> M2 -> M3 -> M4 -> M5 -> M6 -> M7 -> M8 -> M9 (M1 dulu: mem
 | M3 | IMPLEMENTED (v68) — belum dikompilasi/diuji device | bagian 14 |
 | M4 | IMPLEMENTED (v71; fade tab diganti fade-through di v74, lalu fade manual `Animatable`+`graphicsLayer` di v75, lalu pre-compose tab tujuan sebelum fade di v76) — belum dikompilasi/diuji device | bagian 17 |
 | M5 | IMPLEMENTED (v79) — belum dikompilasi/diuji device | bagian 18 |
-| M6-M9 | PLANNED | — |
+| M6 | IMPLEMENTED (v80) — belum dikompilasi/diuji device | bagian 19 |
+| M7-M9 | PLANNED | — |
 
 ## 8. Di luar scope
 Ganti arsitektur/dependency utama (Shizuku/WorkManager/Compose), migrasi modul, hitam murni, Material You dinamis (diganti calm di v10), fitur non-visual, jalur revive/notifikasi persistent.
@@ -225,3 +226,16 @@ Hanya `MainActivity.kt` (`SettingsTab`, `LogReaderCard`). Kondisi nyata sebelum 
 - State lipat = `rememberSaveable` (`guideOpen`, `logOpen`, default tertutup) -> tahan rotasi. Kartu gabungan `GlassCard(animateSize = true)` (M4) -> tinggi halus. Pola tombol = `TextButton` + glif ▾/▴ (sama dgn `LinkRow` + "↗"): 0 import baru, 0 dependency, tap target bawaan 48dp, role Button bawaan.
 - Semua callback identik (persisten toggle + launcher izin notifikasi + log diagnostik `toggle_pressed`, Muat ulang, Tes tulis log, baca/salin log, 3 tautan, Tentang, Info Aplikasi).
 - RISIKO (INFERENSI, belum diuji device): (1) pengguna yg mencari panduan XOS kini harus membuka lipatan dulu (default tertutup); (2) isi log yg sedang dibuka di dialog tak bertahan bila kartu dilipat ulang (dialog menutupi layar, jadi praktis tak terjadi). Uji: buka/tutup kedua lipatan, rotasi saat terbuka, toggle persisten, Tes tulis log, buka satu log -> Salin, 3 tautan, Tentang.
+
+## 19. M6 — poles Riwayat/Statistik (v80, perintah user "Next") — IMPLEMENTED, BELUM dikompilasi & BELUM diuji device
+`MainActivity.kt` (`LogLine`, `RunHistoryChart`, +1 import `CornerRadius`) + `Design.kt` (token baru `LagChart`). 0 perubahan parse/format/penyimpanan (`Prefs`, `parseLogLine`, `PrefsTest`, `TimeFormatTest` tak tersentuh). `StatsCard` & `StatsLegend` sudah memakai token spasi/warna/tipografi (tak ada literal yg perlu dimigrasi) -> tak diubah.
+Kontras elemen non-teks (WCAG 1.4.11, >=3:1), DIHITUNG dari nilai `Color` di source vs latar kartu (surface 0E1634; skenario terburuk = glow biru 22% + kaca 10%) — dua angka per baris = (surface / terburuk):
+| Elemen | Sebelum | Sesudah |
+|--------|---------|---------|
+| Garis dasar (onSurfaceVariant) | alpha 0.4 = 2.80 / 2.48 — GAGAL | alpha 0.6 = 4.72 / 3.75 — lolos |
+| Batang mint / amber / error | 11.7 / 10.9 / 10.3 (surface); 7.9 / 7.4 / 7.0 (terburuk) | tak berubah |
+| Titik "dipicu manual" (onSurfaceVariant) | 11.1 / 7.5 | tak berubah |
+| Garis rata-rata di latar | 9.2 / 6.7 | tak berubah |
+| Garis rata-rata di ATAS batang | 1.1-1.3 — praktis hilang | halo gelap (surface, alpha 0.9) di bawahnya: halo vs batang 10.3-11.7 |
+Perubahan lain (visual-only): (1) semua ukuran grafik px literal -> dp via `LagChart` (tebal garis 2px ~0.7dp di layar 3x dulu tipis; celah batang 2dp, min tinggi 3dp, radius titik 2dp, dash 4/3dp) — celah/ketebalan sedikit BERUBAH di layar padat, disengaja; (2) batang bersudut membulat 2dp (selaras bentuk kaca); (3) `LogLine`: baris "dilewati" kini berlabel `SKIP` (sebelumnya `FAIL` berwarna amber, padahal legenda Statistik membedakan Dilewati vs Gagal); teks log tersimpan tetap `FAIL` (parse tak berubah).
+BELUM dikerjakan (sengaja, milik M9): `contentDescription`/TalkBack utk Canvas grafik, font scale 1.3/2.0 pada sumbu waktu. RISIKO (INFERENSI, belum diuji device): halo + garis putus-putus 4/3dp bisa terlihat padat bila batang sangat banyak; bila terasa ramai, kecilkan `AVG_HALO_STROKE` di `LagChart`. Uji: tab Utama dgn Riwayat berisi campuran OK/dilewati/gagal + run manual; bandingkan garis dasar & garis rata-rata dgn v79 (screenshot).
