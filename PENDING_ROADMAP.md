@@ -140,6 +140,10 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    v91 (log CI #75 = hasil v90): TERBUKTI build+tes hijau, lint 0 error, detekt 134 -> 70 weighted (tepat sesuai
    perkiraan; 0 temuan di `LogcatSnapshot*`). Batch 2/4: `MainActivity.kt` (15 baris panjang + 9 magic number),
    `HomeHero.kt` (3 baris), `Design.kt` (1 baris). Sisa dihitung: 42 weighted. BELUM terbukti CI.
+   v92 (log CI #76 = hasil v91): TERBUKTI build+tes+lint hijau, detekt 70 -> 42 weighted (tepat sesuai
+   perkiraan). Batch 3/4: `UpdateChecker.kt`, `BootTrimSetting.kt`, `Prefs.kt`, `TrimWorker.kt` (28 temuan).
+   Sisa dihitung: 14 weighted di 5 berkas (batch 4). Juga: artifact lint/detekt digabung ke `LagFix-fail-log-<run>`
+   (permintaan user, 1 unduhan). BELUM terbukti CI.
 2. Belum ada dependency-update check otomatis (mis. Dependabot) utk `dev.rikka.shizuku`.
 
 ## G. UI/UX Premium (milestone, permintaan eksplisit user v59)

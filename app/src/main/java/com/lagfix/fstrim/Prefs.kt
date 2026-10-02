@@ -11,6 +11,12 @@ data class TrimResult(val ok: Boolean, val message: String, val durationMs: Long
 // enum berubah nanti. Default SYSTEM = perilaku lama (ikut sistem), non-breaking utk user existing.
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
+// v92 (detekt MagicNumber): angka bernama; nilai identik dgn literal sebelumnya.
+private const val LEGACY_INTERVAL_DEFAULT_HOURS = 24L
+private const val LEGACY_HOURS_TO_MINUTES = 60L
+private const val LOG_MESSAGE_MAX_CHARS = 120
+private const val LOG_MAX_LINES = 30
+
 class Prefs(context: Context) {
     private val sp = context.applicationContext.getSharedPreferences("lagfix", Context.MODE_PRIVATE)
 
@@ -28,7 +34,10 @@ class Prefs(context: Context) {
     // (jam, dipakai v1-v43) TETAP dibaca sbg fallback -> user existing tak kehilangan pilihannya,
     // 0 migrasi data. Nilai baru cuma ditulis ke kunci "intervalMin".
     var intervalMinutes: Long
-        get() = sp.getLong("intervalMin", sp.getLong("interval", 24L) * 60L)
+        get() = sp.getLong(
+            "intervalMin",
+            sp.getLong("interval", LEGACY_INTERVAL_DEFAULT_HOURS) * LEGACY_HOURS_TO_MINUTES
+        )
         set(v) { sp.edit().putLong("intervalMin", v).apply() }
 
     // v27 (fitur opsional, pilihan eksplisit user — lihat SettingsTab): toggle foreground service
@@ -54,8 +63,8 @@ class Prefs(context: Context) {
         val now = System.currentTimeMillis()
         val stamp = SimpleDateFormat("dd/MM HH:mm", Locale.US).format(Date(now))
         val status = if (r.ok) "OK" else "FAIL"
-        val msg = r.message.replace('\n', ' ').take(120)
-        val lines = (listOf("$stamp $status [$trigger] ${r.durationMs}ms $msg") + log).take(30)
+        val msg = r.message.replace('\n', ' ').take(LOG_MESSAGE_MAX_CHARS)
+        val lines = (listOf("$stamp $status [$trigger] ${r.durationMs}ms $msg") + log).take(LOG_MAX_LINES)
         sp.edit()
             .putLong("lastRun", now)
             .putBoolean("lastOk", r.ok)

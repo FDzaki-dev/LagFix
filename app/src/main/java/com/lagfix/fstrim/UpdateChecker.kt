@@ -35,6 +35,15 @@ object UpdateChecker {
     private const val RELEASE_API = "https://api.github.com/repos/$OWNER/$REPO/releases/latest"
     private const val CHANGELOG_RAW = "https://raw.githubusercontent.com/$OWNER/$REPO/main/CHANGELOG.md"
 
+    // v92 (detekt MagicNumber): nilai identik dgn literal sebelumnya.
+    private const val DOWNLOAD_TIMEOUT_MS = 15_000
+    private const val API_TIMEOUT_MS = 10_000
+    private const val HTTP_OK_MIN = 200
+    private const val HTTP_OK_MAX = 299
+
+    // Batas jaringan+parse: JSONException/IOException/runtime lain semuanya dipetakan ke
+    // UpdateResult.Error (cek update tak boleh bikin app crash) -> catch generik DISENGAJA.
+    @Suppress("TooGenericExceptionCaught")
     fun check(installedBuild: Int): UpdateResult = try {
         val json = JSONObject(get(RELEASE_API))
         val tag = json.optString("tag_name", "")
@@ -45,16 +54,7 @@ object UpdateChecker {
         if (latestBuild <= installedBuild) {
             UpdateResult.UpToDate(installedBuild)
         } else {
-            var apkUrl = htmlUrl
-            json.optJSONArray("assets")?.let { assets ->
-                for (i in 0 until assets.length()) {
-                    val asset = assets.optJSONObject(i) ?: continue
-                    if (asset.optString("name").endsWith(".apk", ignoreCase = true)) {
-                        apkUrl = asset.optString("browser_download_url", htmlUrl)
-                        break
-                    }
-                }
-            }
+            val apkUrl = findApkUrl(json, htmlUrl)
             val changelog = runCatching { get(CHANGELOG_RAW) }
                 .getOrDefault("Changelog tidak tersedia (gagal diambil dari repo).")
             UpdateResult.Available(installedBuild, UpdateInfo(tag, name, latestBuild, apkUrl, changelog))
@@ -74,12 +74,27 @@ object UpdateChecker {
         else -> e.message ?: "Tidak diketahui"
     }
 
+    // v92 (detekt NestedBlockDepth + LoopWithTooManyJumpStatements): diekstrak dari check().
+    // Perilaku identik: asset non-null PERTAMA yg namanya berakhiran .apk -> browser_download_url
+    // (fallback ke [fallback] bila kunci tak ada); tak ada asset/APK -> [fallback].
+    private fun findApkUrl(json: JSONObject, fallback: String): String {
+        val assets = json.optJSONArray("assets") ?: return fallback
+        val apk = (0 until assets.length())
+            .asSequence()
+            .mapNotNull { assets.optJSONObject(it) }
+            .firstOrNull { it.optString("name").endsWith(".apk", ignoreCase = true) }
+        return apk?.optString("browser_download_url", fallback) ?: fallback
+    }
+
     /**
      * Unduh APK ke cache privat app (BUKAN folder Download publik) -> dipasang lewat
      * Package Installer langsung (FileProvider), tidak lewat browser, tidak menumpuk
      * (sisa unduhan lama dihapus dulu tiap kali unduh baru dimulai).
      * Blocking (network+disk) — WAJIB dipanggil dari Dispatchers.IO.
      */
+    // catch generik DISENGAJA: apa pun penyebab gagal di tengah unduhan -> hapus APK parsial,
+    // lalu exception yg SAMA dilempar ulang (tidak ditelan).
+    @Suppress("TooGenericExceptionCaught")
     fun download(context: Context, url: String): File {
         val dir = File(context.cacheDir, "updates").apply {
             deleteRecursively()
@@ -88,14 +103,14 @@ object UpdateChecker {
         val dest = File(dir, "update.apk")
         val conn = URL(url).openConnection() as HttpURLConnection
         try {
-            conn.connectTimeout = 15_000
-            conn.readTimeout = 15_000
+            conn.connectTimeout = DOWNLOAD_TIMEOUT_MS
+            conn.readTimeout = DOWNLOAD_TIMEOUT_MS
             conn.instanceFollowRedirects = true
             conn.setRequestProperty("User-Agent", "LagFix-App")
             conn.requestMethod = "GET"
-            if (conn.responseCode !in 200..299) throw IOException("HTTP ${conn.responseCode}")
+            if (conn.responseCode !in HTTP_OK_MIN..HTTP_OK_MAX) throw IOException("HTTP ${conn.responseCode}")
             try {
-                conn.inputStream.use { input -> FileOutputStream(dest).use { output -> input.copyTo(output) } }
+                saveStream(conn, dest)
             } catch (e: Exception) {
                 dest.delete() // v13 (B3): koneksi putus di tengah unduhan -> jangan tinggalkan APK parsial
                 throw e
@@ -106,15 +121,20 @@ object UpdateChecker {
         return dest
     }
 
+    // v92 (detekt NestedBlockDepth): diekstrak dari download(); isi persis sama.
+    private fun saveStream(conn: HttpURLConnection, dest: File) {
+        conn.inputStream.use { input -> FileOutputStream(dest).use { output -> input.copyTo(output) } }
+    }
+
     private fun get(url: String): String {
         val conn = URL(url).openConnection() as HttpURLConnection
         return try {
-            conn.connectTimeout = 10_000
-            conn.readTimeout = 10_000
+            conn.connectTimeout = API_TIMEOUT_MS
+            conn.readTimeout = API_TIMEOUT_MS
             conn.requestMethod = "GET"
             conn.setRequestProperty("Accept", "application/vnd.github+json")
             conn.setRequestProperty("User-Agent", "LagFix-App")
-            if (conn.responseCode !in 200..299) throw IOException("HTTP ${conn.responseCode}")
+            if (conn.responseCode !in HTTP_OK_MIN..HTTP_OK_MAX) throw IOException("HTTP ${conn.responseCode}")
             conn.inputStream.bufferedReader().use { it.readText() }
         } finally {
             conn.disconnect()

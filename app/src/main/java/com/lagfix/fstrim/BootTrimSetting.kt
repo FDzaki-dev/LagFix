@@ -24,6 +24,10 @@ data class BootTrimUi(
 
 private const val MS_PER_DAY = 86_400_000L
 
+// v92 (detekt MagicNumber): batas potong teks detail/pesan; nilai identik dgn literal sebelumnya.
+private const val DETAIL_MAX_CHARS = 80
+private const val MESSAGE_MAX_CHARS = 120
+
 /** Parsing murni keluaran `settings get global ...` (mudah dites tanpa Shizuku). */
 internal fun parseBootTrimReading(out: String): BootTrimReading {
     val t = out.trim()
@@ -31,7 +35,7 @@ internal fun parseBootTrimReading(out: String): BootTrimReading {
         t.isEmpty() -> BootTrimReading.Unreadable("keluaran kosong")
         t == "null" -> BootTrimReading.Unset
         else -> t.toLongOrNull()?.let { BootTrimReading.Value(it) }
-            ?: BootTrimReading.Unreadable(t.take(80))
+            ?: BootTrimReading.Unreadable(t.take(DETAIL_MAX_CHARS))
     }
 }
 
@@ -59,15 +63,18 @@ object BootTrimSetting {
     /** 1 ms = selalu "terlambat" -> dipaksa tiap boot (per laporan XDA). */
     const val EVERY_REBOOT_MS = 1L
 
+    // Batas I/O-shell (Shizuku/binder): kegagalan apa pun dilaporkan sbg Unreadable, bukan crash
+    // -> catch Throwable DISENGAJA.
+    @Suppress("TooGenericExceptionCaught")
     fun read(): BootTrimReading = try {
         val (code, out) = FstrimExecutor.sh("settings get global $KEY")
         if (code == 0) {
             parseBootTrimReading(out)
         } else {
-            BootTrimReading.Unreadable("exit=$code ${out.trim().take(80)}".trim())
+            BootTrimReading.Unreadable("exit=$code ${out.trim().take(DETAIL_MAX_CHARS)}".trim())
         }
     } catch (e: Throwable) {
-        BootTrimReading.Unreadable("${e.javaClass.simpleName}: ${e.message}".take(80))
+        BootTrimReading.Unreadable("${e.javaClass.simpleName}: ${e.message}".take(DETAIL_MAX_CHARS))
     }
 
     fun enableEveryReboot(): BootTrimOutcome = write(
@@ -82,17 +89,20 @@ object BootTrimSetting {
         verify = { it == BootTrimReading.Unset }
     )
 
+    // Batas I/O-shell yg sama dgn read(): gagal eksekusi -> BootTrimOutcome(ok=false), bukan crash.
+    @Suppress("TooGenericExceptionCaught")
     private fun write(cmd: String, successMessage: String, verify: (BootTrimReading) -> Boolean): BootTrimOutcome {
         val res = try {
             FstrimExecutor.sh(cmd)
         } catch (e: Throwable) {
-            return BootTrimOutcome(false, read(), "Gagal: ${e.javaClass.simpleName}: ${e.message}".take(120))
+            val failMessage = "Gagal: ${e.javaClass.simpleName}: ${e.message}".take(MESSAGE_MAX_CHARS)
+            return BootTrimOutcome(false, read(), failMessage)
         }
         val after = read()
         return if (verify(after)) {
             BootTrimOutcome(true, after, successMessage)
         } else {
-            val detail = "exit=${res.first} ${res.second.trim().take(80)}".trim()
+            val detail = "exit=${res.first} ${res.second.trim().take(DETAIL_MAX_CHARS)}".trim()
             BootTrimOutcome(false, after, "Gagal ($detail). Nilai terbaca: ${describeBootTrim(after)}")
         }
     }

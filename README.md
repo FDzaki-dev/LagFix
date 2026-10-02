@@ -38,5 +38,5 @@ re-verifikasi manual reflection ini** (buka source `Shizuku` versi baru, cocokka
 
 ## Pathway CI
 - **Build sukses** → GitHub Release otomatis (tag `build-<run_number>`), APK terlampir sbg `LagFix_build-<run_number>_release-atau-debug.apk` (nama unik per build, bukan `app-release.apk` generik — hindari tabrakan nama saat unduh rilis berturut-turut), selalu jadi `/releases/latest`.
-- **Build gagal** → log build diunggah sebagai artifact Actions, nama file `LagFix_build_fail_log_<run_number>.txt`.
-- **Lint & detekt (blocking, v88)** → temuan lint (warning dihitung error) atau detekt menggagalkan build sebelum APK dibuat. Rincian: log kegagalan (memuat bagian `lint_output.log`, `detekt_output.log`, `lint-results-debug.txt`) dan artifact Actions `LagFix-lint-detekt-report-<run_number>` (laporan detekt, file `lint-results*`, log mentah).
+- **Build gagal** → SATU artifact Actions `LagFix-fail-log-<run_number>` (v92): file `LagFix_build_fail_log_<run_number>.txt` + folder `lint_detekt/` (laporan detekt, file `lint-results*`, log mentah). Cukup satu unduhan.
+- **Lint & detekt (blocking, v88)** → temuan lint (warning dihitung error) atau detekt menggagalkan build sebelum APK dibuat. Rincian: artifact `LagFix-fail-log-<run_number>` di atas (log kegagalan memuat bagian `lint_output.log`, `detekt_output.log`, `lint-results-debug.txt`; folder `lint_detekt/` memuat laporan lengkapnya). Sejak v92 tidak ada artifact lint/detekt terpisah.

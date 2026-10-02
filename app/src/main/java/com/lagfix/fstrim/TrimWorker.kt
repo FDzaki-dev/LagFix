@@ -32,10 +32,10 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
         // v38: asal pemicu run ini utk Riwayat — manual (widget/tile via Scheduler.runOnce) vs
         // otomatis (jadwal periodik). Memakai flag `manual` yang SUDAH ada, 0 logic baru.
         val trigger = if (manual) TriggerSource.MANUAL else TriggerSource.AUTO
-        var waited = 0
-        while (!Shizuku.pingBinder() && waited < 5000) {
-            delay(500)
-            waited += 500
+        var waited = 0L
+        while (!Shizuku.pingBinder() && waited < SHIZUKU_WAIT_MAX_MS) {
+            delay(SHIZUKU_POLL_MS)
+            waited += SHIZUKU_POLL_MS
         }
         val state = FstrimExecutor.state(applicationContext)
         if (state != ShizukuState.READY) {
@@ -64,7 +64,7 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             val msg = if (r.ok) {
                 applicationContext.getString(R.string.toast_run_ok)
             } else {
-                applicationContext.getString(R.string.toast_run_fail, r.message.take(60))
+                applicationContext.getString(R.string.toast_run_fail, r.message.take(TOAST_MESSAGE_MAX_CHARS))
             }
             toast(msg)
         }
@@ -77,6 +77,12 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
 
     companion object {
         const val KEY_MANUAL = "manual"
+
+        // v92 (detekt MagicNumber): nilai identik dgn literal sebelumnya (tunggu Shizuku maks 5 dtk,
+        // cek tiap 0,5 dtk; pesan toast gagal dipotong 60 karakter).
+        private const val SHIZUKU_WAIT_MAX_MS = 5_000L
+        private const val SHIZUKU_POLL_MS = 500L
+        private const val TOAST_MESSAGE_MAX_CHARS = 60
     }
 }
 
