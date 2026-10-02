@@ -22,6 +22,7 @@ import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -212,7 +213,34 @@ private fun HomeScreen(vm: MainViewModel) {
         // v76: lihat efek `tabAlphas` di atas. Isi tiap tab memakai `tab` dari loop (BUKAN selectedTab)
         // agar tab yang sedang memudar tetap menampilkan dirinya sendiri. Callback/state/argumen tab
         // identik v73.
-        Box(Modifier.padding(pad).fillMaxSize()) {
+        // v77: swipe horizontal lintas tab (geser kiri = Pengaturan, geser kanan = Utama). Jalur transisi
+        // SAMA dgn tap ikon nav (cukup ubah `selectedTab` -> efek v76), 0 komponen baru (bukan Pager).
+        // Gestur yg sudah dikonsumsi anak (chip interval `horizontalScroll`, kolom teks) tak memicu pindah
+        // tab; diabaikan selama `transitioning`. Ambang 72dp: cukup sengaja agar tak bentrok dgn gulir.
+        Box(
+            Modifier
+                .padding(pad)
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    val threshold = 72.dp.toPx()
+                    var dragged = 0f
+                    detectHorizontalDragGestures(
+                        onDragStart = { dragged = 0f },
+                        onDragCancel = { dragged = 0f },
+                        onDragEnd = {
+                            if (!transitioning) {
+                                if (dragged <= -threshold && selectedTab == 0) {
+                                    selectedTab = 1
+                                } else if (dragged >= threshold && selectedTab == 1) {
+                                    selectedTab = 0
+                                }
+                            }
+                            dragged = 0f
+                        },
+                        onHorizontalDrag = { _, amount -> dragged += amount }
+                    )
+                }
+        ) {
             for (tab in 0..1) {
                 if (tabComposed[tab]) {
                     key(tab) {
@@ -815,13 +843,14 @@ private fun AboutDialog(
 private val logLineRegex = Regex("""^(\d{2}/\d{2} \d{2}:\d{2}) (OK|FAIL)(?: \[([^\]]+)\])? (.*)$""")
 private val durationRegex = Regex("""^(\d+)ms""")
 
+// v77: `stamp` = jam 12 jam (AM/PM) utk TAMPIL (konversi dari format simpan 24 jam di TimeFormat.kt).
 internal data class ParsedLog(val stamp: String, val ok: Boolean, val trigger: String, val rest: String) {
     val skipped: Boolean get() = !ok && rest.contains("dilewati")
 }
 
 internal fun parseLogLine(line: String): ParsedLog? {
     val g = logLineRegex.find(line)?.groupValues ?: return null
-    return ParsedLog(stamp = g[1], ok = g[2] == "OK", trigger = g[3], rest = g[4])
+    return ParsedLog(stamp = formatStamp12h(g[1]), ok = g[2] == "OK", trigger = g[3], rest = g[4])
 }
 
 // v38: label ramah utk user awam. Trigger tak dikenal / baris lama tanpa token -> null (tidak ditebak).
@@ -1141,4 +1170,4 @@ private fun openShizuku(ctx: Context, state: ShizukuState) {
 }
 
 private fun formatTime(ms: Long): String =
-    SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(ms))
+    SimpleDateFormat("dd/MM/yyyy hh:mm a", Locale.US).format(Date(ms)) // v77: 12 jam (AM/PM)

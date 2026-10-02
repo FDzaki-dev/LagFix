@@ -68,7 +68,8 @@ class LagFixWidgetProvider : AppWidgetProvider() {
         if (prefs.lastRunMs == 0L) {
             return "${context.getString(R.string.widget_status_never)}\n$line2"
         }
-        val stamp = SimpleDateFormat("dd/MM HH:mm", Locale.US).format(Date(prefs.lastRunMs))
+        // v77: 12 jam (AM/PM); hari/bulan/jam tanpa nol di depan agar baris status tak makin lebar (maxLines=2)
+        val stamp = SimpleDateFormat("d/M h:mm a", Locale.US).format(Date(prefs.lastRunMs))
         val parsed = prefs.log.firstOrNull()?.let(::parseLogLine)
         val trigger = parsed?.trigger?.takeIf { it.isNotEmpty() }
         val line1 = when {

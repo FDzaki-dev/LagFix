@@ -1,5 +1,9 @@
 # Changelog
 
+## v77
+- Pindah tab dengan geser (swipe): geser ke kiri membuka Pengaturan, geser ke kanan kembali ke Utama, tanpa harus menekan ikon di bawah. Animasi ganti tab sama seperti saat menekan ikon. Menggeser baris chip interval tetap menggulir chip, bukan pindah tab.
+- Semua jam kini memakai format 12 jam (AM/PM), mis. "02/10 07:05 PM": Riwayat, sumbu waktu grafik Statistik, ringkasan terakhir dijalankan, dan widget (widget memakai "2/10 7:05 PM" agar baris status tidak terpotong). Riwayat lama tetap terbaca. Nama file log (mis. LagFix_diag_..._073121.txt) tetap 24 jam karena itu nama file, bukan tampilan jam.
+
 ## v76
 - Perpindahan tab: layar tidak lagi kosong sesaat di antara fade-out dan fade-in. Tab tujuan disiapkan lebih dulu selagi tab lama masih tampil, baru kemudian tab lama memudar dan tab baru muncul. Sentuhan ditahan selama transisi (sekitar 0,3 detik). Hanya animasi ganti tab yang berubah.
 
