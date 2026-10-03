@@ -1,5 +1,8 @@
 # Changelog
 
+## v100
+- Tidak ada perubahan pada aplikasi. Ditambahkan dokumen rencana `PENDING_CONSTITUTION_PLAN.md` berbasis konstitusi pengembangan yang berlaku: peta aturan ke proyek, audit pagar Android (crash, lifecycle, thread, baterai, keamanan, OOM) dari pembacaan kode, antrean batch berikutnya (cek CI v99, uji perangkat snapshot logcat, penyelidikan notifikasi persisten, perapian dokumen), dan daftar keputusan terbuka.
+
 ## v99
 - Tidak ada perubahan perilaku aplikasi. Hasil CI v98: build, tes (termasuk tes batas waktu perintah shell baru), dan lint hijau; detekt menemukan 1 baris dokumentasi terlalu panjang pada berkas tes, kini dibungkus menjadi dua baris tanpa mengubah isi tes.
 
