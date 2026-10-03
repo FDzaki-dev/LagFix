@@ -121,7 +121,9 @@ class PrefsTest {
 
     @Test
     fun `log dipotong maksimal 30 baris, entri terbaru di depan, entri lama terbuang`() {
-        repeat(35) { i -> prefs.record(TrimResult(ok = true, message = "run-$i", durationMs = 1L), TriggerSource.MANUAL) }
+        repeat(35) { i ->
+            prefs.record(TrimResult(ok = true, message = "run-$i", durationMs = 1L), TriggerSource.MANUAL)
+        }
 
         // token terakhir tiap baris = "run-N" persis (bukan substring, hindari salah tangkap run-14/24/34)
         val entries = prefs.log.map { it.substringAfterLast(' ') }

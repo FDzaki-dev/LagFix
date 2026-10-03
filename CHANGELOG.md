@@ -1,5 +1,8 @@
 # Changelog
 
+## v94
+- Tidak ada perubahan perilaku aplikasi. Hasil CI v93: build, tes, dan lint hijau, dan detekt turun dari 14 ke 2 temuan. Batch penutup perapian detekt: pemecahan teks stempel jam pada `formatStamp12h` kini memakai tiga grup hasil pencocokan (tanggal, jam, menit) tanpa grup teks penuh sehingga tidak melewati batas jumlah elemen destructuring, dan satu baris panjang pada tes pemotongan log dibungkus menjadi beberapa baris tanpa mengubah angka maupun pemeriksaan.
+
 ## v93
 - Tidak ada perubahan perilaku aplikasi. Hasil CI v92: build, tes, dan lint hijau, dan detekt turun dari 42 ke 14 temuan. Pengumpulan laporan lint dan detekt ke satu artifact log kegagalan terbukti berjalan (satu unduhan). Batch keempat perapian detekt: angka literal pada pencatat crash, daftar log, dan model tampilan diganti konstanta bernama atau konstanta versi Android, baris panjang dipecah, penanganan galat di batas shell dan unduhan diberi alasan tertulis, dan fungsi di model tampilan utama dikurangi dengan memindahkan fungsi yang tidak menyentuh state ke luar kelas. Fungsi pengatur tema yang tidak lagi dipanggil dari mana pun dihapus.
 

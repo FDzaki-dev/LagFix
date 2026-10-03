@@ -148,6 +148,10 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    artifact gabungan `LagFix-fail-log-77` (txt + `lint_detekt/`) TERBUKTI tunggal. Batch 4/4: `MainViewModel.kt` (6),
    `CrashLogger.kt` (4), `FstrimExecutor.kt` (2), `TimeFormat.kt` (1) + 2 call site di `MainActivity.kt`. Sisa dihitung:
    1 weighted (`PrefsTest.kt:124` MaxLineLength). BELUM terbukti CI.
+   v94 (log CI #78 = hasil v93): TERBUKTI build+tes+lint hijau; detekt 14 -> 2 weighted (perkiraan 1: ada 1 temuan BARU
+   `DestructuringDeclarationWithTooManyEntries` di `TimeFormat.kt:22`, akibat destructuring 4 elemen dari v93). Perbaikan:
+   `TimeFormat.kt` (`match.destructured` 3 elemen) + `PrefsTest.kt:124` (lambda dibungkus 3 baris). Harapan: detekt 0.
+   BELUM terbukti CI.
 2. Belum ada dependency-update check otomatis (mis. Dependabot) utk `dev.rikka.shizuku`.
 
 ## G. UI/UX Premium (milestone, permintaan eksplisit user v59)
