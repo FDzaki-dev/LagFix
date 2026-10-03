@@ -1,5 +1,14 @@
 # Changelog
 
+## v105
+- Notifikasi layanan persisten kini memakai saluran berprioritas minimum dan disembunyikan dari layar kunci (sesuai dokumen konfigurasi kedua dari user). Di Pengaturan, kartu Keandalan latar belakang punya tombol baru yang membuka halaman Autostart atau baterai milik Xiaomi, Samsung, atau Huawei; merek lain membuka daftar pengecualian optimasi baterai Android. Bagian alarm 60 detik pada dokumen itu sengaja tidak diterapkan karena melanggar aturan baterai proyek. Perilaku di perangkat belum diuji.
+
+## v104
+- Notifikasi layanan latar depan persisten disesuaikan dengan dokumen konfigurasi standar yang diberikan: notifikasi tidak hilang saat diketuk, berkategori layanan, berprioritas rendah, tidak bunyi atau getar ulang saat diperbarui; saluran notifikasi punya nama dan deskripsi yang jelas di Setelan; di Android 14 ke atas tipe layanan diberikan eksplisit. Bagian yang khusus kebijakan Google Play sengaja tidak diterapkan. Perilaku di perangkat belum diuji, dan ini belum terbukti memperbaiki masalah notifikasi yang hilang.
+
+## v103
+- Tidak ada perubahan pada aplikasi. Pengawasan kualitas kode kini dipusatkan di lintDebug dan detekt saja: dokumen rencana dan `.cursorrules` disesuaikan, pemeriksaan yang tidak bisa diamati kedua alat itu tidak lagi jadi syarat, dan satu kandidat penguatan (larangan impor `runBlocking` dan `GlobalScope` lewat detekt) dicatat tanpa diaktifkan.
+
 ## v102
 - Tidak ada perubahan pada aplikasi. Hasil CI v99 terkonfirmasi: rilis `build-84` terbit untuk commit v99, artinya tes, lint, dan detekt lolos dan APK berhasil dibuat (temuan detekt terakhir dari v98 sudah tertutup). Perilaku di perangkat belum diuji.
 

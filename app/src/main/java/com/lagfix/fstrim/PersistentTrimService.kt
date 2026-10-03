@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.Process
@@ -53,9 +54,17 @@ class PersistentTrimService : Service() {
             val mgr = getSystemService(NotificationManager::class.java)
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                getString(R.string.app_name),
-                NotificationManager.IMPORTANCE_LOW
-            ).apply { setShowBadge(false) }
+                getString(R.string.persistent_service_channel_name),
+                NotificationManager.IMPORTANCE_MIN
+            ).apply {
+                // v104: nama & deskripsi saluran jelas di Setelan Notifikasi sistem.
+                description = getString(R.string.persistent_service_channel_desc)
+                setShowBadge(false)
+                // v105 (konfigurasi_bypass_restricted_os.md bagian 1, perintah user): MIN (bukan LOW) +
+                // disembunyikan dari layar kunci. Status FGS tetap terdaftar. Catatan: Android hanya
+                // menurunkan importance channel yang SUDAH ada bila user belum mengubahnya di Setelan.
+                lockscreenVisibility = Notification.VISIBILITY_SECRET
+            }
             mgr?.createNotificationChannel(channel)
         }
     }
@@ -70,7 +79,7 @@ class PersistentTrimService : Service() {
         // nyata yang ditemukan dari audit ulang, BUKAN kepastian ini akar masalah tunggal — 3 poin
         // panduan lainnya (channel ID match, smallIcon valid, foregroundServiceType+property
         // manifest) sudah dicek & SESUAI, 0 perubahan di situ.
-        val result = runCatching { startForeground(NOTIF_ID, buildNotification()) }
+        val result = runCatching { startAsForeground(buildNotification()) }
         // v49: log SETELAH startForeground() (aturan v35: tak ada operasi apa pun sebelumnya).
         // `intentNull=true` = servis dihidupkan ulang SISTEM (START_STICKY, intent null);
         // `false` = distart kode app (`start()`/`startIfEnabled()`/BootReceiver).
@@ -118,6 +127,17 @@ class PersistentTrimService : Service() {
         super.onDestroy()
     }
 
+    // v104 (konfigurasi_notifikasi_persistent.md, bagian 2): Android 14+ (API 34) memberi tipe FGS
+    // eksplisit = tipe yang SUDAH dideklarasikan manifest (`specialUse`), jadi 0 perubahan perilaku.
+    // API < 34 memakai bentuk 2-argumen seperti sebelumnya. Dipanggil dari dalam runCatching.
+    private fun startAsForeground(notification: Notification) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(NOTIF_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        } else {
+            startForeground(NOTIF_ID, notification)
+        }
+    }
+
     private fun buildNotification(): Notification {
         val openIntent = PendingIntent.getActivity(
             this,
@@ -130,6 +150,11 @@ class PersistentTrimService : Service() {
             .setContentTitle(getString(R.string.app_name))
             .setContentText(getString(R.string.persistent_service_notif_text))
             .setOngoing(true)
+            // v104 (konfigurasi_notifikasi_persistent.md, bagian 2 & 4): atribut standar notifikasi persisten.
+            .setAutoCancel(false)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setOnlyAlertOnce(true)
             .setSilent(true)
             // v40: Android 12+ MENUNDA tampilnya notifikasi foreground service ~10 detik kecuali
             // diminta langsung. Di ROM yang membunuh proses dalam hitungan detik (XOS, lihat v39),

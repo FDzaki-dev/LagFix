@@ -34,6 +34,7 @@ PRIORITY: P0 STABILITAS + ZERO-REGRESI > USER INTENT + ZIP/SOURCE > PROJECT_STAT
 - Non-breaking: API publik & error handling bisnis tidak boleh rusak; import/dependensi harus resolve; verifikasi behavior sebelum/sesudah.
 - Minimum scope: UI task = UI only; Logic = logic minimum; Bug = root-cause minimum. Pertahankan navigasi, persistensi, izin, package identity, signing.
 - Rantai validasi: Syntax -> Build -> Affected behavior (bukti minimum per jenis task) -> Regression -> Package integrity -> Docs. Compile-success BUKAN bukti zero-regresi. Sandbox tanpa Gradle/SDK -> nyatakan jujur BELUM dikompilasi/diuji.
+- Jalur pengamat guard = `lintDebug` + `detekt` SAJA (keputusan user v103). Dilarang klaim guard "terverifikasi" tanpa keluaran alat; guard yang tak teramati keduanya dipegang saat menulis kode, bukan jadi gerbang atau antrean. Ubah aturan/konfigurasi lint-detekt = batch sendiri atas perintah user.
 - STRICT LINT & DETEKT: CI (build.yml) BLOCKING (keputusan user v88): lintDebug + detekt maxIssues 0 wajib hijau sebelum APK. Dilarang: kembali non-blocking, baseline, @Suppress massal tanpa alasan tertulis.
 
 ## GIT / CI / R8

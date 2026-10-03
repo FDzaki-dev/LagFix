@@ -26,6 +26,9 @@
     <!-- v68 (M3): empty state kartu Riwayat di tab Utama. Judul = copy lama; petunjuk = baru. -->
     <string name="history_empty_title">Belum pernah dijalankan</string>
     <string name="history_empty_hint">Ketuk tombol Jalankan di atas, atau nyalakan Jadwal otomatis di tab Pengaturan.</string>
+    <!-- v104: nama & deskripsi saluran notifikasi layanan persisten (tampil di Setelan Notifikasi sistem). -->
+    <string name="persistent_service_channel_name">Layanan latar depan persisten</string>
+    <string name="persistent_service_channel_desc">Menjaga proses LagFix tetap berjalan agar jadwal fstrim otomatis lebih andal. Senyap, diminimalkan, tersembunyi di layar kunci.</string>
     <string name="persistent_service_notif_text">Menjaga proses LagFix tetap berjalan untuk jadwal fstrim otomatis</string>
 </resources>
 

@@ -82,6 +82,7 @@
              (SettingsTab toggle / BootReceiver), 0 komponen luar app perlu mengaksesnya. -->
         <service
             android:name=".PersistentTrimService"
+            android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property

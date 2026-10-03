@@ -665,6 +665,15 @@ private fun SettingsTab(
                     Text("Buka Info Aplikasi LagFix", Modifier.weight(1f))
                     Text("↗", Modifier.decorative())
                 }
+                // v105 (perintah user, konfigurasi_bypass_restricted_os.md bagian 3): menggantikan aturan
+                // lama v24/v49 "tak ada intent khusus merek" HANYA untuk Xiaomi/Samsung/Huawei (VendorSettings.kt).
+                TextButton(
+                    onClick = { openVendorBatterySettings(ctx) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Buka pengaturan Autostart / baterai merek HP", Modifier.weight(1f))
+                    Text("↗", Modifier.decorative())
+                }
             }
             val notifPermissionLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission()
