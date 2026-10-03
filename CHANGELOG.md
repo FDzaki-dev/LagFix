@@ -1,5 +1,8 @@
 # Changelog
 
+## v97
+- Tidak ada perubahan pada aplikasi. Pembetulan catatan v96: pengamatan di HP menunjukkan notifikasi layanan persisten tetap tidak muncul selama aplikasi masih hidup atau terlihat di Recents, walau dipicu dari luar (mis. QS tile); notifikasi hanya muncul bila aplikasi di-swipe/dimatikan lalu ada pemicu eksternal. Karena itu pemasangan ulang saat aplikasi dibuka (v96) belum terbukti membantu, dan penyebab pastinya masih diselidiki.
+
 ## v96
 - Notifikasi layanan persisten kini dipasang ulang otomatis setiap aplikasi dibuka (bila toggle layanan persisten aktif dan notifikasinya sedang tidak tampil). Penyebabnya: HP membatasi LagFix di latar belakang sehingga Android menolak memunculkan notifikasi itu dari proses yang lahir di latar belakang (mis. setelah pasang pembaruan atau lewat widget), tetapi mengizinkannya saat aplikasi terlihat. Ini tidak menjamin notifikasi bertahan selamanya di latar belakang.
 
