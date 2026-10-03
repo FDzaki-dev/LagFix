@@ -1,5 +1,8 @@
 # Changelog
 
+## v99
+- Tidak ada perubahan perilaku aplikasi. Hasil CI v98: build, tes (termasuk tes batas waktu perintah shell baru), dan lint hijau; detekt menemukan 1 baris dokumentasi terlalu panjang pada berkas tes, kini dibungkus menjadi dua baris tanpa mengubah isi tes.
+
 ## v98
 - Tombol "Ambil logcat sistem" tidak lagi bisa macet selamanya di "Mengambil…": tiap perintah sistem pada ringkasan kini dibatasi waktu (40 detik per perintah, 150 detik total), tombol dilepas otomatis oleh pagar waktu di layar (4 menit), dan ketukan kedua saat snapshot pertama masih berjalan ditolak dengan pesan jelas. Dump mentah (.zip) tetap diambil lebih dulu dan tidak dibatasi.
 - Riwayat dan daftar log diagnostik kini hanya menampilkan 5 entri terbaru, sisanya lewat tombol "Tampilkan semua" / "Ringkas". Batas penyimpanan tidak berubah: Riwayat maksimal 30 baris dan daftar log maksimal 50 file terbaru (yang terlama jatuh lebih dulu).

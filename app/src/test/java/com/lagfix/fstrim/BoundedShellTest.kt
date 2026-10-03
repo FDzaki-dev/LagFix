@@ -6,7 +6,10 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** v98: [BoundedShell] — perintah normal selesai utuh; perintah macet dihentikan sesuai batas & tak menahan pemanggil. */
+/**
+ * v98: [BoundedShell] — perintah normal selesai utuh; perintah macet dihentikan sesuai batas
+ * & tak menahan pemanggil.
+ */
 class BoundedShellTest {
 
     private fun sh(cmd: String): Process =
