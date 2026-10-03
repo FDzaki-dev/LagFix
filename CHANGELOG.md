@@ -1,5 +1,8 @@
 # Changelog
 
+## v109
+- Tidak ada perubahan pada aplikasi. Hasil CI v108 terkonfirmasi hijau: tes, lint, detekt, dan build lolos. Laporan lint kini 0 error dan 0 warning, dan temuan informasi `AutoboxingStateCreation` sudah hilang (sisa 6 item informasi yang memang sengaja dibiarkan: versi target Android dan 5 versi library yang lebih baru). Laporan detekt 0 temuan. Larangan impor `runBlocking` dan `GlobalScope` diterima konfigurasi tanpa error, tetapi belum teruji menangkap pelanggaran karena memang tidak ada yang melanggar. Perilaku di perangkat belum diuji. Seluruh antrean yang bisa diamati lint dan detekt kini selesai.
+
 ## v108
 - Tidak ada perubahan perilaku yang terlihat. Pengawasan kode diperkuat lewat detekt: impor `runBlocking` dan `GlobalScope` kini ditolak (saat ini tidak ada yang memakainya). Penyimpan nomor tab aktif di layar utama memakai state khusus angka (`mutableIntStateOf`), sehingga satu temuan informasi lint (`AutoboxingStateCreation`) seharusnya hilang dari laporan. Belum dibuktikan oleh CI dan belum diuji di perangkat (tab aktif harus tetap bertahan saat layar diputar).
 
