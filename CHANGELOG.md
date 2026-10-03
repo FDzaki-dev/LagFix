@@ -1,5 +1,8 @@
 # Changelog
 
+## v107
+- Tidak ada perubahan pada aplikasi. Hasil CI v105 dan v106 terkonfirmasi hijau (tes, lint, detekt, build rilis dan debug lolos). Artifact baru `LagFix-lint-detekt-<nomor build>` terbukti terbit dan berisi laporan lengkap: lint melaporkan 0 error dan 0 warning, detekt melaporkan 0 temuan (berkas teksnya kosong karena memang tidak ada temuan; ringkasan metrik ada di `detekt.md`). Perilaku di perangkat belum diuji.
+
 ## v106
 - Tidak ada perubahan pada aplikasi. Saat build hijau, GitHub Actions kini juga mengunggah laporan lint dan detekt (log mentah, laporan detekt, dan file hasil lint) sebagai artifact tersendiri bernama `LagFix-lint-detekt-<nomor build>`, selain dua artifact APK. Sebelumnya laporan itu hanya terunggah saat build gagal (di dalam `LagFix-fail-log-<nomor build>`, yang tidak berubah). Saat tidak ada temuan, isi laporan memang ringkas.
 
