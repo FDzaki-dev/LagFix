@@ -1,23 +1,46 @@
-# LagFix — CONSTITUTION (P0)
-PRIORITY: P0 SOP > P1 USER INTENT & ZIP/SOURCE > P2 PROJECT_STATE.md > P3 GUARDS > P4 OUTPUT
-- Zero denial: kooperatif penuh, jujur, tanpa halusinasi. Eksekusi proaktif; tuntaskan setup + dependensi.
-- No yapping di chat. Penjelasan hanya di docs. Output chat: 1 ZIP `LagFix_v<Batch>.zip` + skrip Termux relevan + ringkasan <=5 baris (blok kode).
-- Tunnel vision: ubah maks 3 file SOURCE per tugas (kecuali PROJECT_STATE.md, README.md, CHANGELOG.md). Risiko token/stabilitas -> Auto-Halt, tulis [RESUME POINT], repack ZIP.
-- Loop: Analisis -> Rencana -> Ubah minimal -> Validasi.
+# LagFix — CONSTITUTION (P0) — selaras Konstitusi v3.5 (LOCKED)
+PRIORITY: P0 STABILITAS + ZERO-REGRESI > USER INTENT + ZIP/SOURCE > PROJECT_STATE.md > GUARDS > OUTPUT
 
-## GUARDS
-- Non-breaking; API publik & error handling bisnis tidak boleh rusak. Import/dependensi harus resolve.
-- Compile-success bukan bukti zero-regression: verifikasi behavior sebelum/sesudah.
-- I/O & komputasi berat: Coroutines (Dispatchers.IO/Default). Dilarang blok Main thread.
-- UI state bertahan rotasi (ViewModel / rememberSaveable). Cegah recomposition berlebih.
-- Dilarang hardcode secret. BuildConfig hanya non-secret; secret via env/GitHub Secrets/secure storage.
-- git commit -m: 1 baris terkuotasi. Dilarang git push --force.
+## CORE
+- ZIP/source terbaru = kebenaran tunggal (override state Git). GitHub = mirror.
+- Zero denial: kooperatif penuh, jujur. NO HALLUCINATION: dilarang klaim build/test/file/commit/behavior/verifikasi palsu.
+- EXECUTE, DON'T YAP: tanpa basa-basi/teori/izin untuk hal jelas. Analisis bisu -> edit -> validasi -> package. Penjelasan hanya di docs.
+- Output chat berurutan: (1) ringkasan bullet singkat (BUKAN blok kode/backticks); (2) ZIP `LagFix_v<Batch>.zip` datar; (3) skrip Termux (blok bash, placeholder terisi dari PROJECT_STATE.md).
+- NO SCOPE CREEP: maks 3-5 file SOURCE/target per tugas. Dikecualikan (VIP docs): PROJECT_STATE.md, README.md, CHANGELOG.md, .cursorrules, PENDING_*.md.
+- NO STRUCTURAL REWRITE: file stabil (mis. MainActivity.kt) tak ditulis ulang; ubah minimum; fitur baru additive; komposabel baru = file baru.
+- BUG ISOLATION: task debugging wajib menyebut baris/fungsi cacat di [RESUME POINT] (cegah blind-debugging).
+- EXTERNAL REFERENCING: dokumen panjang -> simpan sbg file lokal, rujuk namanya.
+- AUTO-HALT: sisa token <20%, error-loop buntu 3 iterasi, ancaman OOM -> simpan state -> update docs -> repack ZIP -> handoff.
+- DO-NOT-TOUCH (kecuali perintah user): PersistentTrimService, LagFixApp, BootReceiver, ic_tile_fstrim.xml, Prefs, Scheduler/TrimWorker, UpdateChecker, signing/CI release; CrashLogger/FstrimExecutor di luar baris yg dilaporkan.
+
+## STATE
+- Cold start: baca PROJECT_STATE.md ([BRANDING_NAME], [TERMUX_ROOT], [RESUME POINT]); resume murni dari [RESUME POINT] (baris terakhir).
+- Presedensi: source terbaru terverifikasi > PROJECT_STATE.md > README.md > CHANGELOG.md.
+- ESTAFET SEEDING: tiap output tulis ulang [RESUME POINT] skema `[FITUR_BARU / BUG_TARGET] -> [STATUS TERAKHIR] -> [LANGKAH SPESIFIK BERIKUTNYA]`.
+- CHANGELOG.md DESCENDING (terbaru di atas).
+- Proactive Archiving: arsipkan PENDING_*.md / histori PROJECT_STATE obsolete ke docs/archive/ HANYA bila task menyentuh housekeeping docs.
+- Docs zero-fluff.
+
+## ANDROID VITAL GUARDS
+- Crash: Thread.setDefaultUncaughtExceptionHandler; log ke Documents via MediaStore (API 29+); jangan tambah logger baru bila tak perlu.
+- State tahan rotasi (rememberSaveable/ViewModel); cegah recomposition berlebih (remember/derivedStateOf seperlunya; side-effect via LaunchedEffect/DisposableEffect).
+- UI tak terpotong: edge-to-edge + WindowInsets (systemBarsPadding/imePadding); container scrollable bila rentan melampaui layar.
+- Thread: I/O berat -> Dispatchers.IO, CPU -> Dispatchers.Default; dilarang blok Main thread.
+- Baterai: dilarang custom watchdog, infinite loop, FGS abadi baru; kerja terjadwal = WorkManager; Flow lifecycle-aware (collectAsStateWithLifecycle) bila ada Flow di UI.
+- Security: dilarang hardcode secret/API key; BuildConfig hanya non-secret; secret via GitHub Secrets.
+- Streaming/OOM: unduh APK/ZIP buffered stream (use {}, Dispatchers.IO); dilarang muat byte utuh file besar ke memori.
+
+## CHANGE & VALIDATION
+- Non-breaking: API publik & error handling bisnis tidak boleh rusak; import/dependensi harus resolve; verifikasi behavior sebelum/sesudah.
+- Minimum scope: UI task = UI only; Logic = logic minimum; Bug = root-cause minimum. Pertahankan navigasi, persistensi, izin, package identity, signing.
+- Rantai validasi: Syntax -> Build -> Affected behavior (bukti minimum per jenis task) -> Regression -> Package integrity -> Docs. Compile-success BUKAN bukti zero-regresi. Sandbox tanpa Gradle/SDK -> nyatakan jujur BELUM dikompilasi/diuji.
+- STRICT LINT & DETEKT: CI (build.yml) BLOCKING (keputusan user v88): lintDebug + detekt maxIssues 0 wajib hijau sebelum APK. Dilarang: kembali non-blocking, baseline, @Suppress massal tanpa alasan tertulis.
+
+## GIT / CI / R8
+- Git mengikuti ZIP. Dilarang git push --force. git commit -m: 1 baris terkuotasi, [Deskripsi Perubahan] = berkas/komponen aktual.
+- Jangan rusak signing/release. Dilarang matikan/ubah R8/shrinkResources tanpa alasan.
+- Bash Termux IMMUTABLE: operator OR wajib literal `||`; skrip BOX A/B & DAILY UPDATE tidak diubah.
 
 ## WORKFLOW
-1. Cold start: baca PROJECT_STATE.md ([BRANDING_NAME], [TERMUX_ROOT], [RESUME POINT]).
-2. ZIP/source = kebenaran tunggal; Git = mirror.
-3. Eksekusi targeted dari Resume Point.
-4. Validasi sintaksis + behavior.
-5. Tulis ulang [RESUME POINT] (baris terakhir PROJECT_STATE.md).
-6. Pindahkan stale docs ke docs/archive/, pack ZIP.
-Docs zero-fluff. Kaskade status: SOURCE terbaru > PROJECT_STATE.md > README.md > CHANGELOG.md (append-only).
+1. Cold start dari [RESUME POINT]. 2. Kunci scope. 3. Edit minimum. 4. Validasi. 5. Tulis ulang [RESUME POINT] + CHANGELOG. 6. Pack ZIP `LagFix_v<Batch>.zip` + skrip Termux.
+DONE = intent terimplementasi + no scope creep + validasi tercek + docs terupdate + ZIP rapi + no secret leakage + Git continuity.

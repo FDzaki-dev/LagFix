@@ -1,5 +1,11 @@
 # Changelog
 
+## v102
+- Tidak ada perubahan pada aplikasi. Hasil CI v99 terkonfirmasi: rilis `build-84` terbit untuk commit v99, artinya tes, lint, dan detekt lolos dan APK berhasil dibuat (temuan detekt terakhir dari v98 sudah tertutup). Perilaku di perangkat belum diuji.
+
+## v101
+- Tidak ada perubahan pada aplikasi. Perapian dokumen proyek: riwayat batch v25 sampai v93 dipindah dari `PROJECT_STATE.md` ke `docs/archive/PROJECT_STATE_v25-v93.md` (isi identik, tidak ada yang dibuang) sehingga `PROJECT_STATE.md` susut dari sekitar 327 KB menjadi sekitar 45 KB, dan aturan kerja di `.cursorrules` disamakan dengan konstitusi pengembangan v3.5.
+
 ## v100
 - Tidak ada perubahan pada aplikasi. Ditambahkan dokumen rencana `PENDING_CONSTITUTION_PLAN.md` berbasis konstitusi pengembangan yang berlaku: peta aturan ke proyek, audit pagar Android (crash, lifecycle, thread, baterai, keamanan, OOM) dari pembacaan kode, antrean batch berikutnya (cek CI v99, uji perangkat snapshot logcat, penyelidikan notifikasi persisten, perapian dokumen), dan daftar keputusan terbuka.
 

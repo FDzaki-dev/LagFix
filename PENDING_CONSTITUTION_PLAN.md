@@ -3,6 +3,8 @@
 
 # PENDING_CONSTITUTION_PLAN — Rencana tertanam berbasis Konstitusi v3.5 (LOCKED)
 
+**Status v102: Q1, Q4, Q5 SELESAI (docs-only, 0 source).** Q2 + Q3a menunggu uji/data dari user (APK `build-84`); Q3b, Q6, Q7 butuh perintah user. Tabel §4 memuat status terkini.
+
 Dasar: dibaca langsung dari ZIP `LagFix-main.zip` (HEAD = v99; `.cursorrules`, `PROJECT_STATE.md`, `CHANGELOG.md`,
 `PENDING_*.md`, `build.yml`, `app/build.gradle.kts`, manifest, 19 berkas Kotlin `app/src/main`). **PLANNING ONLY — 0 source,
 0 dependency, 0 izin manifest diubah di batch v100.** Nomor baris = ZIP v99. Sandbox tanpa Gradle/SDK/device -> semua temuan
@@ -18,8 +20,8 @@ dari baca/grep (level bukti: SUMBER), BELUM dikompilasi, BELUM diuji device. Tia
 | NO SCOPE CREEP, maks 3-5 file source | VIP (`PROJECT_STATE.md`, `README.md`, `CHANGELOG.md`, `.cursorrules`, `PENDING_*.md`) dikecualikan | Berlaku |
 | NO STRUCTURAL REWRITE | `MainActivity.kt` (70 KB) TIDAK dipecah/ditulis ulang; komposabel baru -> berkas baru | Berlaku |
 | BUG ISOLATION | RESUME POINT wajib menyebut fungsi/baris cacat (preseden v95-v99) | Berlaku |
-| EXTERNAL REFERENCING | `PROJECT_STATE.md` 326.984 B, 75 baris RESUME POINT = 104.847 B (±32%) -> kandidat Q4 | Kandidat |
-| Proactive Archiving | `PENDING_*.md` diarsipkan ke `docs/archive/` HANYA bila task menyentuh housekeeping docs; batch ini TIDAK -> 0 arsip | Ditahan |
+| EXTERNAL REFERENCING | `PROJECT_STATE.md` 326.984 B (75 baris RESUME POINT = 104.847 B) -> v101: riwayat v25-v93 dipindah ke berkas arsip, `PROJECT_STATE.md` ±45 KB | Terpenuhi v101 (Q4) |
+| Proactive Archiving | `PENDING_*.md`/histori diarsipkan ke `docs/archive/` HANYA bila task menyentuh housekeeping docs; v100 TIDAK (0 arsip); v101 = task housekeeping (Q4): hanya riwayat `PROJECT_STATE.md`, `PENDING_*.md` TIDAK diarsipkan | Dipakai v101 |
 | AUTO-HALT | token <20%, error-loop buntu 3 iterasi, ancaman OOM -> simpan state -> docs -> repack ZIP -> handoff | Berlaku |
 | STRICT LINT & DETEKT | CI: step Lint (`build.yml:44`) + Detekt (`:50`) lalu Gerbang BLOCKING (`:71`); detekt `maxIssues` 0 | Lebih ketat dari konstitusi (lihat K3) |
 | Termux IMMUTABLE (`||` literal, commit 1 baris terkuotasi, no force push) | Dipakai apa adanya; `[Deskripsi Perubahan]` = berkas/komponen aktual | Berlaku |
@@ -53,12 +55,12 @@ Pre-commit hook `./gradlew detekt lintDebug`: repo tidak punya `gradlew`/`gradle
 ## 4. Antrean batch (urut risiko rendah -> tinggi; SEMUA butuh perintah user)
 | ID | Isi | File source target | Gate | Status |
 |----|-----|--------------------|------|--------|
-| Q1 | DAILY UPDATE v100 lalu baca hasil CI v99: detekt harus 1 -> 0 (`MaxLineLength` `BoundedShellTest.kt:9`); APK rilis + artifact debug terbit. Merah -> upload `LagFix-fail-log-<run>.zip`, baca `LagFix_build_fail_log_<run>.txt` + `lint_detekt/detekt/detekt.txt`, perbaiki HANYA baris yang dilaporkan | 0 (atau baris dilaporkan) | CI hijau penuh | MENUNGGU CI |
+| Q1 | DAILY UPDATE v100 lalu baca hasil CI v99: detekt harus 1 -> 0 (`MaxLineLength` `BoundedShellTest.kt:9`); APK rilis + artifact debug terbit. Merah -> upload `LagFix-fail-log-<run>.zip`, baca `LagFix_build_fail_log_<run>.txt` + `lint_detekt/detekt/detekt.txt`, perbaiki HANYA baris yang dilaporkan | 0 (atau baris dilaporkan) | CI hijau penuh | SELESAI v102 (bukti: rilis `build-84`, commit `e031afa`, lihat entri v102 `PROJECT_STATE.md`) |
 | Q2 | Uji device v98/v99: Pengaturan > Log diagnostik > "Ambil logcat sistem" selesai/tidak + lama + isi snackbar; penanda "[dihentikan: melewati batas waktu]"/"(dilewati: anggaran waktu...)" = bagian lambat; Riwayat & daftar log tampil 5 teratas + "Tampilkan semua (N)" | 0 | Laporan user | MENUNGGU USER |
 | Q3a | Notifikasi persisten (BUG_TARGET RESUME v97): uji data TANPA kode: buka app, HOME (jangan swipe), ketuk QS tile, buka app, "Ambil logcat sistem" SEGERA; baca `LIFECYCLE ensureShowing ... shown=`, `onStartCommand ... startForeground=`, `Service.startForeground() not allowed due to bg restriction`, `am_foreground_service_start/stop`, `isBackgroundRestricted` | 0 | Bukti log | MENUNGGU USER |
 | Q3b | Kode notifikasi, urut risiko: (i) cabut/ganti baris v96 `ensureShowing` di `onResume` (`MainActivity.kt:134`) bila tak berguna; (ii) kartu UI dari `ActivityManager.isBackgroundRestricted`; (iii) log `persistent_service` jujur (cek `isForegroundNotificationShown` SETELAH `startForeground()`) = sentuh `PersistentTrimService.kt` (DO-NOT-TOUCH); (iv) tombol Shizuku `cmd appops set com.lagfix.fstrim RUN_ANY_IN_BACKGROUND allow` (fitur baru, ubah setelan sistem, jelaskan dampak baterai) | (i) `MainActivity.kt`; (ii) `MainActivity.kt`+`strings.xml`+komposabel baru; (iii) `PersistentTrimService.kt`; (iv) 3-5 file | Tanpa watchdog/alarm/loop; tile 3x berturut-turut konsisten; 0 fungsi member baru di `MainViewModel` (TEPAT 10) & `LogcatSnapshot` (TEPAT 10) | Tertahan Q3a |
-| Q4 | Housekeeping docs: arsipkan RESUME POINT/entri `PROJECT_STATE.md` v25-v9x ke `docs/archive/` (preseden v28: `PROJECT_STATE_v2-v24.md`), pindahkan boilerplate aturan kode yang diulang tiap RESUME POINT ke 1 berkas dan rujuk namanya | `PROJECT_STATE.md`, `docs/archive/*` (VIP) | `[RESUME POINT]` tetap baris terakhir & mandiri; 0 info hilang | Antrean |
-| Q5 | Sinkron `.cursorrules` ke Konstitusi v3.5 (drift, lihat §6) | `.cursorrules` (VIP) | Selaras preferensi user; 0 aturan hilang | Antrean |
+| Q4 | Housekeeping docs: arsipkan RESUME POINT/entri `PROJECT_STATE.md` v25-v9x ke `docs/archive/` (preseden v28: `PROJECT_STATE_v2-v24.md`), pindahkan boilerplate aturan kode yang diulang tiap RESUME POINT ke 1 berkas dan rujuk namanya | `PROJECT_STATE.md`, `docs/archive/*` (VIP) | `[RESUME POINT]` tetap baris terakhir & mandiri; 0 info hilang | SELESAI v101 (archive `docs/archive/PROJECT_STATE_v25-v93.md` byte-identik; pemindahan boilerplate aturan RP DITAHAN: RP harus mandiri utk cold start) |
+| Q5 | Sinkron `.cursorrules` ke Konstitusi v3.5 (drift, lihat §6) | `.cursorrules` (VIP) | Selaras preferensi user; 0 aturan hilang | SELESAI v101 (`.cursorrules` 1,6 KB -> ±4,4 KB, selaras v3.5) |
 | Q6 | Antrean lama: pemangkasan FIFO 50 berkas di `Documents/LagFix` termasuk `.zip`; menyatukan 2 baca-ulang logcat penuh di ringkasan (grep fstrim & grep app membaca ±56 MB lagi); H2(2) preset interval; H2 tambahan #1 lisensi OSS; D2 (R8/minify, berisiko); F2 (Dependabot) | per item | per item | Antrean |
 | Q7 | M9 DoP P1-P9 DEVICE-VERIFIED (TalkBack, font scale 1.3/2.0, layar kecil/landscape/gesture-nav, kontras) | sesuai temuan (<=5) | Screenshot user | Antrean |
 
@@ -70,7 +72,7 @@ perintah. 5. Validasi sandbox (syntax) + jujur menyatakan belum dikompilasi/diuj
 `PROJECT_STATE.md` (+entri +RESUME POINT skema ESTAFET), `PENDING_*` terkait. 7. ZIP datar `LagFix_v<Batch>.zip`. 8. Skrip
 Termux DAILY UPDATE dengan `[Deskripsi Perubahan]` deterministik. 9. AUTO-HALT bila kondisi §1 terpenuhi.
 
-## 6. Drift `.cursorrules` terhadap Konstitusi v3.5 (bahan Q5, belum diubah)
+## 6. Drift `.cursorrules` terhadap Konstitusi v3.5 — DITUTUP v101 (Q5); daftar di bawah = kondisi SEBELUM v101
 - Prioritas: `.cursorrules` "P1 USER INTENT & ZIP/SOURCE" vs v3.5 "P0: STABILITY + ZERO-REGRESSION > USER INTENT + ZIP/SOURCE".
 - Output chat: `.cursorrules` "ringkasan <=5 baris (blok kode)" vs v3.5 ringkasan bullet DILARANG dibungkus backticks; urutan ringkasan -> ZIP -> skrip Termux.
 - RESUME POINT: `.cursorrules` tanpa skema vs v3.5 `[FITUR/BUG] -> [STATUS] -> [LANGKAH]`.
@@ -83,7 +85,7 @@ Termux DAILY UPDATE dengan `[Deskripsi Perubahan]` deterministik. 9. AUTO-HALT b
 - **K2 Okio literal vs "JANGAN tambah dependency":** `java.io` `use{}` + `copyTo` di IO sudah memenuhi maksud (tanpa muat byte penuh). Okio = dependency baru -> hanya bila user memutuskan.
 - **K3 Gerbang lint/detekt:** konstitusi "non-blocking saat evaluasi, wajib hijau sebelum commit" vs repo BLOCKING di CI. Dipertahankan BLOCKING (keputusan user v88; opsi PRAGMATIS ditolak).
 - **K4 `collectAsStateWithLifecycle`:** sumber 0 Flow; `lifecycle-runtime-compose` bukan dependency (hanya `lifecycle-viewmodel-ktx:2.8.7`). Bila kelak ada Flow di UI -> butuh dependency baru + persetujuan.
-- **K5 Sinkron `.cursorrules` (Q5):** lakukan atau tidak.
+- **K5 Sinkron `.cursorrules` (Q5):** DILAKUKAN v101 (perintah "Mulai kerjakan!!").
 - **K6 Jam 24 jam di berkas diagnostik (`LogcatSnapshot.kt:80`):** dibiarkan 24 jam agar sejajar dengan jam logcat/`dumpsys`; ubah ke 12 jam hanya bila user menghendaki (menyentuh format isi berkas + tes).
 
 ## 8. Di luar scope
