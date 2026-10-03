@@ -1,5 +1,8 @@
 # Changelog
 
+## v93
+- Tidak ada perubahan perilaku aplikasi. Hasil CI v92: build, tes, dan lint hijau, dan detekt turun dari 42 ke 14 temuan. Pengumpulan laporan lint dan detekt ke satu artifact log kegagalan terbukti berjalan (satu unduhan). Batch keempat perapian detekt: angka literal pada pencatat crash, daftar log, dan model tampilan diganti konstanta bernama atau konstanta versi Android, baris panjang dipecah, penanganan galat di batas shell dan unduhan diberi alasan tertulis, dan fungsi di model tampilan utama dikurangi dengan memindahkan fungsi yang tidak menyentuh state ke luar kelas. Fungsi pengatur tema yang tidak lagi dipanggil dari mana pun dihapus.
+
 ## v92
 - Tidak ada perubahan perilaku aplikasi. Hasil CI v91: build dan tes hijau, lint 0 error, dan detekt turun dari 70 ke 42 temuan. Batch ketiga perapian detekt: angka literal pada cek update, pengaturan paksa trim saat reboot, penyimpanan riwayat, dan worker jadwal diganti konstanta bernama; fungsi cek update dan unduh APK dipecah agar tidak bersarang terlalu dalam; penanganan galat di batas jaringan dan shell diberi alasan tertulis.
 - Di CI, laporan lint dan detekt kini digabung ke dalam satu artifact log kegagalan (`LagFix-fail-log-<nomor>`), sehingga saat build gagal cukup satu kali unduh. Artifact terpisah `LagFix-lint-detekt-report-<nomor>` dihapus.

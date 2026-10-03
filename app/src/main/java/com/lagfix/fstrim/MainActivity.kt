@@ -270,7 +270,7 @@ private fun HomeScreen(vm: MainViewModel) {
                                     ctx = ctx,
                                     versionName = versionName,
                                     onRunNow = { showRunConfirm = true }, // v11: minta konfirmasi dulu
-                                    onGrant = vm::requestPermission,
+                                    onGrant = ::requestShizukuPermission,
                                     onCheckUpdate = vm::checkUpdate,
                                     onInstallUpdate = vm::installUpdate
                                 )
@@ -523,7 +523,7 @@ private fun SettingsTab(
                     style = MaterialTheme.typography.bodySmall
                 )
                 TextButton(
-                    onClick = { runCatching { ctx.startActivity(vm.batteryOptimizationIntent()) } },
+                    onClick = { runCatching { ctx.startActivity(batteryOptimizationIntent(ctx)) } },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Izinkan berjalan tanpa batas", Modifier.weight(1f))

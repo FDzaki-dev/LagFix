@@ -39,6 +39,9 @@ import java.util.Locale
 object CrashLogger {
     private const val TAG = "LagFixCrashLogger"
 
+    // v93 (detekt MagicNumber): batas daftar log di listLogs() (nilai identik dgn literal sebelumnya).
+    private const val MAX_LISTED_LOGS = 50
+
     fun install(ctx: Context) {
         val app = ctx.applicationContext
         val prev = Thread.getDefaultUncaughtExceptionHandler()
@@ -93,7 +96,7 @@ object CrashLogger {
 
     private fun writeToFile(ctx: Context, prefix: String, body: String) {
         val name = "LagFix_${prefix}_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".txt"
-        if (Build.VERSION.SDK_INT >= 29) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val mediaError = runCatching { writeViaMediaStore(ctx, name, body) }.exceptionOrNull()
             if (mediaError == null) return
             Log.e(TAG, "MediaStore write ke Documents/LagFix gagal, fallback ke app files dir", mediaError)
@@ -102,7 +105,9 @@ object CrashLogger {
             }.exceptionOrNull()
             if (fallbackError != null) {
                 Log.e(TAG, "Fallback app files dir JUGA gagal", fallbackError)
-                throw IOException("MediaStore gagal ($mediaError) DAN fallback app files dir juga gagal ($fallbackError)")
+                throw IOException(
+                    "MediaStore gagal ($mediaError) DAN fallback app files dir juga gagal ($fallbackError)"
+                )
             }
         } else {
             writeToAppFilesDir(ctx, name, body)
@@ -151,7 +156,7 @@ object CrashLogger {
 
     fun listLogs(ctx: Context): List<LogFile> {
         val result = mutableListOf<LogFile>()
-        if (Build.VERSION.SDK_INT >= 29) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             runCatching {
                 val collection = filesCollection()
                 val projection = arrayOf(
@@ -188,6 +193,6 @@ object CrashLogger {
                 ?.sortedByDescending { it.lastModified() }
                 ?.forEach { f -> result += LogFile(f.name, "App files (cadangan)") { f.readText() } }
         }.onFailure { Log.e(TAG, "Gagal baca app files dir", it) }
-        return result.take(50) // cegah daftar membengkak tanpa batas kalau ada banyak entri lama
+        return result.take(MAX_LISTED_LOGS) // cegah daftar membengkak tanpa batas kalau ada banyak entri lama
     }
 }

@@ -1,6 +1,7 @@
 package com.lagfix.fstrim
 
 import android.app.Application
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -16,10 +17,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import rikka.shizuku.Shizuku
 
+// v93 (detekt MagicNumber): nilai identik dgn literal sebelumnya.
+private const val DEFAULT_INTERVAL_MINUTES = 24L * 60L
+private const val SHIZUKU_PERMISSION_REQUEST_CODE = 1001
+
 data class UiState(
     val shizuku: ShizukuState = ShizukuState.NOT_RUNNING,
     val enabled: Boolean = false,
-    val intervalMinutes: Long = 24L * 60L, // v44: menit (sebelumnya jam)
+    val intervalMinutes: Long = DEFAULT_INTERVAL_MINUTES, // v44: menit (sebelumnya jam)
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val running: Boolean = false,
     val lastRunMs: Long = 0L,
@@ -39,7 +44,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val onDead = Shizuku.OnBinderDeadListener { refresh() }
     private val onPerm = Shizuku.OnRequestPermissionResultListener { _, _ -> refresh() }
 
-    var ui by mutableStateOf(read())
+    var ui by mutableStateOf(readUiState(app, prefs))
         private set
 
     init {
@@ -48,41 +53,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Shizuku.addRequestPermissionResultListener(onPerm)
     }
 
-    private fun read(running: Boolean = false) = UiState(
-        shizuku = FstrimExecutor.state(getApplication<Application>()),
-        enabled = prefs.enabled,
-        intervalMinutes = prefs.intervalMinutes,
-        themeMode = prefs.themeMode,
-        running = running,
-        lastRunMs = prefs.lastRunMs,
-        lastOk = prefs.lastOk,
-        log = prefs.log,
-        batteryUnrestricted = isBatteryUnrestricted(),
-        persistentServiceEnabled = prefs.persistentServiceEnabled
-    )
-
-    // v21: root cause laporan user "jadwal otomatis tak tercatat" — confirmed toggle sudah ON dari
-    // awal + device Infinix XOS, salah satu ROM yg dikenal agresif membunuh background job WorkManager
-    // kalau app tak dikecualikan dari optimasi baterai. Ini bukan bug logic (Prefs.record()/Riwayat
-    // sudah dicek unconditional, 0 filter) — ini restriksi OS/OEM di luar kendali kode.
-    private fun isBatteryUnrestricted(): Boolean {
-        val app = getApplication<Application>()
-        val pm = app.getSystemService(PowerManager::class.java) ?: return true
-        return pm.isIgnoringBatteryOptimizations(app.packageName)
-    }
-
-    /** Intent standar Android utk minta dikecualikan dari optimasi baterai (0 permission dialog
-     * custom — sistem yg tampilkan dialog konfirmasi bawaan). Dipanggil dari SettingsTab. */
-    fun batteryOptimizationIntent(): Intent {
-        val app = getApplication<Application>()
-        return Intent(
-            Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-            Uri.parse("package:${app.packageName}")
-        )
-    }
-
     fun refresh() {
-        ui = read(ui.running).copy(
+        ui = readUiState(getApplication<Application>(), prefs, ui.running).copy(
             updateChecking = ui.updateChecking,
             updateResult = ui.updateResult,
             downloading = ui.downloading,
@@ -90,17 +62,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
-    private fun reschedule() {
+    // v93 (detekt TooManyFunctions 16 -> 10): `reschedule()` (2 pemanggil) di-inline; `setThemeMode()`
+    // dihapus (0 pemanggil di seluruh source, tema = dark only sejak v60); `read()`,
+    // `isBatteryUnrestricted()`, `batteryOptimizationIntent()`, `requestPermission()` dipindah ke
+    // fungsi top-level di bawah class (tak menyentuh state ViewModel).
+    fun setEnabled(v: Boolean) {
+        prefs.enabled = v
         Scheduler.apply(getApplication<Application>(), prefs)
         refresh()
     }
 
-    fun setEnabled(v: Boolean) { prefs.enabled = v; reschedule() }
     fun setInterval(minutes: Long) {
         prefs.intervalMinutes = minutes.coerceAtLeast(Scheduler.MIN_INTERVAL_MINUTES)
-        reschedule()
+        Scheduler.apply(getApplication<Application>(), prefs)
+        refresh()
     }
-    fun setThemeMode(m: ThemeMode) { prefs.themeMode = m; ui = ui.copy(themeMode = m) }
 
     // v27 (fitur opsional, pilihan eksplisit user): start/stop PersistentTrimService ikut toggle.
     // 0 logic fstrim/Scheduler disentuh — service ini cuma menjaga proses tetap hidup.
@@ -138,12 +114,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun requestPermission() {
-        runCatching {
-            if (Shizuku.pingBinder() && !Shizuku.isPreV11()) Shizuku.requestPermission(1001)
-        }
-    }
-
     fun runNow() {
         if (ui.running) return
         ui = ui.copy(running = true)
@@ -153,7 +123,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             else TrimResult(false, "Shizuku belum siap", 0L)
             prefs.record(r, TriggerSource.MANUAL) // v38: runNow() = tombol di app = selalu manual
             Scheduler.notifyChanged(app)
-            ui = read(false).copy(
+            ui = readUiState(app, prefs).copy(
                 updateChecking = ui.updateChecking,
                 updateResult = ui.updateResult,
                 downloading = ui.downloading,
@@ -169,7 +139,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val app = getApplication<Application>()
             val installedBuild = runCatching {
                 val pi = app.packageManager.getPackageInfo(app.packageName, 0)
-                if (Build.VERSION.SDK_INT >= 28) pi.longVersionCode.toInt()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) pi.longVersionCode.toInt()
                 else @Suppress("DEPRECATION") pi.versionCode
             }.getOrDefault(1)
             val result = UpdateChecker.check(installedBuild)
@@ -178,6 +148,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Unduh APK ke cache app lalu langsung buka Package Installer — tanpa browser, tanpa file menumpuk di Download. */
+    // v93: catch Exception DISENGAJA — batas jaringan+disk+Intent: kegagalan apa pun jadi pesan di UI
+    // (UpdateChecker.friendlyError), bukan crash.
+    @Suppress("TooGenericExceptionCaught")
     fun installUpdate(url: String) {
         if (ui.downloading) return
         ui = ui.copy(downloading = true, downloadError = null)
@@ -202,5 +175,44 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Shizuku.removeBinderReceivedListener(onBinder)
         Shizuku.removeBinderDeadListener(onDead)
         Shizuku.removeRequestPermissionResultListener(onPerm)
+    }
+}
+
+// v93 (detekt TooManyFunctions): dikeluarkan dari MainViewModel; isi sama persis dgn versi member.
+private fun readUiState(app: Application, prefs: Prefs, running: Boolean = false): UiState = UiState(
+    shizuku = FstrimExecutor.state(app),
+    enabled = prefs.enabled,
+    intervalMinutes = prefs.intervalMinutes,
+    themeMode = prefs.themeMode,
+    running = running,
+    lastRunMs = prefs.lastRunMs,
+    lastOk = prefs.lastOk,
+    log = prefs.log,
+    batteryUnrestricted = isBatteryUnrestricted(app),
+    persistentServiceEnabled = prefs.persistentServiceEnabled
+)
+
+// v21: root cause laporan user "jadwal otomatis tak tercatat" — confirmed toggle sudah ON dari
+// awal + device Infinix XOS, salah satu ROM yg dikenal agresif membunuh background job WorkManager
+// kalau app tak dikecualikan dari optimasi baterai. Ini bukan bug logic (Prefs.record()/Riwayat
+// sudah dicek unconditional, 0 filter) — ini restriksi OS/OEM di luar kendali kode.
+private fun isBatteryUnrestricted(app: Application): Boolean {
+    val pm = app.getSystemService(PowerManager::class.java) ?: return true
+    return pm.isIgnoringBatteryOptimizations(app.packageName)
+}
+
+/** Intent standar Android utk minta dikecualikan dari optimasi baterai (0 permission dialog
+ * custom — sistem yg tampilkan dialog konfirmasi bawaan). Dipanggil dari SettingsTab. */
+internal fun batteryOptimizationIntent(ctx: Context): Intent = Intent(
+    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+    Uri.parse("package:${ctx.packageName}")
+)
+
+/** Minta izin Shizuku (hanya bila binder hidup & bukan pre-v11). Dipanggil dari kartu status Shizuku. */
+internal fun requestShizukuPermission() {
+    runCatching {
+        if (Shizuku.pingBinder() && !Shizuku.isPreV11()) {
+            Shizuku.requestPermission(SHIZUKU_PERMISSION_REQUEST_CODE)
+        }
     }
 }

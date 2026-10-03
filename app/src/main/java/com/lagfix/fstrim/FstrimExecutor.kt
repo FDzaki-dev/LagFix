@@ -50,12 +50,16 @@ object FstrimExecutor {
     }.getOrDefault(ShizukuState.NOT_RUNNING)
 
     /** Blocking — panggil hanya dari Dispatchers.IO. */
+    // v93: catch Throwable DISENGAJA — batas I/O-shell Shizuku (reflection, binder, proses): kegagalan
+    // apa pun dilaporkan sbg TrimResult(ok=false) ke Riwayat, bukan crash.
+    @Suppress("TooGenericExceptionCaught")
     fun run(): TrimResult {
         val t0 = SystemClock.elapsedRealtime()
         return try {
             var res = sh("sm fstrim")
             if (res.first != 0) res = sh("sm idle-maint run") // fallback
-            TrimResult(res.first == 0, "exit=${res.first} ${res.second.trim()}".trim(), SystemClock.elapsedRealtime() - t0)
+            val message = "exit=${res.first} ${res.second.trim()}".trim()
+            TrimResult(res.first == 0, message, SystemClock.elapsedRealtime() - t0)
         } catch (e: Throwable) {
             TrimResult(false, "${e.javaClass.simpleName}: ${e.message}", SystemClock.elapsedRealtime() - t0)
         }

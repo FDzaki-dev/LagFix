@@ -19,5 +19,6 @@ internal fun formatClock12(hour24: Int, minute: Int): String {
 /** "02/10 19:05" (format simpan, 24 jam) -> "02/10 07:05 PM". Teks yang tak cocok pola dikembalikan apa adanya. */
 internal fun formatStamp12h(stamp: String): String {
     val g = storedStampRegex.matchEntire(stamp)?.groupValues ?: return stamp
-    return "${g[1]} ${formatClock12(g[2].toInt(), g[3].toInt())}"
+    val (_, date, hour, minute) = g // v93 (detekt MagicNumber): g[0] = teks penuh, diabaikan
+    return "$date ${formatClock12(hour.toInt(), minute.toInt())}"
 }
