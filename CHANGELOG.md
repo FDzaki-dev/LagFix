@@ -1,5 +1,9 @@
 # Changelog
 
+## v98
+- Tombol "Ambil logcat sistem" tidak lagi bisa macet selamanya di "Mengambil…": tiap perintah sistem pada ringkasan kini dibatasi waktu (40 detik per perintah, 150 detik total), tombol dilepas otomatis oleh pagar waktu di layar (4 menit), dan ketukan kedua saat snapshot pertama masih berjalan ditolak dengan pesan jelas. Dump mentah (.zip) tetap diambil lebih dulu dan tidak dibatasi.
+- Riwayat dan daftar log diagnostik kini hanya menampilkan 5 entri terbaru, sisanya lewat tombol "Tampilkan semua" / "Ringkas". Batas penyimpanan tidak berubah: Riwayat maksimal 30 baris dan daftar log maksimal 50 file terbaru (yang terlama jatuh lebih dulu).
+
 ## v97
 - Tidak ada perubahan pada aplikasi. Pembetulan catatan v96: pengamatan di HP menunjukkan notifikasi layanan persisten tetap tidak muncul selama aplikasi masih hidup atau terlihat di Recents, walau dipicu dari luar (mis. QS tile); notifikasi hanya muncul bila aplikasi di-swipe/dimatikan lalu ada pemicu eksternal. Karena itu pemasangan ulang saat aplikasi dibuka (v96) belum terbukti membantu, dan penyebab pastinya masih diselidiki.
 

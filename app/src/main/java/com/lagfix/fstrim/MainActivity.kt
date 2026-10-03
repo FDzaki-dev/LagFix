@@ -102,8 +102,10 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.app.NotificationManagerCompat
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -333,6 +335,15 @@ private fun HomeScreen(vm: MainViewModel) {
     }
 }
 
+// v98: batas tampil daftar (laporan user: Riwayat & daftar log terlalu panjang ke bawah). Data TIDAK dihapus/
+// diubah: Riwayat tetap maks 30 baris (Prefs) & daftar log tetap maks 50 file FIFO terbaru (CrashLogger.listLogs);
+// yang dibatasi hanya berapa baris yang langsung terlihat, sisanya lewat tombol "Tampilkan semua".
+private const val PREVIEW_COUNT = 5
+
+// v98 (laporan user: label "Mengambil…" tak kunjung selesai): pagar UI. Bila snapshot melewati batas ini, tombol
+// dilepas & user diberi tahu; pekerjaan di latar belakang dibiarkan selesai sendiri (tak bisa dibatalkan paksa).
+private const val SNAPSHOT_UI_TIMEOUT_MS = 240_000L
+
 // v10: tab "Utama" — status Shizuku, aksi jalankan fstrim, Riwayat, Tautan (+ Tentang), Pembaruan,
 // label versi. Persis konten yang sebelumnya ada di layar tunggal, cuma dipindah ke tab ini.
 @Composable
@@ -376,7 +387,13 @@ private fun MainTab(
             if (lastTriggerLabel != null) {
                 Text("Dipicu oleh: $lastTriggerLabel", style = MaterialTheme.typography.bodySmall)
             }
-            ui.log.forEach { LogLine(it) }
+            var showAllRuns by rememberSaveable { mutableStateOf(false) } // v98
+            (if (showAllRuns) ui.log else ui.log.take(PREVIEW_COUNT)).forEach { LogLine(it) }
+            if (ui.log.size > PREVIEW_COUNT) {
+                TextButton(onClick = { showAllRuns = !showAllRuns }, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (showAllRuns) "Ringkas" else "Tampilkan semua (${ui.log.size})")
+                }
+            }
         }
     }
 
@@ -747,6 +764,7 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
     var testing by remember { mutableStateOf(false) }
     var capturing by remember { mutableStateOf(false) } // v84: snapshot logcat
     var logs by remember { mutableStateOf<List<CrashLogger.LogFile>>(emptyList()) }
+    var showAllLogs by rememberSaveable { mutableStateOf(false) } // v98: daftar diringkas ke PREVIEW_COUNT
     var loadError by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedName by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedContent by rememberSaveable { mutableStateOf<String?>(null) }
@@ -804,10 +822,18 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
             onClick = {
                 if (!capturing) {
                     capturing = true
-                    scope.launch(Dispatchers.IO) {
-                        val result = LogcatSnapshot.capture(ctx)
-                        withContext(Dispatchers.Main) {
-                            capturing = false
+                    scope.launch {
+                        // v98: pekerjaan berat di IO, tapi UI hanya menunggu sampai SNAPSHOT_UI_TIMEOUT_MS supaya
+                        // label tak bisa macet selamanya (scope = Main, jadi state di bawah aman diubah langsung).
+                        val job = async(Dispatchers.IO) { LogcatSnapshot.capture(ctx) }
+                        val result = withTimeoutOrNull(SNAPSHOT_UI_TIMEOUT_MS) { job.await() }
+                        capturing = false
+                        if (result == null) {
+                            onFeedback(
+                                "Snapshot belum selesai setelah ${SNAPSHOT_UI_TIMEOUT_MS / 1000} dtk; masih " +
+                                    "berjalan di latar belakang. Cek Documents/LagFix beberapa saat lagi."
+                            )
+                        } else {
                             result.onSuccess {
                                 onFeedback(it.feedback())
                                 load()
@@ -817,7 +843,7 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
                 }
             },
             modifier = Modifier.fillMaxWidth()
-        ) { Text(if (capturing) "Mengambil…" else "Ambil logcat sistem", Modifier.weight(1f)) }
+        ) { Text(if (capturing) "Mengambil… (bisa memakan waktu)" else "Ambil logcat sistem", Modifier.weight(1f)) }
         Text(
             "Menyimpan 2 file di Documents/LagFix: ringkasan (.txt, bisa dibaca di sini) dan dump mentah " +
                 "logcat LENGKAP tanpa filter (.zip, tidak tampil di daftar ini — kirim file ini bila ringkasan " +
@@ -839,7 +865,7 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
                 style = MaterialTheme.typography.bodySmall
             )
         }
-        logs.forEach { log ->
+        (if (showAllLogs) logs else logs.take(PREVIEW_COUNT)).forEach { log ->
             TextButton(
                 onClick = {
                     scope.launch(Dispatchers.IO) {
@@ -857,6 +883,11 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
                     Modifier.weight(1f),
                     style = MaterialTheme.typography.bodySmall
                 )
+            }
+        }
+        if (logs.size > PREVIEW_COUNT) { // v98
+            TextButton(onClick = { showAllLogs = !showAllLogs }, modifier = Modifier.fillMaxWidth()) {
+                Text(if (showAllLogs) "Ringkas" else "Tampilkan semua (${logs.size})")
             }
         }
     }

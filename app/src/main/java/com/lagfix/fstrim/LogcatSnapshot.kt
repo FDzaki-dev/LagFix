@@ -21,6 +21,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -175,6 +176,17 @@ object LogcatSnapshot {
     private const val BUFFER_RESIZE_CMD = "logcat $BUFFERS -G 16M"
     private const val RAW_CAP_BYTES = 192L * 1024L * 1024L // pagar pengaman; buffer 16M ~ <130 MiB
 
+    // v98 (laporan user: "Mengambil…" tak kunjung selesai): tiap perintah shell ringkasan dibatasi waktu, dan
+    // seluruh bagian ringkasan punya anggaran total. Dump mentah (zip) TIDAK dibatasi ini & selalu lebih dulu.
+    private const val SECTION_TIMEOUT_MS = 40_000L
+    private const val SYSTEM_BUDGET_MS = 150_000L
+
+    // Satu snapshot dalam satu waktu (proses-lebar): ketuk ulang saat yg lama belum selesai ditolak, bukan ditumpuk.
+    private val running = AtomicBoolean(false)
+
+    @Volatile
+    private var deadlineAt = Long.MAX_VALUE
+
     // Batas karakter tiap bagian ringkasan (capTail) & panjang pesan galat; angka sama dgn v86.
     private const val CAP_FINGERPRINT = 600
     private const val CAP_STANDBY = 400
@@ -246,54 +258,61 @@ object LogcatSnapshot {
     )
 
     fun capture(ctx: Context): Result<SnapshotSummary> = runCatching {
-        val app = ctx.applicationContext
-        val ready = FstrimExecutor.state(app) == ShizukuState.READY
-        val now = System.currentTimeMillis()
-        val fileStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date(now))
-        val sb = StringBuilder()
+        // v98: satu snapshot dalam satu waktu; ketukan kedua saat yg pertama berjalan -> galat jelas di UI.
+        check(running.compareAndSet(false, true)) { "Snapshot sebelumnya masih berjalan — tunggu sampai selesai." }
+        try {
+            val app = ctx.applicationContext
+            val ready = FstrimExecutor.state(app) == ShizukuState.READY
+            val now = System.currentTimeMillis()
+            val fileStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date(now))
+            val sb = StringBuilder()
 
-        // 1) DUMP MENTAH lebih dulu (data paling cepat berputar). Terisolasi: gagal -> tercatat, bukan fatal.
-        val raw: RawOutcome? = if (ready) captureRaw(app, "LagFix_diag_logcatraw_$fileStamp.zip", now) else null
+            // 1) DUMP MENTAH lebih dulu (data paling cepat berputar). Terisolasi: gagal -> tercatat, bukan fatal.
+            val raw: RawOutcome? = if (ready) captureRaw(app, "LagFix_diag_logcatraw_$fileStamp.zip", now) else null
 
-        sb.append("Snapshot logcat LagFix (v86)\n")
-        sb.append("Waktu: ${stamp(now)} (zona app ${formatUtcOffset(TimeZone.getDefault().getOffset(now))})\n")
-        sb.append("Perkiraan boot terakhir: ${stamp(now - SystemClock.elapsedRealtime())}\n")
-        sb.append("Shizuku: ${if (ready) "READY" else "BELUM SIAP (bagian logcat sistem dilewati)"}\n")
-        if (ready) {
-            val bootTrim = runCatching { describeBootTrim(BootTrimSetting.read()) }
-                .getOrElse { "(gagal: ${it.javaClass.simpleName})" }
-            sb.append("fstrim_mandatory_interval (sistem): $bootTrim\n")
+            sb.append("Snapshot logcat LagFix (v86)\n")
+            sb.append("Waktu: ${stamp(now)} (zona app ${formatUtcOffset(TimeZone.getDefault().getOffset(now))})\n")
+            sb.append("Perkiraan boot terakhir: ${stamp(now - SystemClock.elapsedRealtime())}\n")
+            sb.append("Shizuku: ${if (ready) "READY" else "BELUM SIAP (bagian logcat sistem dilewati)"}\n")
+            if (ready) {
+                val bootTrim = runCatching { describeBootTrim(BootTrimSetting.read()) }
+                    .getOrElse { "(gagal: ${it.javaClass.simpleName})" }
+                sb.append("fstrim_mandatory_interval (sistem): $bootTrim\n")
+            }
+
+            sb.append("\n== Dump mentah logcat (zip, TANPA filter) ==\n")
+            sb.append(describeRaw(raw, ready)).append('\n')
+
+            sb.append("\n== Status sisi-app (tanpa Shizuku) ==\n")
+            sb.append(capTail(appSideState(app, now), CAP_APP_SIDE)).append('\n')
+
+            sb.append("\n== Alasan proses LagFix terakhir mati (ApplicationExitInfo) ==\n")
+            val (exitText, exitCount) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) exitReasons(app)
+            else "(butuh Android 11+)" to 0
+            sb.append(exitText).append('\n')
+
+            val (fstrimLines, appLines) = if (ready) appendSystemSections(app, sb) else 0 to 0
+
+            CrashLogger.writeDiagnostic(app, "logcat", sb.toString()).getOrThrow()
+            SnapshotSummary(
+                shizukuReady = ready,
+                fstrimLines = fstrimLines,
+                appLines = appLines,
+                exitRecords = exitCount,
+                rawName = raw?.takeIf { it.error == null }?.name,
+                rawBytes = raw?.zipBytes ?: 0L,
+                rawLogBytes = raw?.log?.bytes ?: 0L,
+                rawTruncated = raw?.log?.truncated ?: false,
+                rawError = raw?.error
+            )
+        } finally {
+            running.set(false)
         }
-
-        sb.append("\n== Dump mentah logcat (zip, TANPA filter) ==\n")
-        sb.append(describeRaw(raw, ready)).append('\n')
-
-        sb.append("\n== Status sisi-app (tanpa Shizuku) ==\n")
-        sb.append(capTail(appSideState(app, now), CAP_APP_SIDE)).append('\n')
-
-        sb.append("\n== Alasan proses LagFix terakhir mati (ApplicationExitInfo) ==\n")
-        val (exitText, exitCount) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) exitReasons(app)
-        else "(butuh Android 11+)" to 0
-        sb.append(exitText).append('\n')
-
-        val (fstrimLines, appLines) = if (ready) appendSystemSections(app, sb) else 0 to 0
-
-        CrashLogger.writeDiagnostic(app, "logcat", sb.toString()).getOrThrow()
-        SnapshotSummary(
-            shizukuReady = ready,
-            fstrimLines = fstrimLines,
-            appLines = appLines,
-            exitRecords = exitCount,
-            rawName = raw?.takeIf { it.error == null }?.name,
-            rawBytes = raw?.zipBytes ?: 0L,
-            rawLogBytes = raw?.log?.bytes ?: 0L,
-            rawTruncated = raw?.log?.truncated ?: false,
-            rawError = raw?.error
-        )
     }
 
     /** Bagian yg butuh Shizuku READY. Mengembalikan (jumlah baris fstrim, jumlah baris app) utk ringkasan UI. */
     private fun appendSystemSections(app: Context, sb: StringBuilder): Pair<Int, Int> {
+        deadlineAt = SystemClock.elapsedRealtime() + SYSTEM_BUDGET_MS // v98: anggaran waktu bagian ringkasan
         sb.append("\n== Ukuran buffer logcat & entri tertua buffer system (SEBELUM diperbesar) ==\n")
         sb.append(section("logcat -g 2>&1 | head -n 8").first).append('\n')
         sb.append(section("logcat -d -v threadtime -b system 2>&1 | head -n 3").first).append('\n')
@@ -534,12 +553,20 @@ object LogcatSnapshot {
     /**
      * Jalankan [cmd] lewat Shizuku; (teks, jumlah baris non-kosong). Tak pernah melempar: batas shell/I-O,
      * galat apa pun (Throwable) dicatat sbg teks bagian itu supaya bagian lain tetap terambil (prinsip v86).
+     * v98: dibatasi [SECTION_TIMEOUT_MS] per perintah & [SYSTEM_BUDGET_MS] total ([BoundedShell]); lewat batas ->
+     * keluaran parsial + penanda, bukan menahan seluruh snapshot.
      */
     @Suppress("TooGenericExceptionCaught")
     private fun section(cmd: String): Pair<String, Int> = try {
-        val (code, out) = FstrimExecutor.sh(cmd)
-        val t = out.trim()
-        if (t.isEmpty()) "(kosong, exit=$code)" to 0 else t to countNonBlankLines(t)
+        val left = deadlineAt - SystemClock.elapsedRealtime()
+        if (left <= 0L) {
+            "(dilewati: anggaran waktu ringkasan habis; data lengkap ada di zip)" to 0
+        } else {
+            val r = BoundedShell.run(minOf(SECTION_TIMEOUT_MS, left)) { shizukuProcess(cmd) }
+            val t = r.output.trim()
+            val note = if (r.timedOut) "\n[dihentikan: melewati batas waktu]" else ""
+            if (t.isEmpty()) "(kosong, exit=${r.exit}$note)" to 0 else (t + note) to countNonBlankLines(t)
+        }
     } catch (e: Throwable) {
         "(gagal: ${e.javaClass.simpleName}: ${e.message})".take(ERR_MAX_SECTION) to 0
     }
