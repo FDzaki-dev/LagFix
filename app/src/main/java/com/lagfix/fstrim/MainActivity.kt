@@ -127,6 +127,9 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         vm.refresh()
+        // v96: app terlihat = start FGS DIIZINKAN OS walau app dibatasi di background (snapshot v95: bg
+        // restriction menolak start dari proses background). Idempoten: no-op bila toggle OFF / notif tampil.
+        PersistentTrimService.ensureShowing(this, "onResume")
     }
 }
 

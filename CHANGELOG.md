@@ -1,5 +1,8 @@
 # Changelog
 
+## v96
+- Notifikasi layanan persisten kini dipasang ulang otomatis setiap aplikasi dibuka (bila toggle layanan persisten aktif dan notifikasinya sedang tidak tampil). Penyebabnya: HP membatasi LagFix di latar belakang sehingga Android menolak memunculkan notifikasi itu dari proses yang lahir di latar belakang (mis. setelah pasang pembaruan atau lewat widget), tetapi mengizinkannya saat aplikasi terlihat. Ini tidak menjamin notifikasi bertahan selamanya di latar belakang.
+
 ## v94
 - Tidak ada perubahan perilaku aplikasi. Hasil CI v93: build, tes, dan lint hijau, dan detekt turun dari 14 ke 2 temuan. Batch penutup perapian detekt: pemecahan teks stempel jam pada `formatStamp12h` kini memakai tiga grup hasil pencocokan (tanggal, jam, menit) tanpa grup teks penuh sehingga tidak melewati batas jumlah elemen destructuring, dan satu baris panjang pada tes pemotongan log dibungkus menjadi beberapa baris tanpa mengubah angka maupun pemeriksaan.
 
