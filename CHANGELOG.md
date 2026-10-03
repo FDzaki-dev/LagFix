@@ -1,5 +1,8 @@
 # Changelog
 
+## v108
+- Tidak ada perubahan perilaku yang terlihat. Pengawasan kode diperkuat lewat detekt: impor `runBlocking` dan `GlobalScope` kini ditolak (saat ini tidak ada yang memakainya). Penyimpan nomor tab aktif di layar utama memakai state khusus angka (`mutableIntStateOf`), sehingga satu temuan informasi lint (`AutoboxingStateCreation`) seharusnya hilang dari laporan. Belum dibuktikan oleh CI dan belum diuji di perangkat (tab aktif harus tetap bertahan saat layar diputar).
+
 ## v107
 - Tidak ada perubahan pada aplikasi. Hasil CI v105 dan v106 terkonfirmasi hijau (tes, lint, detekt, build rilis dan debug lolos). Artifact baru `LagFix-lint-detekt-<nomor build>` terbukti terbit dan berisi laporan lengkap: lint melaporkan 0 error dan 0 warning, detekt melaporkan 0 temuan (berkas teksnya kosong karena memang tidak ada temuan; ringkasan metrik ada di `detekt.md`). Perilaku di perangkat belum diuji.
 

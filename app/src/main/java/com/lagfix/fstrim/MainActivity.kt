@@ -66,6 +66,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
@@ -154,7 +155,7 @@ private fun HomeScreen(vm: MainViewModel) {
         runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull()
     }
     var showAbout by rememberSaveable { mutableStateOf(false) } // v9 (E2)
-    var selectedTab by rememberSaveable { mutableStateOf(0) } // v10: 0=Utama, 1=Pengaturan
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) } // v10: 0=Utama, 1=Pengaturan; v108: IntState
     var showRunConfirm by rememberSaveable { mutableStateOf(false) } // v11: konfirmasi sebelum jalankan manual
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()

@@ -15,6 +15,11 @@
 #  - TooManyFunctions `ignoreAnnotatedFunctions`: MainActivity.kt 25 fungsi, 15 di antaranya @Composable.
 #  - EmptyFunctionBlock `ignoreOverridden`: PrefsTest = fake SharedPreferences, 2 override kosong
 #    (register/unregister listener) yg wajib ada utk memenuhi interface.
+# v108 (Q8, perintah user "lanjutkan progress yg bisa dgn modal lintdebug/detekt only"): PENGUATAN pengamat, bukan
+#  pelonggaran. `ForbiddenImport` melarang `kotlinx.coroutines.runBlocking` (blok thread, Vital Guard Thread Safety:
+#  dilarang blok Main) & `kotlinx.coroutines.GlobalScope` (coroutine lepas lifecycle). Tak butuh type resolution (CI
+#  menjalankan `gradle detekt` biasa). Bukti: grep v107 = 0 import keduanya di app/src (main + test) -> tak membuat
+#  CI merah dari kode yang ada. `InjectDispatcher` SENGAJA TIDAK diaktifkan (menolak `Dispatchers.IO` langsung).
 complexity:
   LongParameterList:
     ignoreAnnotated: ['Composable']
@@ -37,3 +42,6 @@ naming:
 style:
   MagicNumber:
     ignoreAnnotated: ['Composable']
+  ForbiddenImport:
+    active: true
+    imports: ['kotlinx.coroutines.runBlocking', 'kotlinx.coroutines.GlobalScope']
