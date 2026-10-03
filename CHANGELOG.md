@@ -1,5 +1,8 @@
 # Changelog
 
+## v106
+- Tidak ada perubahan pada aplikasi. Saat build hijau, GitHub Actions kini juga mengunggah laporan lint dan detekt (log mentah, laporan detekt, dan file hasil lint) sebagai artifact tersendiri bernama `LagFix-lint-detekt-<nomor build>`, selain dua artifact APK. Sebelumnya laporan itu hanya terunggah saat build gagal (di dalam `LagFix-fail-log-<nomor build>`, yang tidak berubah). Saat tidak ada temuan, isi laporan memang ringkas.
+
 ## v105
 - Notifikasi layanan persisten kini memakai saluran berprioritas minimum dan disembunyikan dari layar kunci (sesuai dokumen konfigurasi kedua dari user). Di Pengaturan, kartu Keandalan latar belakang punya tombol baru yang membuka halaman Autostart atau baterai milik Xiaomi, Samsung, atau Huawei; merek lain membuka daftar pengecualian optimasi baterai Android. Bagian alarm 60 detik pada dokumen itu sengaja tidak diterapkan karena melanggar aturan baterai proyek. Perilaku di perangkat belum diuji.
 

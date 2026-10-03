@@ -120,6 +120,21 @@ jobs:
           name: LagFix-apk
           path: app/build/outputs/apk/**/*.apk
 
+      # v106 (laporan user: "artefak GitHub hanya mengunggah zip aplikasi, lintdebug/detekt kosong"):
+      # saat build HIJAU laporan lint & detekt (folder logs/lint_detekt dari step "Kumpulkan" di atas)
+      # kini ikut diunggah sbg artifact tersendiri. Hanya if: success(): jalur GAGAL tetap SATU artifact
+      # `LagFix-fail-log-<run>` (v92, tanpa unduhan ganda) dan tak diubah. Nama beda dari artifact v92
+      # yg dihapus. Isi saat hijau = log mentah + laporan; kecil/ringkas karena 0 temuan blocking.
+      # continue-on-error: kegagalan unggah laporan TAK boleh menghentikan jalur rilis di bawahnya.
+      - name: Unggah laporan lint & detekt (artifact)
+        if: success()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: LagFix-lint-detekt-${{ github.run_number }}
+          path: logs/lint_detekt/
+          if-no-files-found: warn
+
       # Asset rilis WAJIB nama unik per build (bukan "app-release.apk"/"app-debug.apk" generik dari Gradle):
       # nama generik yg sama di tiap rilis bikin browser nabrak nama saat unduh berkali-kali
       # (jadi "app-release (1).apk", "(2).apk", dst menumpuk) & tidak informatif versi apa isinya.
