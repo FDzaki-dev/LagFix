@@ -1,0 +1,18 @@
+# v110 (F2, PENDING_ROADMAP.md; user: "Zero antrean low-risk??"): pemberitahuan pembaruan dependency & GitHub Actions.
+# Hanya MEMBUKA pull request; 0 efek ke build/rilis: `build.yml` hanya jalan pada push ke `main` &
+# `workflow_dispatch`, jadi PR dependabot TIDAK memicu CI dan tak mengubah `main` sebelum di-merge manual.
+# JANGAN merge PR pembaruan `dev.rikka.shizuku:*` tanpa re-verifikasi reflection `Shizuku.newProcess`
+# (README "Catatan teknis — reflection Shizuku", D1). Kenaikan Kotlin/AGP/Compose butuh batch tersendiri
+# (kompatibilitas compileSdk & compiler plugin).
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 2

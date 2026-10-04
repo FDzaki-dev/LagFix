@@ -152,7 +152,7 @@ Build hijau ≠ behavior terverifikasi (P0) — poin 1&2 verified via device, po
    `DestructuringDeclarationWithTooManyEntries` di `TimeFormat.kt:22`, akibat destructuring 4 elemen dari v93). Perbaikan:
    `TimeFormat.kt` (`match.destructured` 3 elemen) + `PrefsTest.kt:124` (lambda dibungkus 3 baris). Harapan: detekt 0.
    BELUM terbukti CI.
-2. Belum ada dependency-update check otomatis (mis. Dependabot) utk `dev.rikka.shizuku`.
+2. ✅ SELESAI (v110, config-only): `.github/dependabot.yml` (ekosistem `gradle` + `github-actions`, bulanan, batas PR 3/2) — hanya membuka PR, tak memicu CI/build; PR `dev.rikka.shizuku:*` wajib re-verifikasi reflection (D1). BELUM terbukti GitHub memproses config (cek tab Insights > Dependency graph > Dependabot di repo).
 
 ## G. UI/UX Premium (milestone, permintaan eksplisit user v59)
 1. Dokumen utama: `PENDING_UIUX_MILESTONE.md` (DoP P1-P9, audit baseline v58, kontras warna, fase M0-M9, keputusan D1-D3).
@@ -251,3 +251,4 @@ visual-only per fase. Semua di atas incremental & non-breaking per item.
 - v103 (user: "Yang bisa diperhatikan via lintdebug detekt aja lah"): docs-only — `PENDING_CONSTITUTION_PLAN.md` §0 jalur pengamat guard = lintDebug + detekt; Q2/Q3a/Q7 dilepas dari gerbang, Q3b ditahan, K2/K4 gugur, Q8 baru (kandidat `ForbiddenImport`, belum dikerjakan); `.cursorrules` +1 aturan; 0 source diubah.
 - v104 (user: upload `konfigurasi_notifikasi_persistent.md`, "Terapkan yang belum, except kebijakan Google"): kode — `PersistentTrimService.kt` (+setAutoCancel(false), +setCategory(SERVICE), +setPriority(LOW), +setOnlyAlertOnce(true), +tipe FGS eksplisit API 34+, +nama/deskripsi saluran), `strings.xml` +2, `AndroidManifest.xml` +`enabled="true"`; salinan dokumen di `docs/`. Sisa: CI v104; bug notifikasi hilang TETAP terbuka.
 - v105 (user: upload `konfigurasi_bypass_restricted_os.md`, "Ini juga terapkan!!"): kode — channel persisten `IMPORTANCE_MIN` + `VISIBILITY_SECRET` (+`PRIORITY_MIN`), `VendorSettings.kt` baru + tombol di kartu Keandalan latar belakang; bagian alarm 60 dtk DITOLAK (P0). Sisa: CI v105; bug notifikasi hilang TETAP terbuka.
+- v110 (user: "Zero antrean low-risk??"): F2 — `.github/dependabot.yml` baru (config-only, 0 kode app, 0 dependency, 0 efek build). Sisa backlog: H1/H2(2)+tambahan, D2 (R8), Q6, Q3b (semua butuh perintah user; peta risiko di RESUME POINT v110 `PROJECT_STATE.md`).

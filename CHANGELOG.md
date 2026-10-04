@@ -1,5 +1,8 @@
 # Changelog
 
+## v110
+- Tidak ada perubahan pada aplikasi. Ditambahkan pemeriksaan pembaruan otomatis lewat Dependabot (`.github/dependabot.yml`): sebulan sekali GitHub membuka pull request bila ada versi baru library atau GitHub Actions. Hanya pemberitahuan: tidak menjalankan build dan tidak mengubah kode utama sampai pull request itu digabung manual. Pembaruan `dev.rikka.shizuku` perlu diverifikasi ulang dulu karena aplikasi memanggil bagian privat Shizuku lewat reflection. Belum terbukti GitHub sudah memprosesnya.
+
 ## v109
 - Tidak ada perubahan pada aplikasi. Hasil CI v108 terkonfirmasi hijau: tes, lint, detekt, dan build lolos. Laporan lint kini 0 error dan 0 warning, dan temuan informasi `AutoboxingStateCreation` sudah hilang (sisa 6 item informasi yang memang sengaja dibiarkan: versi target Android dan 5 versi library yang lebih baru). Laporan detekt 0 temuan. Larangan impor `runBlocking` dan `GlobalScope` diterima konfigurasi tanpa error, tetapi belum teruji menangkap pelanggaran karena memang tidak ada yang melanggar. Perilaku di perangkat belum diuji. Seluruh antrean yang bisa diamati lint dan detekt kini selesai.
 
