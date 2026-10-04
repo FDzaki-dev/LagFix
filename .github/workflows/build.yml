@@ -108,14 +108,14 @@ jobs:
       # LagFix_build_fail_log_<run>.txt + lint_detekt/ (laporan lint & detekt).
       - name: Unggah log kegagalan
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: LagFix-fail-log-${{ github.run_number }}
           path: logs/
 
       - name: Unggah APK (artifact)
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: LagFix-apk
           path: app/build/outputs/apk/**/*.apk
@@ -129,7 +129,7 @@ jobs:
       - name: Unggah laporan lint & detekt (artifact)
         if: success()
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: LagFix-lint-detekt-${{ github.run_number }}
           path: logs/lint_detekt/
@@ -193,14 +193,14 @@ jobs:
           fi
       - name: Unggah APK debug (artifact)
         if: steps.debug_pack.outcome == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: LagFix-debug-apk-${{ github.run_number }}
           path: dist_debug/LagFix_build-${{ github.run_number }}_debug.apk
           if-no-files-found: error
       - name: Unggah log gagal build debug
         if: steps.debug_build.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: LagFix-debug-fail-log-${{ github.run_number }}
           path: debug_build_output.log
