@@ -18,6 +18,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -80,6 +81,9 @@ class PersistentTrimService : Service() {
         // panduan lainnya (channel ID match, smallIcon valid, foregroundServiceType+property
         // manifest) sudah dicek & SESUAI, 0 perubahan di situ.
         val result = runCatching { startAsForeground(buildNotification()) }
+        // v111 (log jujur): `startForeground()` yang KEMBALI tanpa exception BUKAN bukti notifikasi tampil —
+        // OS menolak diam-diam (hanya log WARN "not allowed due to bg restriction", bukti snapshot v95).
+        // Karena itu dicatat `returned`, bukan `ok`; status tampil diamati terpisah (lihat bawah).
         // v49: log SETELAH startForeground() (aturan v35: tak ada operasi apa pun sebelumnya).
         // `intentNull=true` = servis dihidupkan ulang SISTEM (START_STICKY, intent null);
         // `false` = distart kode app (`start()`/`startIfEnabled()`/BootReceiver).
@@ -87,7 +91,7 @@ class PersistentTrimService : Service() {
             TAG,
             "LIFECYCLE onStartCommand pid=${Process.myPid()} procAge=${procAgeMs()}ms " +
                 "startId=$startId flags=$flags intentNull=${intent == null} " +
-                "startForeground=${if (result.isSuccess) "ok" else result.exceptionOrNull()}"
+                "startForeground=${if (result.isSuccess) "returned" else result.exceptionOrNull()}"
         )
 
         // v29 (0 berubah dari sisi DATA yang direkam, cuma dibaca SESUDAH startForeground() skrg):
@@ -98,19 +102,27 @@ class PersistentTrimService : Service() {
         // v78: start "quiet" (re-assert dari TrimWorker tiap interval, lihat `ensureShowing`) HANYA log
         // logcat, TANPA file diagnostik — interval 15 mnt = 96 file/hari di Documents/LagFix (user sudah
         // pernah minta folder log tak penuh, v51). Start biasa (toggle/cold start/sticky) tak berubah.
-        if (intent?.getBooleanExtra(EXTRA_QUIET, false) == true) return START_STICKY
+        val failure = result.exceptionOrNull()
+        val appCtx = applicationContext
+        if (intent?.getBooleanExtra(EXTRA_QUIET, false) == true) {
+            // v111: tetap tanpa file; hanya 1 baris logcat hasil pengamatan tampil (di IO, bukan Main).
+            CoroutineScope(Dispatchers.IO).launch { logShownRecheck(appCtx, failure) }
+            return START_STICKY
+        }
         val notifMgrCompat = NotificationManagerCompat.from(this)
         val preCheck = "areNotificationsEnabled() = ${notifMgrCompat.areNotificationsEnabled()}\n" +
             "channel importance (getNotificationChannelCompat) = " +
             "${notifMgrCompat.getNotificationChannelCompat(CHANNEL_ID)?.importance}"
-        val outcome = if (result.isSuccess) "startForeground() SUKSES tanpa exception" else
-            "startForeground() GAGAL: ${result.exceptionOrNull()}"
         // v40: tulis log ke MediaStore di Dispatchers.IO, BUKAN di Main thread — servis kini juga
         // bisa distart tiap cold start proses (`startIfEnabled()`), jadi IO ini tak boleh menahan
         // Main thread di jendela sempit sebelum OS sempat membunuh proses lagi.
-        val appCtx = applicationContext
         CoroutineScope(Dispatchers.IO).launch {
+            // v111 (log jujur): cek tampil SETELAH startForeground(), langsung (tanpa jeda) supaya file
+            // tetap tertulis walau proses segera dibunuh; pengecekan ulang berjeda dicatat ke logcat.
+            val shownNow = isForegroundNotificationShown(appCtx)
+            val outcome = describeStartOutcome(failure, shownNow)
             CrashLogger.logDiagnostic(appCtx, "persistent_service", "$preCheck\n$outcome")
+            logShownRecheck(appCtx, failure)
         }
         return START_STICKY
     }
@@ -171,6 +183,10 @@ class PersistentTrimService : Service() {
         private const val TAG = "PersistentTrimService"
         private const val EXTRA_QUIET = "quiet"
 
+        // v111: jeda pengecekan ulang tampil. ASUMSI (BELUM terbukti di device): sistem memposting notifikasi
+        // FGS secara asinkron, jadi cek segera setelah startForeground() bisa false walau akhirnya tampil.
+        private const val SHOWN_RECHECK_DELAY_MS = 1500L
+
         // v49: umur proses (ms) sejak dibuat. Kecil (< beberapa detik) saat onCreate servis =
         // servis lahir bersamaan proses baru (cold start / revive), bukan servis lama yg hidup terus.
         // `getStartElapsedRealtime()` API 24+, minSdk 26.
@@ -220,6 +236,19 @@ class PersistentTrimService : Service() {
         }.getOrDefault(false)
 
         /**
+         * v111 (log jujur): pengamatan ke-2, SEKALI (tanpa loop/timer), setelah [SHOWN_RECHECK_DELAY_MS]; dipanggil
+         * dari coroutine Dispatchers.IO. Hanya logcat — tanpa file (aturan v78).
+         */
+        private suspend fun logShownRecheck(ctx: Context, startFailure: Throwable?) {
+            delay(SHOWN_RECHECK_DELAY_MS)
+            Log.i(
+                TAG,
+                "LIFECYCLE notifShown=${isForegroundNotificationShown(ctx)} after=${SHOWN_RECHECK_DELAY_MS}ms " +
+                    "startForeground=${startFailure ?: "returned"}"
+            )
+        }
+
+        /**
          * v40: nyalakan lagi servis kalau toggle persisten aktif — dipanggil dari
          * `LagFixApp.onCreate()` (tiap cold start proses). Root cause: XOS membunuh proses saat
          * swipe-Recents & sengaja tak me-restart servis (v39), sedangkan servis sebelumnya cuma
@@ -241,4 +270,19 @@ class PersistentTrimService : Service() {
             app.stopService(Intent(app, PersistentTrimService::class.java))
         }
     }
+}
+
+/**
+ * v111 (log jujur, `diag_persistent_service`): kembali tanpa exception != notifikasi tampil. OS bisa menolak
+ * `startForeground()` diam-diam (hanya log WARN), jadi hasil dilaporkan dari pengamatan `activeNotifications`.
+ * `shownNow` = cek SEGERA setelah startForeground(); false juga berarti "gagal dibaca" atau "belum diposting".
+ */
+internal fun describeStartOutcome(failure: Throwable?, shownNow: Boolean): String = when {
+    failure != null -> "startForeground() GAGAL: $failure"
+    shownNow -> "startForeground() kembali tanpa exception; notifikasi foreground service TERLIHAT saat " +
+        "dicek segera setelahnya."
+    else -> "startForeground() kembali tanpa exception, TAPI notifikasi foreground service TIDAK terlihat saat " +
+        "dicek segera setelahnya (atau gagal dibaca / belum diposting). Kembali tanpa exception BUKAN bukti " +
+        "tampil: OS bisa menolak diam-diam (mis. pembatasan background). Lihat logcat `LIFECYCLE notifShown` " +
+        "(dicek ulang berjeda) dan `Service.startForeground() not allowed`."
 }

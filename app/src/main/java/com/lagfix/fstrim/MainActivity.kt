@@ -551,6 +551,9 @@ private fun SettingsTab(
                     Text("↗", Modifier.decorative())
                 }
             }
+            // v111 (kandidat (ii)): baris di atas hanya mengecek optimasi baterai; pembatasan latar belakang
+            // (`isBackgroundRestricted`) dicek & ditampilkan terpisah supaya ✓ di atas tak jadi sinyal aman palsu.
+            if (ui.backgroundRestricted) BackgroundRestrictedNotice(ctx)
         }
     }
 
@@ -1392,3 +1395,29 @@ private fun openShizuku(ctx: Context, state: ShizukuState) {
 
 private fun formatTime(ms: Long): String =
     SimpleDateFormat("dd/MM/yyyy hh:mm a", Locale.US).format(Date(ms)) // v77: 12 jam (AM/PM)
+
+// v111 (kandidat (ii), perintah user): peringatan bila `ActivityManager.isBackgroundRestricted` = true. Status ini
+// DIBACA ulang tiap `vm.refresh()` (onResume), jadi hilang sendiri setelah user mengubahnya di Info Aplikasi.
+// Teks sengaja tak menjanjikan hasil: pembatasan ini baru TERBUKTI ada di log, bukan satu-satunya
+// penyebab notifikasi hilang.
+@Composable
+private fun BackgroundRestrictedNotice(ctx: Context) {
+    Text(
+        "Android membatasi LagFix berjalan di latar belakang. Ini TERPISAH dari status baterai di atas, dan " +
+            "bisa membuat notifikasi layanan persisten gagal tampil atau hilang. Ubah lewat Info Aplikasi > Baterai.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.error
+    )
+    TextButton(
+        onClick = {
+            runCatching {
+                val appUri = Uri.fromParts("package", ctx.packageName, null)
+                ctx.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, appUri))
+            }
+        },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text("Buka Info Aplikasi LagFix", Modifier.weight(1f))
+        Text("↗", Modifier.decorative())
+    }
+}

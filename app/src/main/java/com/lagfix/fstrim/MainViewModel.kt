@@ -1,5 +1,6 @@
 package com.lagfix.fstrim
 
+import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
 import android.content.Intent
@@ -31,6 +32,7 @@ data class UiState(
     val lastOk: Boolean = false,
     val log: List<String> = emptyList(),
     val batteryUnrestricted: Boolean = true,
+    val backgroundRestricted: Boolean = false, // v111: ActivityManager.isBackgroundRestricted
     val updateChecking: Boolean = false,
     val updateResult: UpdateResult? = null,
     val downloading: Boolean = false,
@@ -189,6 +191,7 @@ private fun readUiState(app: Application, prefs: Prefs, running: Boolean = false
     lastOk = prefs.lastOk,
     log = prefs.log,
     batteryUnrestricted = isBatteryUnrestricted(app),
+    backgroundRestricted = isBackgroundRestricted(app),
     persistentServiceEnabled = prefs.persistentServiceEnabled
 )
 
@@ -200,6 +203,16 @@ private fun isBatteryUnrestricted(app: Application): Boolean {
     val pm = app.getSystemService(PowerManager::class.java) ?: return true
     return pm.isIgnoringBatteryOptimizations(app.packageName)
 }
+
+// v111 (kandidat (ii), perintah user): `isBackgroundRestricted` BEDA dari `isIgnoringBatteryOptimizations`.
+// Snapshot v95: keduanya bisa bertentangan (dikecualikan dari optimasi = true, tapi dibatasi di background =
+// true) dan OS lalu menolak `startForeground()` dari proses background. API 28+ (P); di bawahnya false.
+private fun isBackgroundRestricted(app: Application): Boolean =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        app.getSystemService(ActivityManager::class.java)?.isBackgroundRestricted == true
+    } else {
+        false
+    }
 
 /** Intent standar Android utk minta dikecualikan dari optimasi baterai (0 permission dialog
  * custom — sistem yg tampilkan dialog konfirmasi bawaan). Dipanggil dari SettingsTab. */

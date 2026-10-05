@@ -1,5 +1,8 @@
 # Changelog
 
+## v111
+- Pengaturan > kartu Jadwal kini menampilkan peringatan merah bila Android membatasi LagFix berjalan di latar belakang. Status ini terpisah dari tanda centang "Baterai: berjalan tanpa batas" dan bisa membuat notifikasi layanan persisten gagal tampil atau hilang. Tersedia tombol langsung ke Info Aplikasi LagFix; peringatan hilang sendiri setelah pembatasan dicabut dan aplikasi dibuka lagi. Log layanan persisten juga dibuat jujur: tidak lagi mencatat "SUKSES" hanya karena `startForeground()` kembali tanpa error. Yang dicatat sekarang apakah notifikasi benar-benar terlihat (dicek segera, lalu sekali lagi 1,5 detik kemudian di logcat). Belum diuji di HP dan belum menjamin notifikasi tidak hilang lagi. Tanpa Firebase, tanpa dependency atau izin baru.
+
 ## v110
 - Tidak ada perubahan pada aplikasi. Ditambahkan pemeriksaan pembaruan otomatis lewat Dependabot (`.github/dependabot.yml`): sebulan sekali GitHub membuka pull request bila ada versi baru library atau GitHub Actions. Hanya pemberitahuan: tidak menjalankan build dan tidak mengubah kode utama sampai pull request itu digabung manual. Pembaruan `dev.rikka.shizuku` perlu diverifikasi ulang dulu karena aplikasi memanggil bagian privat Shizuku lewat reflection. Belum terbukti GitHub sudah memprosesnya.
 
