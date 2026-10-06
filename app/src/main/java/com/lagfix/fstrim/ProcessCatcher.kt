@@ -138,14 +138,24 @@ internal object ProcessCatcher {
         }
     }
 
+    // v125: tiap entri kini memuat pid, nama proses & stempel waktu start (mentah) supaya bisa dicocokkan dgn proses
+    // tertentu; `anchors` = jangkar waktu utk mengubah stempel mentah. pid/proses/stempel dibaca via refleksi
+    // (nama API-nya belum terbukti kompilasi di CI); gagal baca -> exception apa adanya di baris itu.
     private fun readStartHistory(am: ActivityManager?): Result<List<String>> = runCatching {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-            am?.getHistoricalProcessStartReasons(CATCH_MAX_HISTORY).orEmpty().map { i ->
+            val anchors = formatAnchors(
+                Process.myPid(),
+                Process.getStartElapsedRealtime(),
+                SystemClock.elapsedRealtime(),
+                System.currentTimeMillis()
+            )
+            listOf(anchors) + am?.getHistoricalProcessStartReasons(CATCH_MAX_HISTORY).orEmpty().map { i ->
                 val cls = i.javaClass
-                "reason=${i.reason}(${constantName(cls, "START_REASON_", i.reason)}) " +
+                "pid=${getterValue(i, "getPid")} process=${getterValue(i, "getProcessName")} " +
+                    "reason=${i.reason}(${constantName(cls, "START_REASON_", i.reason)}) " +
                     "startType=${i.startType}(${constantName(cls, "START_TYPE_", i.startType)}) " +
                     "startupState=${i.startupState}(${constantName(cls, "STARTUP_STATE_", i.startupState)}) " +
-                    "intent=${i.intent}"
+                    "intent=${i.intent} timestamps={${timestampsText(i)}}"
             }
         } else {
             listOf(unavailableLine("VANILLA_ICE_CREAM"))
@@ -176,6 +186,23 @@ internal fun constantName(holder: Class<*>, prefix: String, value: Int): String 
     holder.fields.firstOrNull { f ->
         f.name.startsWith(prefix) && f.type == Int::class.javaPrimitiveType && f.getInt(null) == value
     }?.name ?: "UNKNOWN"
+
+/** v125: jangkar waktu mentah (proses ini + jam sekarang) utk menafsirkan stempel waktu `startHistory`. */
+internal fun formatAnchors(pid: Int, procStartElapsedMs: Long, nowElapsedMs: Long, nowWallMs: Long): String =
+    "anchors: myPid=$pid processStartElapsedMs=$procStartElapsedMs nowElapsedMs=$nowElapsedMs nowWallMs=$nowWallMs"
+
+/** v125: nilai getter publik tanpa argumen lewat refleksi; gagal (mis. getter tak ada) -> exception apa adanya. */
+internal fun getterValue(target: Any, getter: String): String =
+    runCatching { "${target.javaClass.getMethod(getter).invoke(target)}" }
+        .getOrElse { "read exception = $it" }
+
+/** v125: `getStartupTimestamps()` (peta kode -> nilai mentah) jadi `NAMA=nilai,...` urut kode; nama dari platform. */
+internal fun timestampsText(info: Any): String = runCatching {
+    val map = info.javaClass.getMethod("getStartupTimestamps").invoke(info) as Map<*, *>
+    map.entries.sortedBy { (it.key as? Int) ?: -1 }.joinToString(",") { e ->
+        "${constantName(info.javaClass, "START_TIMESTAMP_", (e.key as? Int) ?: -1)}=${e.value}"
+    }
+}.getOrElse { "read exception = $it" }
 
 /** v123 (prinsip user: log = DATA MENTAH): baris pertama berkas `diag_process_catch`. */
 internal fun formatCatchHeader(source: String, reason: String, pid: Int, procAgeMs: Long, toggleOn: Boolean): String =

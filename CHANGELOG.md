@@ -1,5 +1,8 @@
 # Changelog
 
+## v125
+- Berkas `process_catch` kini mencantumkan pid, nama proses, dan stempel waktu start pada tiap baris riwayat start proses, ditambah satu baris jangkar waktu. Dengan begitu tiap baris bisa dicocokkan dengan proses tertentu, tidak lagi ambigu. Tidak ada perubahan perilaku lain. Ditambah tiga tes unit. Belum diuji di perangkat.
+
 ## v124
 - Pencatat baru untuk mencari pelaku yang mematikan app. Setiap kali app menyimpan berkas keadaan prosesnya (`process_catch`), app juga memeriksa kematian proses terbaru yang disebabkan sinyal SIGKILL (maksimal 3, hanya yang belum pernah diperiksa dan masih dalam 12 jam terakhir). Untuk tiap kematian, app menyalin dari logcat sistem (lewat Shizuku) baris yang menyebut nama app, pid, atau kata kunci kill dalam rentang 20 detik sebelum sampai 5 detik sesudah waktu kematian, lalu menyimpannya di `LagFix_diag_kill_context_*.txt` di Documents/LagFix.
 - Perlu Shizuku aktif. Kill yang barisnya sudah tertimpa di buffer logcat tidak bisa dibongkar; tombol "Ambil logcat sistem" memperbesar buffer sementara sampai perangkat dihidupkan ulang. Ditambah enam tes unit. Belum diuji di perangkat.
