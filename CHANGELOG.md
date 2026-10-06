@@ -1,5 +1,8 @@
 # Changelog
 
+## v113
+- Isi file log layanan persisten (`diag_persistent_service`) kini data mentah saja, tanpa kalimat penjelasan atau kesimpulan dari aplikasi. Yang ditulis: status izin notifikasi, importance channel, exception `startForeground()` apa adanya, lalu dua dump mentah daftar notifikasi aktif milik LagFix (id, tag, channel, flags dalam heksadesimal, waktu posting), satu segera dan satu setelah jeda 1,5 detik. Baris logcat `LIFECYCLE` juga memakai format mentah yang sama. Tidak ada perubahan perilaku notifikasi. Belum diuji di HP.
+
 ## v112
 - Log diagnostik layanan persisten diperbaiki: pada v111 file `diag_persistent_service` memeriksa notifikasi terlalu cepat dan mencatat "TIDAK terlihat" walau notifikasi sebenarnya tampil. Sekarang file ditulis setelah pengecekan ulang 1,5 detik dan memuat kedua hasil (cek segera dan setelah jeda); hasil akhir mengikuti pengecekan terakhir. Bila HP mematikan proses sebelum 1,5 detik, file tidak sempat tertulis (catatan di logcat tetap ada). Tidak ada perubahan perilaku notifikasi. Belum diuji di HP.
 

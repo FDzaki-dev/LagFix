@@ -81,9 +81,8 @@ class PersistentTrimService : Service() {
         // panduan lainnya (channel ID match, smallIcon valid, foregroundServiceType+property
         // manifest) sudah dicek & SESUAI, 0 perubahan di situ.
         val result = runCatching { startAsForeground(buildNotification()) }
-        // v111 (log jujur): `startForeground()` yang KEMBALI tanpa exception BUKAN bukti notifikasi tampil —
-        // OS menolak diam-diam (hanya log WARN "not allowed due to bg restriction", bukti snapshot v95).
-        // Karena itu dicatat `returned`, bukan `ok`; status tampil diamati terpisah (lihat bawah).
+        // v113 (permintaan user: log = DATA MENTAH, tanpa penjelasan buatan): hanya exception apa adanya
+        // (`null` = tak ada exception). Status tampil dicatat terpisah sbg dump mentah `activeNotifications`.
         // v49: log SETELAH startForeground() (aturan v35: tak ada operasi apa pun sebelumnya).
         // `intentNull=true` = servis dihidupkan ulang SISTEM (START_STICKY, intent null);
         // `false` = distart kode app (`start()`/`startIfEnabled()`/BootReceiver).
@@ -91,7 +90,7 @@ class PersistentTrimService : Service() {
             TAG,
             "LIFECYCLE onStartCommand pid=${Process.myPid()} procAge=${procAgeMs()}ms " +
                 "startId=$startId flags=$flags intentNull=${intent == null} " +
-                "startForeground=${if (result.isSuccess) "returned" else result.exceptionOrNull()}"
+                "startForeground.exception=${result.exceptionOrNull()}"
         )
 
         // v29 (0 berubah dari sisi DATA yang direkam, cuma dibaca SESUDAH startForeground() skrg):
@@ -105,7 +104,7 @@ class PersistentTrimService : Service() {
         val failure = result.exceptionOrNull()
         val appCtx = applicationContext
         if (intent?.getBooleanExtra(EXTRA_QUIET, false) == true) {
-            // v111: tetap tanpa file; hanya 1 baris logcat hasil pengamatan tampil (di IO, bukan Main).
+            // v111: tetap tanpa file; hanya 1 baris logcat dump mentah activeNotifications (di IO, bukan Main).
             CoroutineScope(Dispatchers.IO).launch { recheckShown(appCtx, failure) }
             return START_STICKY
         }
@@ -117,13 +116,18 @@ class PersistentTrimService : Service() {
         // bisa distart tiap cold start proses (`startIfEnabled()`), jadi IO ini tak boleh menahan
         // Main thread di jendela sempit sebelum OS sempat membunuh proses lagi.
         CoroutineScope(Dispatchers.IO).launch {
-            // v112 (log jujur): file ditulis SETELAH cek ulang berjeda. Cek langsung (v111) = false negative di HP
-            // user (notifikasi ternyata tampil). Trade-off: proses dibunuh sebelum jeda habis = file tak tertulis
-            // (baris logcat `LIFECYCLE onStartCommand` tetap ada).
-            val shownNow = isForegroundNotificationShown(appCtx)
-            val shownLater = recheckShown(appCtx, failure)
-            val outcome = describeStartOutcome(failure, shownNow, shownLater, SHOWN_RECHECK_DELAY_MS)
-            CrashLogger.logDiagnostic(appCtx, "persistent_service", "$preCheck\n$outcome")
+            // v113: isi file = DATA MENTAH (permintaan user), tanpa kalimat penjelasan/kesimpulan. Dua dump mentah
+            // `activeNotifications`: segera & setelah jeda. File ditulis SETELAH jeda (trade-off v112: proses
+            // dibunuh sebelum jeda = file tak tertulis; baris logcat `onStartCommand` tetap ada).
+            val immediate = readActiveNotifications(appCtx)
+            val delayed = recheckShown(appCtx, failure)
+            val body = listOf(
+                preCheck,
+                "startForeground exception = $failure",
+                formatActiveNotifications("immediate", immediate),
+                formatActiveNotifications("+${SHOWN_RECHECK_DELAY_MS}ms", delayed)
+            ).joinToString("\n")
+            CrashLogger.logDiagnostic(appCtx, "persistent_service", body)
         }
         return START_STICKY
     }
@@ -237,19 +241,26 @@ class PersistentTrimService : Service() {
         }.getOrDefault(false)
 
         /**
-         * v112 (log jujur; v111 `logShownRecheck` kini mengembalikan hasil): pengamatan ke-2, SEKALI (tanpa loop/
-         * timer), setelah [SHOWN_RECHECK_DELAY_MS]; dipanggil dari coroutine Dispatchers.IO. Mencatat 1 baris
-         * logcat dan mengembalikan status tampil. File hanya ditulis oleh start non-quiet (aturan v78).
+         * v113: baca MENTAH `activeNotifications` milik app (id, tag, channel, flags, postTime). Gagal baca ->
+         * `Result.failure` (exception apa adanya), bukan `false`/ringkasan buatan.
          */
-        private suspend fun recheckShown(ctx: Context, startFailure: Throwable?): Boolean {
+        private fun readActiveNotifications(ctx: Context): Result<List<NotifSnapshot>> = runCatching {
+            ctx.getSystemService(NotificationManager::class.java)?.activeNotifications.orEmpty().map {
+                NotifSnapshot(it.id, it.tag, it.notification.channelId, it.notification.flags, it.postTime)
+            }
+        }
+
+        /**
+         * v113 (v112 `recheckShown` Boolean -> dump mentah): pengamatan ke-2, SEKALI (tanpa loop/timer), setelah
+         * [SHOWN_RECHECK_DELAY_MS]; dari coroutine Dispatchers.IO. Mencatat 1 baris logcat & mengembalikan dump
+         * mentahnya. File hanya ditulis oleh start non-quiet (aturan v78).
+         */
+        private suspend fun recheckShown(ctx: Context, startFailure: Throwable?): Result<List<NotifSnapshot>> {
             delay(SHOWN_RECHECK_DELAY_MS)
-            val shown = isForegroundNotificationShown(ctx)
-            Log.i(
-                TAG,
-                "LIFECYCLE notifShown=$shown after=${SHOWN_RECHECK_DELAY_MS}ms " +
-                    "startForeground=${startFailure ?: "returned"}"
-            )
-            return shown
+            val read = readActiveNotifications(ctx)
+            val dump = formatActiveNotifications("+${SHOWN_RECHECK_DELAY_MS}ms", read).replace("\n", " | ")
+            Log.i(TAG, "LIFECYCLE $dump startForeground.exception=$startFailure")
+            return read
         }
 
         /**
@@ -276,19 +287,23 @@ class PersistentTrimService : Service() {
     }
 }
 
+/** v113: 1 notifikasi aktif milik app, field apa adanya dari `StatusBarNotification` (tanpa tafsiran). */
+internal data class NotifSnapshot(
+    val id: Int,
+    val tag: String?,
+    val channelId: String?,
+    val flags: Int,
+    val postTime: Long
+)
+
 /**
- * v112 (log jujur, `diag_persistent_service`; v111 hanya cek langsung = false negative di HP user): kembali tanpa
- * exception != notifikasi tampil. Hasil ditentukan pengamatan TERAKHIR (`shownLater`, setelah `delayMs`); `shownNow`
- * (cek segera) dilaporkan sebagai pembanding. OS bisa menolak `startForeground()` diam-diam (hanya log WARN).
+ * v113 (permintaan user: log = DATA MENTAH): format dump `activeNotifications` apa adanya — jumlah + 1 baris per
+ * notifikasi (flags heksadesimal), atau exception pembacaan apa adanya. Tanpa kalimat penjelasan/kesimpulan.
  */
-internal fun describeStartOutcome(failure: Throwable?, shownNow: Boolean, shownLater: Boolean, delayMs: Long): String {
-    val observed = "(cek segera: ${if (shownNow) "terlihat" else "tidak terlihat"}; " +
-        "setelah ${delayMs}ms: ${if (shownLater) "terlihat" else "tidak terlihat"})"
-    return when {
-        failure != null -> "startForeground() GAGAL: $failure"
-        shownLater -> "startForeground() kembali tanpa exception; notifikasi foreground service TERLIHAT $observed."
-        else -> "startForeground() kembali tanpa exception, TAPI notifikasi foreground service TIDAK terlihat " +
-            "$observed (atau gagal dibaca). Kembali tanpa exception BUKAN bukti tampil: OS bisa menolak diam-diam " +
-            "(mis. pembatasan background). Lihat logcat `Service.startForeground() not allowed`."
+internal fun formatActiveNotifications(label: String, read: Result<List<NotifSnapshot>>): String {
+    val items = read.getOrNull() ?: return "activeNotifications[$label]: read exception = ${read.exceptionOrNull()}"
+    val lines = items.map {
+        "  id=${it.id} tag=${it.tag} channel=${it.channelId} flags=0x${it.flags.toString(16)} postTime=${it.postTime}"
     }
+    return (listOf("activeNotifications[$label]: count=${items.size}") + lines).joinToString("\n")
 }
