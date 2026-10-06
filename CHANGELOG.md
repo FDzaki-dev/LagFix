@@ -1,5 +1,9 @@
 # Changelog
 
+## v121
+- Perbaikan pemeriksaan kode (detekt) dari build v120: satu angka literal di pembaca baris Riwayat diganti konstanta bernama. Tidak ada perubahan perilaku.
+- Pencatat baru untuk kejadian "panel Quick Settings dibuka". Tiap panel dibuka, app menulis 1 baris di logcat. Bila saat itu proses app baru saja lahir (umur kurang dari 10 detik), app juga menyimpan 1 berkas `LagFix_diag_tile_listening_*.txt` di Documents/LagFix, maksimal 1 berkas per proses. Isinya data mentah: pid, umur proses, status toggle layanan persisten, dan dua dump notifikasi aktif (segera dan 1,5 detik kemudian). Pencatat ini hanya merekam, tidak memulai atau menghentikan layanan. Dipakai untuk membuktikan apakah notifikasi persisten muncul lagi karena panel dibuka. Ditambah dua tes unit untuk format isi berkas. Belum diuji di perangkat.
+
 ## v120
 - Riwayat kini menandai run Otomatis yang terlambat. Bila jarak ke run Otomatis sebelumnya melebihi interval (toleransi 5 menit atau seperlima interval, mana yang lebih besar), baris itu diberi tulisan amber "Terlambat N menit dari jadwal". Berguna saat Android menunda jadwal ketika Doze: run baru tercatat saat HP dinyalakan, dan sekarang keterlambatannya terlihat. Jam di Riwayat tetap waktu run yang sebenarnya. Run Manual tidak ditandai, dan baris lama tetap terbaca. Ditambah tiga tes unit untuk perhitungannya.
 

@@ -1022,6 +1022,7 @@ private fun AboutDialog(
 private val logLineRegex = Regex("""^(\d{2}/\d{2} \d{2}:\d{2}) (OK|FAIL)(?: \[([^\]]+)\])? (.*)$""")
 private val durationRegex = Regex("""^(\d+)ms""")
 private val lateRegex = Regex("""\stelat=(\d+)m$""") // v120: token akhir dari Prefs.record
+private const val LOG_TAIL_GROUP = 4 // v121 (detekt MagicNumber): group regex ke-4 `(.*)` = sisa baris
 
 // v77: `stamp` = jam 12 jam (AM/PM) utk TAMPIL (konversi dari format simpan 24 jam di TimeFormat.kt).
 // v120: `late` = menit terlambat (0 = tepat waktu / baris lama tanpa token); token dibuang dari `rest`.
@@ -1037,7 +1038,7 @@ internal data class ParsedLog(
 
 internal fun parseLogLine(line: String): ParsedLog? {
     val g = logLineRegex.find(line)?.groupValues ?: return null
-    val late = lateRegex.find(g[4])
+    val late = lateRegex.find(g[LOG_TAIL_GROUP])
     return ParsedLog(
         stamp = formatStamp12h(g[1]),
         ok = g[2] == "OK",
