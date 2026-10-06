@@ -1,5 +1,8 @@
 # Changelog
 
+## v114
+- Tidak ada perubahan perilaku. Perbaikan satu temuan detekt dari build v113 (angka literal untuk format heksadesimal di dump log notifikasi diganti konstanta bernama). Isi log tetap sama.
+
 ## v113
 - Isi file log layanan persisten (`diag_persistent_service`) kini data mentah saja, tanpa kalimat penjelasan atau kesimpulan dari aplikasi. Yang ditulis: status izin notifikasi, importance channel, exception `startForeground()` apa adanya, lalu dua dump mentah daftar notifikasi aktif milik LagFix (id, tag, channel, flags dalam heksadesimal, waktu posting), satu segera dan satu setelah jeda 1,5 detik. Baris logcat `LIFECYCLE` juga memakai format mentah yang sama. Tidak ada perubahan perilaku notifikasi. Belum diuji di HP.
 

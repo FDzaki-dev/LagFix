@@ -287,6 +287,9 @@ class PersistentTrimService : Service() {
     }
 }
 
+// v114 (detekt MagicNumber): radix heksadesimal utk `flags`; nilai identik dgn literal 16 sebelumnya.
+private const val HEX_RADIX = 16
+
 /** v113: 1 notifikasi aktif milik app, field apa adanya dari `StatusBarNotification` (tanpa tafsiran). */
 internal data class NotifSnapshot(
     val id: Int,
@@ -303,7 +306,8 @@ internal data class NotifSnapshot(
 internal fun formatActiveNotifications(label: String, read: Result<List<NotifSnapshot>>): String {
     val items = read.getOrNull() ?: return "activeNotifications[$label]: read exception = ${read.exceptionOrNull()}"
     val lines = items.map {
-        "  id=${it.id} tag=${it.tag} channel=${it.channelId} flags=0x${it.flags.toString(16)} postTime=${it.postTime}"
+        "  id=${it.id} tag=${it.tag} channel=${it.channelId} " +
+            "flags=0x${it.flags.toString(HEX_RADIX)} postTime=${it.postTime}"
     }
     return (listOf("activeNotifications[$label]: count=${items.size}") + lines).joinToString("\n")
 }
