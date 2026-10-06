@@ -4,28 +4,34 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** v111: log `diag_persistent_service` jujur — kembali tanpa exception BUKAN bukti notifikasi tampil. */
+/** v112: log `diag_persistent_service` jujur — kembali tanpa exception BUKAN bukti notifikasi tampil. */
 class DescribeStartOutcomeTest {
 
     @Test
     fun failure_reportedAsFailed_regardlessOfShown() {
-        val text = describeStartOutcome(IllegalStateException("ditolak"), shownNow = true)
+        val text = describeStartOutcome(IllegalStateException("ditolak"), true, true, DELAY_MS)
         assertTrue(text.contains("GAGAL"))
         assertTrue(text.contains("ditolak"))
     }
 
     @Test
-    fun returnedAndShown_reportedAsVisible() {
-        val text = describeStartOutcome(null, shownNow = true)
+    fun notShownImmediately_butShownAfterDelay_isReportedAsVisible() {
+        val text = describeStartOutcome(null, shownNow = false, shownLater = true, delayMs = DELAY_MS)
         assertTrue(text.contains("TERLIHAT"))
+        assertTrue(text.contains("cek segera: tidak terlihat"))
+        assertTrue(text.contains("setelah ${DELAY_MS}ms: terlihat"))
         assertFalse(text.contains("TIDAK terlihat"))
     }
 
     @Test
-    fun returnedButNotShown_isNotReportedAsSuccess() {
-        val text = describeStartOutcome(null, shownNow = false)
+    fun notShownEvenAfterDelay_isNotReportedAsSuccess() {
+        val text = describeStartOutcome(null, shownNow = false, shownLater = false, delayMs = DELAY_MS)
         assertTrue(text.contains("TIDAK terlihat"))
         assertTrue(text.contains("BUKAN bukti"))
         assertFalse(text.contains("SUKSES"))
+    }
+
+    private companion object {
+        const val DELAY_MS = 1500L
     }
 }

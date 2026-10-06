@@ -1,5 +1,8 @@
 # Changelog
 
+## v112
+- Log diagnostik layanan persisten diperbaiki: pada v111 file `diag_persistent_service` memeriksa notifikasi terlalu cepat dan mencatat "TIDAK terlihat" walau notifikasi sebenarnya tampil. Sekarang file ditulis setelah pengecekan ulang 1,5 detik dan memuat kedua hasil (cek segera dan setelah jeda); hasil akhir mengikuti pengecekan terakhir. Bila HP mematikan proses sebelum 1,5 detik, file tidak sempat tertulis (catatan di logcat tetap ada). Tidak ada perubahan perilaku notifikasi. Belum diuji di HP.
+
 ## v111
 - Pengaturan > kartu Jadwal kini menampilkan peringatan merah bila Android membatasi LagFix berjalan di latar belakang. Status ini terpisah dari tanda centang "Baterai: berjalan tanpa batas" dan bisa membuat notifikasi layanan persisten gagal tampil atau hilang. Tersedia tombol langsung ke Info Aplikasi LagFix; peringatan hilang sendiri setelah pembatasan dicabut dan aplikasi dibuka lagi. Log layanan persisten juga dibuat jujur: tidak lagi mencatat "SUKSES" hanya karena `startForeground()` kembali tanpa error. Yang dicatat sekarang apakah notifikasi benar-benar terlihat (dicek segera, lalu sekali lagi 1,5 detik kemudian di logcat). Belum diuji di HP dan belum menjamin notifikasi tidak hilang lagi. Tanpa Firebase, tanpa dependency atau izin baru.
 
