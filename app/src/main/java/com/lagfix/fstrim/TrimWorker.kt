@@ -23,6 +23,8 @@ import java.util.concurrent.TimeUnit
 class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val prefs = Prefs(applicationContext)
+        // v123: catcher dibaca SEBELUM `ensureShowing`; cold dari worker TIDAK menulis berkas (cegah banjir).
+        ProcessCatcher.capture(applicationContext, ProcessCatcher.SOURCE_WORKER, allowCold = false)
         // v78: jaga notifikasi servis persisten (hilang saat interval berjalan, laporan user) — cek di awal...
         PersistentTrimService.ensureShowing(applicationContext, "worker-start")
         // v19 hotfix (laporan user: widget "nol feedback" — tap tak ada hasil terlihat): flag ini

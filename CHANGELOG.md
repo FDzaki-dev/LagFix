@@ -1,5 +1,9 @@
 # Changelog
 
+## v123
+- Pencatat gabungan untuk semua kondisi notifikasi persisten yang masih belum jelas. Saat panel Quick Settings dibuka, app dibuka, atau jadwal berjalan, app mencatat 1 baris di logcat. Berkas `LagFix_diag_process_catch_*.txt` di Documents/LagFix disimpan hanya pada dua keadaan: (1) proses app baru lahir saat panel QS dibuka atau app dibuka (sekali per proses), atau (2) proses app masih hidup tetapi notifikasi persisten tidak ada padahal toggle menyala (paling sering sekali per 30 menit).
+- Isi berkas adalah data mentah tanpa tafsiran: notifikasi aktif segera dan 1,5 detik kemudian, prioritas proses, status pembatasan latar belakang, daftar layanan app, lima riwayat start proses (Android 15 ke atas), dan lima riwayat kematian proses (Android 11 ke atas). Pencatat hanya merekam, tidak memulai atau menghentikan layanan. Ditambah empat tes unit. Belum diuji di perangkat.
+
 ## v121
 - Perbaikan pemeriksaan kode (detekt) dari build v120: satu angka literal di pembaca baris Riwayat diganti konstanta bernama. Tidak ada perubahan perilaku.
 - Pencatat baru untuk kejadian "panel Quick Settings dibuka". Tiap panel dibuka, app menulis 1 baris di logcat. Bila saat itu proses app baru saja lahir (umur kurang dari 10 detik), app juga menyimpan 1 berkas `LagFix_diag_tile_listening_*.txt` di Documents/LagFix, maksimal 1 berkas per proses. Isinya data mentah: pid, umur proses, status toggle layanan persisten, dan dua dump notifikasi aktif (segera dan 1,5 detik kemudian). Pencatat ini hanya merekam, tidak memulai atau menghentikan layanan. Dipakai untuk membuktikan apakah notifikasi persisten muncul lagi karena panel dibuka. Ditambah dua tes unit untuk format isi berkas. Belum diuji di perangkat.

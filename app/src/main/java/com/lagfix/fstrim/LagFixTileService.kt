@@ -85,6 +85,8 @@ class LagFixTileService : TileService() {
         val pid = Process.myPid()
         val procAgeMs = SystemClock.elapsedRealtime() - Process.getStartElapsedRealtime()
         Log.i(TAG, "LIFECYCLE onStartListening pid=$pid procAge=${procAgeMs}ms")
+        // v123: catcher gabungan (cold SEKALI per proses ATAU warm bila notifikasi tak ada); berkas v121 TAK diubah.
+        ProcessCatcher.capture(app, ProcessCatcher.SOURCE_TILE, allowCold = true)
         if (procAgeMs >= TILE_COLD_PROCESS_MAX_AGE_MS || !fileWritten.compareAndSet(false, true)) return
         CoroutineScope(Dispatchers.IO).launch {
             val toggleOn = Prefs(app).persistentServiceEnabled
