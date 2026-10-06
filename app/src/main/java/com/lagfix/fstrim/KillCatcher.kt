@@ -22,8 +22,9 @@ private const val KILL_PATTERN_BASE =
 private const val KILL_WINDOW_BEFORE_MS = 20_000L
 private const val KILL_WINDOW_AFTER_MS = 5_000L
 private const val KILL_CMD_TIMEOUT_MS = 25_000L
-private const val KILL_SHELL_MAX_LINES = 300
-private const val KILL_MAX_LINES = 150
+private const val KILL_SHELL_MAX_LINES = 3000
+private const val KILL_MAX_BEFORE_LINES = 100
+private const val KILL_MAX_AFTER_LINES = 50
 private const val KILL_MAX_LINE_CHARS = 300
 private const val KILL_MAX_RECORDS = 16
 private const val KILL_MAX_DEATHS = 3
@@ -91,9 +92,10 @@ internal object KillCatcher {
         val to = logStamp(d.timestampMs + KILL_WINDOW_AFTER_MS)
         val cmd = buildKillCommand(startMs, d.pid)
         val r = BoundedShell.run(KILL_CMD_TIMEOUT_MS) { LogcatSnapshot.shizukuProcess(cmd) }
-        val kept = r.output.lineSequence().filter { inWindow(it, from, to) }.take(KILL_MAX_LINES).toList()
-        val head = "death timestamp=${d.timestampMs} pid=${d.pid} window=$from..$to lines=${kept.size} " +
-            "exit=${r.exit} timedOut=${r.timedOut}"
+        val matched = r.output.lineSequence().filter { inWindow(it, from, to) }.toList()
+        val kept = selectNearDeath(matched, logStamp(d.timestampMs))
+        val head = "death timestamp=${d.timestampMs} pid=${d.pid} window=$from..$to " +
+            "lines=${kept.size} matched=${matched.size} exit=${r.exit} timedOut=${r.timedOut}"
         return listOf(head) + kept.map { "  ${it.take(KILL_MAX_LINE_CHARS)}" }
     }
 }
@@ -107,12 +109,22 @@ internal fun selectNewDeaths(all: List<KillDeath>, lastTs: Long, nowMs: Long): L
         .sortedByDescending { it.timestampMs }
         .take(KILL_MAX_DEATHS)
 
+/**
+ * v129: [matched] = baris dlm jendela, urut waktu. Simpan baris TERDEKAT dgn waktu kematian ([deathStamp]):
+ * 100 terakhir s/d waktu kematian + 50 pertama sesudahnya (isi baris tak diubah). Sebelumnya 150 baris PERTAMA
+ * jendela -> pada 2 dari 3 kematian di berkas 06 Okt baris sebelum kematian habis duluan & kill tak tercatat.
+ */
+internal fun selectNearDeath(matched: List<String>, deathStamp: String): List<String> {
+    val (before, after) = matched.partition { it.take(KILL_STAMP_LEN) <= deathStamp }
+    return before.takeLast(KILL_MAX_BEFORE_LINES) + after.take(KILL_MAX_AFTER_LINES)
+}
+
 /** v124: stempel logcat `MM-dd HH:mm:ss.SSS` zona perangkat (sama dgn kolom waktu `logcat -v threadtime`). */
 internal fun logStamp(ms: Long): String = SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US).format(Date(ms))
 
 /**
  * v124: perintah shell (konstanta + 2 angka, 0 input user): logcat sejak [startMs] (format epoch `-t sss.mmm`),
- * disaring `grep -Ei` di sisi shell (nama app / kata kunci kill / pid) & dibatasi 300 baris -> keluaran kecil.
+ * disaring `grep -Ei` di sisi shell (nama app / kata kunci kill / pid) & dibatasi 3000 baris (v129: 300 -> 3000).
  */
 internal fun buildKillCommand(startMs: Long, pid: Int): String {
     val millis = (startMs % KILL_MILLIS_PER_SECOND).toString().padStart(KILL_MILLIS_DIGITS, '0')

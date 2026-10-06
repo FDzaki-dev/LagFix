@@ -1,5 +1,9 @@
 # Changelog
 
+## v129
+- Perbaikan pencatat kill (`kill_context`). Pada berkas 6 Okt, dua dari tiga kematian proses tidak memuat baris yang menunjukkan siapa pembunuhnya, karena app menyimpan 150 baris PERTAMA dari jendela 25 detik dan jatah itu habis sebelum waktu kematian (satu kematian berhenti 10 detik sebelum mati, satu lagi 0,6 detik sebelumnya). Kini app membaca sampai 3000 baris dari logcat dan menyimpan baris yang paling dekat dengan waktu kematian: 100 baris terakhir sampai waktu mati ditambah 50 baris sesudahnya. Isi baris tidak diubah. Baris judul tiap kematian kini juga mencantumkan jumlah baris yang cocok (`matched`) di samping jumlah yang disimpan (`lines`), jadi terlihat bila ada yang terpotong.
+- Tidak ada perubahan perilaku lain. Ditambah tiga tes unit dan satu tes diperbarui (batas baris perintah 300 menjadi 3000). Belum diuji di perangkat.
+
 ## v128
 - Berkas `process_catch` kini punya bagian `logcatShizuku` (perlu Shizuku aktif): baris logcat sistem yang menyebut LagFix atau pid proses itu, mulai satu detik sebelum proses lahir (maksimal 150 baris, disalin apa adanya). Gunanya melihat siapa yang meminta notifikasi layanan persisten tampil dan kapan. Bagian `ownLogcat` kini mencoba lagi tanpa filter pid bila percobaan pertama kosong (di HP uji percobaan pertama mengembalikan 0 baris). Tidak ada perubahan perilaku lain. Ditambah empat tes unit. Belum diuji di perangkat.
 

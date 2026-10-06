@@ -5,7 +5,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** v124: pemilih kematian baru, perintah logcat, penyaring jendela waktu, dan format berkas `diag_kill_context`. */
+/**
+ * v124: pemilih kematian baru, perintah logcat, penyaring jendela waktu, format berkas `diag_kill_context`.
+ * v129: pemilih baris terdekat dgn waktu kematian.
+ */
 class KillCatcherTest {
 
     @Test
@@ -36,7 +39,30 @@ class KillCatcherTest {
         assertTrue(cmd.contains("-t '1791257615.299'"))
         assertTrue(cmd.contains("21951"))
         assertTrue(cmd.contains("grep -Ei"))
-        assertTrue(cmd.endsWith("head -n 300"))
+        assertTrue(cmd.endsWith("head -n 3000"))
+    }
+
+    @Test
+    fun selectNearDeath_keepsAllWhenWithinLimits_inOriginalOrder() {
+        val lines = listOf("10-06 10:00:01.000 a", "10-06 10:00:02.000 b", "10-06 10:00:03.000 c")
+        assertEquals(lines, selectNearDeath(lines, "10-06 10:00:02.500"))
+    }
+
+    @Test
+    fun selectNearDeath_keepsLast100BeforeAndFirst50After_notTheFirstLines() {
+        val before = (1..130).map { "10-06 10:00:%02d.%03d noise$it".format(it / 10, it % 1000) }
+        val kill = "10-06 10:00:20.100 tranpm/TranManualCleanMgr: kill proc pid:1"
+        val after = (1..70).map { "10-06 10:00:21.%03d after$it".format(it) }
+        val kept = selectNearDeath(before + kill + after, "10-06 10:00:20.200")
+        assertEquals(150, kept.size)
+        assertEquals(before.takeLast(99) + kill + after.take(50), kept)
+        assertTrue(kept.contains(kill))
+        assertFalse(kept.contains(before.first()))
+    }
+
+    @Test
+    fun selectNearDeath_emptyInput_isEmpty() {
+        assertTrue(selectNearDeath(emptyList(), "10-06 10:00:00.000").isEmpty())
     }
 
     @Test
