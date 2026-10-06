@@ -6,10 +6,15 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Process
+import android.os.SystemClock
+import android.util.Log
 import android.widget.RemoteViews
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+private const val WIDGET_TAG = "LagFixWidget"
 
 /**
  * Widget home screen (fitur baru, prioritas user atas widget+QS tile). Status ditampilkan sbg
@@ -30,6 +35,9 @@ class LagFixWidgetProvider : AppWidgetProvider() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        // v127: penanda pemicu lahir proses; dibaca `ProcessCatcher` (bagian `ownLogcat`). 1 baris per broadcast.
+        val procAgeMs = SystemClock.elapsedRealtime() - Process.getStartElapsedRealtime()
+        Log.i(WIDGET_TAG, widgetLifecycleLine(intent.action, Process.myPid(), procAgeMs))
         super.onReceive(context, intent)
         if (intent.action == ACTION_RUN_NOW) {
             Scheduler.runOnce(context)

@@ -1,5 +1,8 @@
 # Changelog
 
+## v127
+- Berkas `process_catch` kini punya bagian baru `ownLogcat`: baris logcat milik app sendiri yang bertanda `LIFECYCLE`, disalin apa adanya dengan urutan waktu aslinya (maksimal 200 baris terbaru), ditambah satu baris angka mentah di depannya. Dengan begitu terbaca komponen mana yang memulai notifikasi layanan persisten dan apa yang melahirkan proses, tanpa perlu menekan "Ambil logcat sistem" dan tanpa Shizuku. Widget kini juga menulis satu baris logcat tiap menerima broadcast. Tidak ada perubahan perilaku lain. Ditambah lima tes unit. Belum diuji di perangkat.
+
 ## v125
 - Berkas `process_catch` kini mencantumkan pid, nama proses, dan stempel waktu start pada tiap baris riwayat start proses, ditambah satu baris jangkar waktu. Dengan begitu tiap baris bisa dicocokkan dengan proses tertentu, tidak lagi ambigu. Tidak ada perubahan perilaku lain. Ditambah tiga tes unit. Belum diuji di perangkat.
 

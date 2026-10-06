@@ -38,7 +38,8 @@ private const val CATCH_REASON_WARM_ABSENT = "warmAbsent"
 /**
  * v123 (permintaan user: semua kondisi ambigu diberi catcher): merekam DATA MENTAH keadaan proses saat titik
  * pemanggil berjalan — notifikasi aktif (segera & +1500 ms), importance proses, `isBackgroundRestricted`,
- * servis milik app, riwayat start proses (API 35+) & riwayat kematian proses (API 30+).
+ * servis milik app, riwayat start proses (API 35+), riwayat kematian proses (API 30+) & (v127) baris logcat
+ * `LIFECYCLE` milik pid sendiri (`ownLogcat`).
  *
  * Selalu 1 baris logcat (tag `ProcessCatcher`, kata kunci `LIFECYCLE`). Berkas `diag_process_catch` hanya ditulis:
  *  - `cold`: proses baru lahir (umur < 10 dtk) DAN pemanggil mengizinkan (`allowCold`), SEKALI per proses;
@@ -80,7 +81,8 @@ internal object ProcessCatcher {
                 formatCatchSection("isBackgroundRestricted", readBackgroundRestricted(am)),
                 formatCatchSection("ownServices", readOwnServices(am)),
                 formatCatchSection("startHistory", readStartHistory(am)),
-                formatCatchSection("exitHistory", readExitHistory(am))
+                formatCatchSection("exitHistory", readExitHistory(am)),
+                formatCatchSection("ownLogcat", readOwnLogcat(pid))
             )
             val header = formatCatchHeader(source, reason, pid, procAgeMs, toggleOn)
             CrashLogger.logDiagnostic(app, CATCH_DIAG_TAG, (listOf(header) + sections).joinToString("\n"))
