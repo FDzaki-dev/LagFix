@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -32,6 +33,9 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
         // v38: asal pemicu run ini utk Riwayat — manual (widget/tile via Scheduler.runOnce) vs
         // otomatis (jadwal periodik). Memakai flag `manual` yang SUDAH ada, 0 logic baru.
         val trigger = if (manual) TriggerSource.MANUAL else TriggerSource.AUTO
+        // v118: true hanya utk rantai interval radikal (< 15 menit, Scheduler.scheduleNext). Periodik &
+        // manual tak pernah set -> default false -> 0 perubahan perilaku jalur lama.
+        val chain = inputData.getBoolean(KEY_CHAIN, false)
         var waited = 0L
         while (!Shizuku.pingBinder() && waited < SHIZUKU_WAIT_MAX_MS) {
             delay(SHIZUKU_POLL_MS)
@@ -54,6 +58,12 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             Scheduler.notifyChanged(applicationContext)
             PersistentTrimService.ensureShowing(applicationContext, "worker-end") // v78
             if (manual) toast(applicationContext.getString(R.string.toast_shizuku_not_ready))
+            // v118: rantai radikal tak pakai retry/backoff (bisa lebih lama dari interval & dobel jadwal);
+            // cukup jadwalkan tik berikutnya.
+            if (chain) {
+                Scheduler.scheduleNext(applicationContext, prefs)
+                return@withContext Result.success()
+            }
             return@withContext Result.retry()
         }
         val r = FstrimExecutor.run()
@@ -68,6 +78,8 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             }
             toast(msg)
         }
+        // v118: terakhir sebelum return (REPLACE membatalkan worker ini sendiri; semua kerja sudah selesai).
+        if (chain) Scheduler.scheduleNext(applicationContext, prefs)
         Result.success()
     }
 
@@ -77,6 +89,7 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
 
     companion object {
         const val KEY_MANUAL = "manual"
+        const val KEY_CHAIN = "chain" // v118
 
         // v92 (detekt MagicNumber): nilai identik dgn literal sebelumnya (tunggu Shizuku maks 5 dtk,
         // cek tiap 0,5 dtk; pesan toast gagal dipotong 60 karakter).
@@ -88,18 +101,34 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
 
 object Scheduler {
     private const val NAME = "lagfix_fstrim"
+    private const val NAME_RADICAL = "lagfix_fstrim_radical" // v118: rantai OneTime utk interval < 15 menit
 
     // v44: batas bawah interval periodik WorkManager (PeriodicWorkRequest.MIN_PERIODIC_INTERVAL_MILLIS
     // = 15 menit). Nilai lebih kecil DIAM-DIAM dinaikkan ke 15 menit oleh WorkManager, jadi UI
     // menolaknya secara eksplisit & di sini diclamp juga sbg pengaman.
     const val MIN_INTERVAL_MINUTES = 15L
 
+    // v118: batas bawah saat mode radikal aktif (rantai OneTimeWorkRequest, bukan periodik).
+    const val RADICAL_MIN_INTERVAL_MINUTES = 1L
+
+    fun minIntervalMinutes(radical: Boolean): Long =
+        if (radical) RADICAL_MIN_INTERVAL_MINUTES else MIN_INTERVAL_MINUTES
+
     fun apply(ctx: Context, p: Prefs) {
         val wm = WorkManager.getInstance(ctx.applicationContext)
         if (!p.enabled) {
             wm.cancelUniqueWork(NAME)
+            wm.cancelUniqueWork(NAME_RADICAL)
             return
         }
+        // v118: mode radikal + interval < 15 menit -> periodik WorkManager (min 15 menit) diganti rantai
+        // OneTimeWorkRequest (initial delay = interval; tik berikutnya dijadwalkan TrimWorker stlh run).
+        if (p.radicalInterval && p.intervalMinutes < MIN_INTERVAL_MINUTES) {
+            wm.cancelUniqueWork(NAME)
+            enqueueRadical(wm, p.intervalMinutes)
+            return
+        }
+        wm.cancelUniqueWork(NAME_RADICAL)
         // v48 (permintaan user): SEMUA constraint dibuang (charging & idle sejak v47, baterai-rendah
         // sejak v48) -> request periodik murni interval, tanpa `setConstraints()`.
         val req = PeriodicWorkRequestBuilder<TrimWorker>(
@@ -107,6 +136,21 @@ object Scheduler {
         )
             .build()
         wm.enqueueUniquePeriodicWork(NAME, ExistingPeriodicWorkPolicy.UPDATE, req)
+    }
+
+    /** v118: dipanggil TrimWorker (mode rantai) stlh run; no-op bila jadwal/mode radikal sudah dimatikan. */
+    fun scheduleNext(ctx: Context, p: Prefs) {
+        if (!p.enabled || !p.radicalInterval || p.intervalMinutes >= MIN_INTERVAL_MINUTES) return
+        enqueueRadical(WorkManager.getInstance(ctx.applicationContext), p.intervalMinutes)
+    }
+
+    private fun enqueueRadical(wm: WorkManager, minutes: Long) {
+        val data = Data.Builder().putBoolean(TrimWorker.KEY_CHAIN, true).build()
+        val req = OneTimeWorkRequestBuilder<TrimWorker>()
+            .setInitialDelay(minutes.coerceAtLeast(RADICAL_MIN_INTERVAL_MINUTES), TimeUnit.MINUTES)
+            .setInputData(data)
+            .build()
+        wm.enqueueUniqueWork(NAME_RADICAL, ExistingWorkPolicy.REPLACE, req)
     }
 
     /** Dipakai widget (LagFixWidgetProvider) & QS tile (LagFixTileService) untuk trigger manual. */

@@ -40,6 +40,12 @@ class Prefs(context: Context) {
         )
         set(v) { sp.edit().putLong("intervalMin", v).apply() }
 
+    // v118 (permintaan user): mode interval radikal (< 15 menit). Toggle bebas on/off kapan saja, tanpa
+    // batasan. Default false = perilaku lama (interval minimal 15 menit, periodik WorkManager).
+    var radicalInterval: Boolean
+        get() = sp.getBoolean("radicalInterval", false)
+        set(v) { sp.edit().putBoolean("radicalInterval", v).apply() }
+
     // v27 (fitur opsional, pilihan eksplisit user — lihat SettingsTab): toggle foreground service
     // "keep-alive" (PersistentTrimService). Default false, non-breaking utk user existing yg belum
     // pernah lihat/pilih opsi ini.

@@ -2,7 +2,7 @@
 Utilitas Android non-root untuk memicu dan menjadwalkan `fstrim` (TRIM pada UFS/eMMC) dengan interval kustom.
 
 ## Cara kerja
-Menjalankan `sm fstrim` (fallback `sm idle-maint run`) sebagai shell UID lewat **Shizuku**. Penjadwalan: WorkManager (preset 6 jam – 7 hari atau interval kustom isi sendiri mulai 15 menit).
+Menjalankan `sm fstrim` (fallback `sm idle-maint run`) sebagai shell UID lewat **Shizuku**. Penjadwalan: WorkManager (preset 6 jam – 7 hari atau interval kustom isi sendiri mulai 15 menit; toggle opsional "Interval radikal" membuka interval kustom mulai 1 menit lewat rantai WorkManager sekali-jalan, tanpa jaminan waktu tepat saat Doze).
 
 ## Paksa trim saat reboot (v83)
 Kartu di tab Pengaturan menulis setting sistem `fstrim_mandatory_interval` = 1 ms lewat Shizuku (`settings put global`), supaya Android sendiri memaksa fstrim saat boot (cara kerja ala mFSTRIM; efeknya belum diverifikasi di perangkat). Nilai dibaca dulu dan dibaca ulang setelah ditulis; tombol Reset menghapus kuncinya (`settings delete global`) karena nilainya bertahan walau app di-uninstall.

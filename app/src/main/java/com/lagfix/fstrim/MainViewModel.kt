@@ -26,6 +26,7 @@ data class UiState(
     val shizuku: ShizukuState = ShizukuState.NOT_RUNNING,
     val enabled: Boolean = false,
     val intervalMinutes: Long = DEFAULT_INTERVAL_MINUTES, // v44: menit (sebelumnya jam)
+    val radicalInterval: Boolean = false, // v118: izinkan interval < 15 menit
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val running: Boolean = false,
     val lastRunMs: Long = 0L,
@@ -74,8 +75,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         refresh()
     }
 
-    fun setInterval(minutes: Long) {
-        prefs.intervalMinutes = minutes.coerceAtLeast(Scheduler.MIN_INTERVAL_MINUTES)
+    // v118: `radical` = toggle mode interval radikal (< 15 menit), bebas on/off kapan saja. Sengaja 1 fungsi
+    // (bukan fungsi baru) agar `MainViewModel` tetap 10 fungsi (ambang detekt). Mati -> interval < 15 dinaikkan
+    // ke 15 menit (batas periodik WorkManager) supaya UI/widget jujur.
+    fun setInterval(minutes: Long, radical: Boolean = prefs.radicalInterval) {
+        prefs.radicalInterval = radical
+        prefs.intervalMinutes = minutes.coerceAtLeast(Scheduler.minIntervalMinutes(radical))
         Scheduler.apply(getApplication<Application>(), prefs)
         refresh()
     }
@@ -185,6 +190,7 @@ private fun readUiState(app: Application, prefs: Prefs, running: Boolean = false
     shizuku = FstrimExecutor.state(app),
     enabled = prefs.enabled,
     intervalMinutes = prefs.intervalMinutes,
+    radicalInterval = prefs.radicalInterval,
     themeMode = prefs.themeMode,
     running = running,
     lastRunMs = prefs.lastRunMs,

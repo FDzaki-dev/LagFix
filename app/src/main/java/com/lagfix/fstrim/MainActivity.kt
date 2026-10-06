@@ -460,6 +460,7 @@ private fun SettingsTab(
             // uji): chip preset TETAP (nilai jam x 60 -> menit), ditambah kolom angka menit.
             // Batas bawah 15 menit = batas periodik WorkManager (di bawah itu WorkManager diam-diam
             // menaikkannya, jadi ditolak eksplisit di sini). Teks input rememberSaveable -> tahan rotasi.
+            // v118: toggle "Interval radikal" (bebas on/off, tanpa batasan) menurunkan batas bawah ke 1 menit.
             val focusManager = LocalFocusManager.current
             val presets = listOf(6L to "6 jam", 12L to "12 jam", 24L to "1 hari", 72L to "3 hari", 168L to "7 hari")
             var customText by rememberSaveable {
@@ -468,7 +469,8 @@ private fun SettingsTab(
                 )
             }
             val customValue = customText.toLongOrNull()
-            val customValid = customValue != null && customValue >= Scheduler.MIN_INTERVAL_MINUTES
+            val minInterval = Scheduler.minIntervalMinutes(ui.radicalInterval)
+            val customValid = customValue != null && customValue >= minInterval
             val applyCustom: () -> Unit = {
                 if (customValue != null && customValid) {
                     vm.setInterval(customValue)
@@ -509,7 +511,11 @@ private fun SettingsTab(
                     supportingText = {
                         Text(
                             if (customText.isNotEmpty() && !customValid) {
-                                "Minimal ${Scheduler.MIN_INTERVAL_MINUTES} menit (batas WorkManager)."
+                                if (ui.radicalInterval) {
+                                    "Minimal $minInterval menit."
+                                } else {
+                                    "Minimal $minInterval menit (batas WorkManager)."
+                                }
                             } else {
                                 "Interval aktif: ${formatInterval(ui.intervalMinutes)}"
                             }
@@ -523,6 +529,19 @@ private fun SettingsTab(
                     enabled = customValid,
                     modifier = Modifier.padding(top = 8.dp)
                 ) { Text("Terapkan") }
+            }
+            // v118 (permintaan user): mode interval radikal (< 15 menit), bebas dinyalakan/dimatikan kapan saja
+            // tanpa batasan/konfirmasi. Mati -> interval < 15 menit otomatis dinaikkan ke 15 (lihat setInterval).
+            ToggleRow("Interval radikal (< 15 menit)", ui.radicalInterval) { on ->
+                vm.setInterval(ui.intervalMinutes, on)
+                if (!on && customValue != null && customValue < Scheduler.MIN_INTERVAL_MINUTES) customText = ""
+                onFeedback(if (on) "Interval radikal aktif." else "Interval radikal nonaktif.")
+            }
+            if (ui.radicalInterval) {
+                Text(
+                    "Boros baterai. Saat layar mati/Doze, Android bisa menunda jadwal; tak dijamin tepat waktu.",
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
             // v22 (root cause laporan user: jadwal otomatis tak tercatat di beberapa HP — toggle
             // sudah ON tapi OS/OEM (mis. XOS/MIUI/ColorOS) diam-diam membunuh job background kalau
