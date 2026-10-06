@@ -1,6 +1,7 @@
 package com.lagfix.fstrim
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -54,6 +55,35 @@ class OwnLogcatTest {
         assertEquals("LIFECYCLE widget onReceive action=null pid=7 procAge=0ms", widgetLifecycleLine(null, 7, 0L))
     }
 
+    @Test
+    fun buildLogcatInfoCommand_printsBufferSizeOldestAndSinceWithoutAppFilter() {
+        val cmd = buildLogcatInfoCommand(1_791_327_037_282L)
+        assertTrue(cmd.contains("echo '## logcat -g'; logcat -g -b main -b system -b events -b crash 2>&1"))
+        assertTrue(cmd.contains("echo '## oldest'; logcat -d -v threadtime -b main -b system -b events -b crash"))
+        assertTrue(cmd.contains("echo '## since 1791327037.282'"))
+        assertTrue(cmd.contains("-t '1791327037.282' 2>&1 | grep -m 2 -E"))
+        assertFalse(cmd.contains("lagfix"))
+    }
+
+    @Test
+    fun buildLogcatInfoCommand_padsMillisToThreeDigits() {
+        assertTrue(buildLogcatInfoCommand(1_000_005L).contains("echo '## since 1000.005'"))
+    }
+
+    @Test
+    fun logcatInfoItems_metaThenRawLines_capped30AndCharCut() {
+        val out = (1..INFO_TOTAL).joinToString("\n") { "x".repeat(INFO_LONG) + it } + "\n\n"
+        val items = logcatInfoItems(out, 0, false)
+        assertEquals("shizuku=READY exit=0 timedOut=false lines=$INFO_TOTAL", items[0])
+        assertEquals(1 + INFO_KEPT, items.size)
+        assertEquals(INFO_CHARS, items[1].length)
+    }
+
+    @Test
+    fun logcatInfoItems_emptyOutput_onlyMeta() {
+        assertEquals(listOf("shizuku=READY exit=null timedOut=true lines=0"), logcatInfoItems("", null, true))
+    }
+
     private fun sys(sec: Int, msg: String) =
         "10-06 19:04:${sec.toString().padStart(LINE_PAD - 1, '0')}.000  1000  1000 I ActivityManager: $msg"
 
@@ -97,6 +127,10 @@ class OwnLogcatTest {
         const val KEPT_MAX = 200
         const val RAW_COUNT = 7
         const val RAW_TAIL = 5
+        const val INFO_TOTAL = 40
+        const val INFO_KEPT = 30
+        const val INFO_LONG = 400
+        const val INFO_CHARS = 300
         const val FROM = "10-06 19:04:16.000"
         const val TO = "10-06 19:04:30.000"
         const val SEC_OLD = 10

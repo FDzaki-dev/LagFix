@@ -1,5 +1,9 @@
 # Changelog
 
+## v130
+- Berkas `process_catch` kini punya dua bagian baru. `logcatInfo` (perlu Shizuku aktif) mencetak apa adanya ukuran buffer logcat (`logcat -g`), dua baris paling tua yang masih ada di buffer, dan dua baris pertama sejak awal jendela waktu, tanpa saringan nama app. Gunanya membedakan apakah buffer log sudah tertimpa atau pembacaan berdasarkan waktu meleset, karena pada HP uji bagian `logcatShizuku` hanya memuat 16 baris yang mulai 3,4 detik setelah proses lahir. `appVersion` mencetak nama dan kode versi APK yang membuat berkas, supaya jelas versi mana yang diuji.
+- Tidak ada perubahan perilaku lain. Ditambah empat tes unit. Belum diuji di perangkat.
+
 ## v129
 - Perbaikan pencatat kill (`kill_context`). Pada berkas 6 Okt, dua dari tiga kematian proses tidak memuat baris yang menunjukkan siapa pembunuhnya, karena app menyimpan 150 baris PERTAMA dari jendela 25 detik dan jatah itu habis sebelum waktu kematian (satu kematian berhenti 10 detik sebelum mati, satu lagi 0,6 detik sebelumnya). Kini app membaca sampai 3000 baris dari logcat dan menyimpan baris yang paling dekat dengan waktu kematian: 100 baris terakhir sampai waktu mati ditambah 50 baris sesudahnya. Isi baris tidak diubah. Baris judul tiap kematian kini juga mencantumkan jumlah baris yang cocok (`matched`) di samping jumlah yang disimpan (`lines`), jadi terlihat bila ada yang terpotong.
 - Tidak ada perubahan perilaku lain. Ditambah tiga tes unit dan satu tes diperbarui (batas baris perintah 300 menjadi 3000). Belum diuji di perangkat.

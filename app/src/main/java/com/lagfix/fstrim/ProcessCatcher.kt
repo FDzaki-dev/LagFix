@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Process
 import android.os.SystemClock
 import android.util.Log
+import androidx.core.content.pm.PackageInfoCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -39,7 +40,8 @@ private const val CATCH_REASON_WARM_ABSENT = "warmAbsent"
  * v123 (permintaan user: semua kondisi ambigu diberi catcher): merekam DATA MENTAH keadaan proses saat titik
  * pemanggil berjalan — notifikasi aktif (segera & +1500 ms), importance proses, `isBackgroundRestricted`,
  * servis milik app, riwayat start proses (API 35+), riwayat kematian proses (API 30+) & (v127) baris logcat
- * `LIFECYCLE` milik app sendiri (`ownLogcat`) & (v128) logcat sistem via Shizuku (`logcatShizuku`).
+ * `LIFECYCLE` milik app sendiri (`ownLogcat`) & (v128) logcat sistem via Shizuku (`logcatShizuku`) &
+ * (v130) info buffer logcat (`logcatInfo`) + versi APK (`appVersion`).
  *
  * Selalu 1 baris logcat (tag `ProcessCatcher`, kata kunci `LIFECYCLE`). Berkas `diag_process_catch` hanya ditulis:
  *  - `cold`: proses baru lahir (umur < 10 dtk) DAN pemanggil mengizinkan (`allowCold`), SEKALI per proses;
@@ -84,7 +86,9 @@ internal object ProcessCatcher {
                 formatCatchSection("startHistory", readStartHistory(am)),
                 formatCatchSection("exitHistory", readExitHistory(am)),
                 formatCatchSection("ownLogcat", readOwnLogcat(pid)),
-                formatCatchSection("logcatShizuku", readShizukuLogcat(app, pid, windowStartMs)) // v128
+                formatCatchSection("logcatShizuku", readShizukuLogcat(app, pid, windowStartMs)), // v128
+                formatCatchSection("logcatInfo", readLogcatInfo(app, windowStartMs)), // v130
+                formatCatchSection("appVersion", readAppVersion(app)) // v130
             )
             val header = formatCatchHeader(source, reason, pid, procAgeMs, toggleOn)
             CrashLogger.logDiagnostic(app, CATCH_DIAG_TAG, (listOf(header) + sections).joinToString("\n"))
@@ -109,6 +113,12 @@ internal object ProcessCatcher {
         val info = ActivityManager.RunningAppProcessInfo()
         ActivityManager.getMyMemoryState(info)
         listOf("pid=${info.pid} importance=${info.importance} reasonCode=${info.importanceReasonCode} lru=${info.lru}")
+    }
+
+    // v130: versi APK pembuat berkas (header tak memuatnya -> versi terpasang ambigu; versionCode = nomor run CI).
+    private fun readAppVersion(app: Context): Result<List<String>> = runCatching {
+        val info = app.packageManager.getPackageInfo(app.packageName, 0)
+        listOf("versionName=${info.versionName} versionCode=${PackageInfoCompat.getLongVersionCode(info)}")
     }
 
     private fun readBackgroundRestricted(am: ActivityManager?): Result<List<String>> = runCatching {

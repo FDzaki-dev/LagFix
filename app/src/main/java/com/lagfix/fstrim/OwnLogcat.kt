@@ -15,6 +15,12 @@ private const val SHZ_LOGCAT_MAX_AGE_MS = 60_000L
 private const val SHZ_LOGCAT_MAX_LINES = 150
 private const val SHZ_LOGCAT_MAX_CHARS = 300
 private const val SHZ_LOGCAT_RAW_TAIL = 5
+private const val SHZ_INFO_TIMEOUT_MS = 8_000L
+private const val SHZ_INFO_MAX_LINES = 30
+private const val SHZ_INFO_BUFFERS = "-b main -b system -b events -b crash"
+private const val SHZ_INFO_FIRST_STAMPED = "grep -m 2 -E '^[0-9][0-9]-[0-9][0-9] '"
+private const val SHZ_INFO_MILLIS_PER_SECOND = 1_000L
+private const val SHZ_INFO_MILLIS_DIGITS = 3
 
 /**
  * v127 (laporan user: "gak ada langkah nyata"): baca logcat MILIK APP SENDIRI (`logcat -d`; app boleh membaca log
@@ -91,4 +97,41 @@ internal fun shizukuLogcatItems(output: String, from: String, to: String, exit: 
     val raw = output.lines().filter { it.isNotBlank() }.takeLast(SHZ_LOGCAT_RAW_TAIL)
         .map { it.take(SHZ_LOGCAT_MAX_CHARS) }
     return listOf(meta) + kept.ifEmpty { raw }
+}
+
+/**
+ * v130 (data v128 di X6850: `logcatShizuku` hanya 16 baris, tertua 3,4 dtk SESUDAH proses lahir, tanpa
+ * `am_proc_start`/`LIFECYCLE` -> sebab BELUM terbukti): perintah shell (konstanta + 1 angka) yg mencetak MENTAH
+ * ukuran buffer logcat (`logcat -g`), 2 baris berstempel TERTUA di buffer, dan 2 baris pertama sejak [sinceMs]
+ * (`-t`), tanpa penyaring nama app -> terlihat buffer tertimpa atau `-t` meleset. Tiap bagian diawali `echo '## ..'`.
+ */
+internal fun buildLogcatInfoCommand(sinceMs: Long): String {
+    val millis = (sinceMs % SHZ_INFO_MILLIS_PER_SECOND).toString().padStart(SHZ_INFO_MILLIS_DIGITS, '0')
+    val since = "${sinceMs / SHZ_INFO_MILLIS_PER_SECOND}.$millis"
+    val dump = "logcat -d -v threadtime $SHZ_INFO_BUFFERS"
+    return "echo '## logcat -g'; logcat -g $SHZ_INFO_BUFFERS 2>&1 | head -n 8; " +
+        "echo '## oldest'; $dump 2>&1 | $SHZ_INFO_FIRST_STAMPED; " +
+        "echo '## since $since'; $dump -t '$since' 2>&1 | $SHZ_INFO_FIRST_STAMPED"
+}
+
+/**
+ * v130: seksi `logcatInfo` di `process_catch` (perintah `buildLogcatInfoCommand` via Shizuku, jalur sama dgn
+ * `readShizukuLogcat`). Shizuku tak READY -> 1 baris `unavailable`. Blocking — hanya dari Dispatchers.IO.
+ */
+internal fun readLogcatInfo(app: Context, sinceMs: Long): Result<List<String>> = runCatching {
+    val state = FstrimExecutor.state(app)
+    if (state == ShizukuState.READY) {
+        val cmd = buildLogcatInfoCommand(sinceMs)
+        val r = BoundedShell.run(SHZ_INFO_TIMEOUT_MS) { LogcatSnapshot.shizukuProcess(cmd) }
+        logcatInfoItems(r.output, r.exit, r.timedOut)
+    } else {
+        listOf("unavailable: shizuku=${state.name}")
+    }
+}
+
+/** v130: baris pertama = angka mentah (exit, timedOut, jumlah baris); sisanya keluaran shell apa adanya (maks 30). */
+internal fun logcatInfoItems(output: String, exit: Int?, timedOut: Boolean): List<String> {
+    val lines = output.lines().filter { it.isNotBlank() }
+    val meta = "shizuku=READY exit=$exit timedOut=$timedOut lines=${lines.size}"
+    return listOf(meta) + lines.take(SHZ_INFO_MAX_LINES).map { it.take(SHZ_LOGCAT_MAX_CHARS) }
 }
