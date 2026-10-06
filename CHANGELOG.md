@@ -1,5 +1,8 @@
 # Changelog
 
+## v119
+- Saat toggle "Interval radikal" aktif, muncul tiga chip preset cepat: 1 menit, 5 menit, 10 menit. Satu ketukan langsung menerapkan interval itu, jadi tidak perlu mengetik di kolom Kustom. Chip tersembunyi saat toggle mati. Tidak ada perubahan lain.
+
 ## v118
 - Pengaturan > Jadwal: tambah toggle "Interval radikal (< 15 menit)". Saat aktif, kolom Kustom (menit) menerima nilai mulai 1 menit; interval di bawah 15 menit dijalankan lewat rantai WorkManager sekali-jalan yang menjadwalkan dirinya sendiri setelah tiap run (periodik WorkManager mentok 15 menit). Toggle bebas dinyalakan/dimatikan kapan saja tanpa batasan atau konfirmasi. Saat dimatikan, interval di bawah 15 menit otomatis dinaikkan ke 15 menit dan jadwal kembali periodik biasa. Android tetap bisa menunda jadwal saat Doze, jadi waktu tidak dijamin tepat. Belum diuji di perangkat.
 

@@ -538,6 +538,20 @@ private fun SettingsTab(
                 onFeedback(if (on) "Interval radikal aktif." else "Interval radikal nonaktif.")
             }
             if (ui.radicalInterval) {
+                // v119 (permintaan user): chip preset cepat 1/5/10 menit, tampil hanya saat mode radikal ON.
+                Row(horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
+                    listOf(1L, 5L, 10L).forEach { m ->
+                        FilterChip(
+                            selected = ui.intervalMinutes == m,
+                            onClick = {
+                                customText = ""
+                                vm.setInterval(m)
+                                onFeedback("Interval diubah ke ${formatInterval(m)}.")
+                            },
+                            label = { Text("$m menit") }
+                        )
+                    }
+                }
                 Text(
                     "Boros baterai. Saat layar mati/Doze, Android bisa menunda jadwal; tak dijamin tepat waktu.",
                     style = MaterialTheme.typography.bodySmall
