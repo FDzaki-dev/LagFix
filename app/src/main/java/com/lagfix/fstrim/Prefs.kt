@@ -46,6 +46,12 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("radicalInterval", false)
         set(v) { sp.edit().putBoolean("radicalInterval", v).apply() }
 
+    // v120: waktu (ms) jadwal terakhir diterapkan (Scheduler.apply) = acuan keterlambatan run Otomatis
+    // pertama setelahnya. 0 = belum pernah (user lama) -> tak ada penanda utk run pertama itu.
+    var scheduleAnchorMs: Long
+        get() = sp.getLong("anchor", 0L)
+        set(v) { sp.edit().putLong("anchor", v).apply() }
+
     // v27 (fitur opsional, pilihan eksplisit user — lihat SettingsTab): toggle foreground service
     // "keep-alive" (PersistentTrimService). Default false, non-breaking utk user existing yg belum
     // pernah lihat/pilih opsi ini.
@@ -70,12 +76,19 @@ class Prefs(context: Context) {
         val stamp = SimpleDateFormat("dd/MM HH:mm", Locale.US).format(Date(now))
         val status = if (r.ok) "OK" else "FAIL"
         val msg = r.message.replace('\n', ' ').take(LOG_MESSAGE_MAX_CHARS)
-        val lines = (listOf("$stamp $status [$trigger] ${r.durationMs}ms $msg") + log).take(LOG_MAX_LINES)
-        sp.edit()
+        // v120: run Otomatis yg datang lebih lambat dari interval (mis. ditunda Doze) diberi token akhir
+        // " telat=<N>m" (angka mentah, bukan kalimat). Manual tak punya jadwal -> tanpa token.
+        val isAuto = trigger == TriggerSource.AUTO
+        val ref = maxOf(sp.getLong("lastAuto", 0L), scheduleAnchorMs)
+        val late = if (isAuto) lateMinutes(now, ref, intervalMinutes) else 0L
+        val lateTag = if (late > 0L) " telat=${late}m" else ""
+        val lines = (listOf("$stamp $status [$trigger] ${r.durationMs}ms $msg$lateTag") + log).take(LOG_MAX_LINES)
+        val editor = sp.edit()
             .putLong("lastRun", now)
             .putBoolean("lastOk", r.ok)
             .putString("log", lines.joinToString("\n"))
-            .apply()
+        if (isAuto) editor.putLong("lastAuto", now)
+        editor.apply()
     }
 }
 

@@ -121,6 +121,7 @@ object Scheduler {
             wm.cancelUniqueWork(NAME_RADICAL)
             return
         }
+        p.scheduleAnchorMs = System.currentTimeMillis() // v120: acuan penanda terlambat di Riwayat
         // v118: mode radikal + interval < 15 menit -> periodik WorkManager (min 15 menit) diganti rantai
         // OneTimeWorkRequest (initial delay = interval; tik berikutnya dijadwalkan TrimWorker stlh run).
         if (p.radicalInterval && p.intervalMinutes < MIN_INTERVAL_MINUTES) {

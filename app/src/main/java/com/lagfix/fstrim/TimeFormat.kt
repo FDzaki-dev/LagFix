@@ -22,3 +22,20 @@ internal fun formatStamp12h(stamp: String): String {
     val (date, hour, minute) = match.destructured // v94 (detekt Destructuring): 3 grup, tanpa teks penuh
     return "$date ${formatClock12(hour.toInt(), minute.toInt())}"
 }
+
+// v120 (permintaan user: penanda terlambat di Riwayat; HP Doze menunda job & run baru tercatat saat layar
+// dinyalakan): murni aritmetika, 0 dependensi Android supaya bisa dites unit.
+private const val LATE_MS_PER_MINUTE = 60_000L
+private const val LATE_MIN_TOLERANCE_MINUTES = 5L // jitter normal WorkManager/JobScheduler tak ditandai
+private const val LATE_TOLERANCE_DIVISOR = 5L // toleransi minimal 5 menit, atau 1/5 interval bila lebih besar
+
+/**
+ * Menit keterlambatan run Otomatis = (jarak sejak acuan - interval). Acuan = run Otomatis sebelumnya atau saat
+ * jadwal diterapkan. 0 bila tak ada acuan (<= 0), interval <= 0, atau keterlambatan masih di bawah toleransi.
+ */
+internal fun lateMinutes(nowMs: Long, refMs: Long, intervalMin: Long): Long {
+    if (refMs <= 0L || intervalMin <= 0L) return 0L
+    val late = (nowMs - refMs) / LATE_MS_PER_MINUTE - intervalMin
+    val tolerance = maxOf(LATE_MIN_TOLERANCE_MINUTES, intervalMin / LATE_TOLERANCE_DIVISOR)
+    return if (late >= tolerance) late else 0L
+}

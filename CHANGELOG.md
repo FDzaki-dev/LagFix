@@ -1,5 +1,8 @@
 # Changelog
 
+## v120
+- Riwayat kini menandai run Otomatis yang terlambat. Bila jarak ke run Otomatis sebelumnya melebihi interval (toleransi 5 menit atau seperlima interval, mana yang lebih besar), baris itu diberi tulisan amber "Terlambat N menit dari jadwal". Berguna saat Android menunda jadwal ketika Doze: run baru tercatat saat HP dinyalakan, dan sekarang keterlambatannya terlihat. Jam di Riwayat tetap waktu run yang sebenarnya. Run Manual tidak ditandai, dan baris lama tetap terbaca. Ditambah tiga tes unit untuk perhitungannya.
+
 ## v119
 - Saat toggle "Interval radikal" aktif, muncul tiga chip preset cepat: 1 menit, 5 menit, 10 menit. Satu ketukan langsung menerapkan interval itu, jadi tidak perlu mengetik di kolom Kustom. Chip tersembunyi saat toggle mati. Tidak ada perubahan lain.
 

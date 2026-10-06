@@ -1021,15 +1021,30 @@ private fun AboutDialog(
 // pola sama sekali tetap tampil polos (fallback aman).
 private val logLineRegex = Regex("""^(\d{2}/\d{2} \d{2}:\d{2}) (OK|FAIL)(?: \[([^\]]+)\])? (.*)$""")
 private val durationRegex = Regex("""^(\d+)ms""")
+private val lateRegex = Regex("""\stelat=(\d+)m$""") // v120: token akhir dari Prefs.record
 
 // v77: `stamp` = jam 12 jam (AM/PM) utk TAMPIL (konversi dari format simpan 24 jam di TimeFormat.kt).
-internal data class ParsedLog(val stamp: String, val ok: Boolean, val trigger: String, val rest: String) {
+// v120: `late` = menit terlambat (0 = tepat waktu / baris lama tanpa token); token dibuang dari `rest`.
+internal data class ParsedLog(
+    val stamp: String,
+    val ok: Boolean,
+    val trigger: String,
+    val rest: String,
+    val late: Long = 0L
+) {
     val skipped: Boolean get() = !ok && rest.contains("dilewati")
 }
 
 internal fun parseLogLine(line: String): ParsedLog? {
     val g = logLineRegex.find(line)?.groupValues ?: return null
-    return ParsedLog(stamp = formatStamp12h(g[1]), ok = g[2] == "OK", trigger = g[3], rest = g[4])
+    val late = lateRegex.find(g[4])
+    return ParsedLog(
+        stamp = formatStamp12h(g[1]),
+        ok = g[2] == "OK",
+        trigger = g[3],
+        rest = if (late == null) g[4] else g[4].substring(0, late.range.first),
+        late = late?.groupValues?.get(1)?.toLongOrNull() ?: 0L
+    )
 }
 
 // v38: label ramah utk user awam. Trigger tak dikenal / baris lama tanpa token -> null (tidak ditebak).
@@ -1063,12 +1078,23 @@ private fun LogLine(line: String) {
     val triggerTag = if (parsed.trigger.isNotEmpty()) " (${parsed.trigger})" else ""
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Text("●", modifier = Modifier.decorative(), color = tint, style = MaterialTheme.typography.bodySmall)
-        Text(
-            "${parsed.stamp} $status$triggerTag ${parsed.rest}",
-            style = MaterialTheme.typography.bodySmall,
-            fontFamily = FontFamily.Monospace,
-            color = tint
-        )
+        Column {
+            Text(
+                "${parsed.stamp} $status$triggerTag ${parsed.rest}",
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+                color = tint
+            )
+            // v120 (permintaan user): penanda terlambat (mis. ditunda Doze); amber = warna peringatan Riwayat.
+            if (parsed.late > 0L) {
+                Text(
+                    "Terlambat ${formatInterval(parsed.late)} dari jadwal",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = statusColors.warning
+                )
+            }
+        }
     }
 }
 

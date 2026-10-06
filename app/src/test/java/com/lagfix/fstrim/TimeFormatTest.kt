@@ -45,4 +45,32 @@ class TimeFormatTest {
         assertEquals("", formatStamp12h(""))
         assertEquals("02/10 7:05 PM", formatStamp12h("02/10 7:05 PM"))
     }
+
+    // v120: penanda terlambat. gap = jarak (menit) sejak acuan; hasil = gap - interval bila >= toleransi
+    // (maks 5 menit, 1/5 interval).
+    private fun late(intervalMin: Long, gapMin: Long): Long {
+        val ref = 1_000_000L
+        return lateMinutes(ref + gapMin * 60_000L, ref, intervalMin)
+    }
+
+    @Test
+    fun lateMinutes_noReferenceOrInvalidInterval_isZero() {
+        assertEquals(0L, lateMinutes(5_000_000L, 0L, 1L))
+        assertEquals(0L, lateMinutes(5_000_000L, 1_000_000L, 0L))
+    }
+
+    @Test
+    fun lateMinutes_onTimeOrWithinTolerance_isZero() {
+        assertEquals(0L, late(intervalMin = 1L, gapMin = 1L))
+        assertEquals(0L, late(intervalMin = 1L, gapMin = 5L)) // telat 4 < toleransi 5
+        assertEquals(0L, late(intervalMin = 15L, gapMin = 19L)) // telat 4 < 5
+        assertEquals(0L, late(intervalMin = 1440L, gapMin = 1640L)) // telat 200 < 288
+    }
+
+    @Test
+    fun lateMinutes_atOrAboveTolerance_returnsLateMinutes() {
+        assertEquals(5L, late(intervalMin = 1L, gapMin = 6L))
+        assertEquals(45L, late(intervalMin = 15L, gapMin = 60L))
+        assertEquals(300L, late(intervalMin = 1440L, gapMin = 1740L))
+    }
 }
