@@ -1,5 +1,8 @@
 # Changelog
 
+## v116
+- Notifikasi layanan persisten kini memakai importance TINGGI (di HP uji terbaca 3, sebelumnya kode meminta MIN). Android tidak mengizinkan app menaikkan importance channel yang sudah ada, jadi dibuat channel baru `lagfix_keep_alive_high` dan channel lama `lagfix_keep_alive` dihapus saat layanan dibuat. Suara, getar, dan lampu dimatikan di level channel (tetap senyap) dan notifikasi tetap tersembunyi di layar kunci. Deskripsi channel disesuaikan (tidak lagi "diminimalkan"). Konsekuensi: setelan channel lama yang pernah diubah di Setelan HP hilang; HP mungkin menampilkan banner pop-up (belum diuji di perangkat). Belum dibuktikan oleh CI dan belum diuji di perangkat.
+
 ## v114
 - Tidak ada perubahan perilaku. Perbaikan satu temuan detekt dari build v113 (angka literal untuk format heksadesimal di dump log notifikasi diganti konstanta bernama). Isi log tetap sama.
 

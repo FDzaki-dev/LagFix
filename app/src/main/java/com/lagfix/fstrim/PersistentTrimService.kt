@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
  * satu-satunya tugas service ini cuma MENJAGA PROSES APP TETAP HIDUP, dengan harapan itu bikin
  * jadwal periodik WorkManager yang SUDAH ADA (`Scheduler.apply()`, 0 diubah) lebih diandalkan di
  * ROM yang agresif membunuh proses background (mis. Infinix XOS — lihat riwayat v22-v24).
- * Notifikasi permanen (importance LOW, senyap) adalah trade-off yang tak terhindarkan selama
+ * Notifikasi permanen (importance HIGH sejak v116, tanpa suara/getar) adalah trade-off yang tak terhindarkan selama
  * Android mewajibkan setiap foreground service selalu punya notifikasi terlihat — sudah
  * dijelaskan ke & dikonfirmasi oleh user sebelum fitur ini dibuat.
  *
@@ -56,17 +56,25 @@ class PersistentTrimService : Service() {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 getString(R.string.persistent_service_channel_name),
-                NotificationManager.IMPORTANCE_MIN
+                NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 // v104: nama & deskripsi saluran jelas di Setelan Notifikasi sistem.
                 description = getString(R.string.persistent_service_channel_desc)
                 setShowBadge(false)
-                // v105 (konfigurasi_bypass_restricted_os.md bagian 1, perintah user): MIN (bukan LOW) +
-                // disembunyikan dari layar kunci. Status FGS tetap terdaftar. Catatan: Android hanya
-                // menurunkan importance channel yang SUDAH ada bila user belum mengubahnya di Setelan.
+                // v116 (perintah user: "ubah ke high importance"): HIGH (sebelumnya MIN v105). Importance channel yg
+                // SUDAH ada tak bisa dinaikkan app -> `CHANNEL_ID` baru; channel lama dihapus di bawah. Suara/getar/
+                // lampu dimatikan di level channel agar notifikasi tetap senyap (HIGH defaultnya berbunyi).
+                // Tetap disembunyikan dari layar kunci (v105).
+                setSound(null, null)
+                enableVibration(false)
+                enableLights(false)
                 lockscreenVisibility = Notification.VISIBILITY_SECRET
             }
             mgr?.createNotificationChannel(channel)
+            // v116: hapus channel lama. OS menolak (SecurityException) bila channel itu masih dipakai notifikasi
+            // FGS aktif -> ditangkap & dicatat apa adanya, bukan crash.
+            runCatching { mgr?.deleteNotificationChannel(LEGACY_CHANNEL_ID) }
+                .onFailure { Log.w(TAG, "Hapus channel lama ditolak ($LEGACY_CHANNEL_ID)", it) }
         }
     }
 
@@ -170,7 +178,7 @@ class PersistentTrimService : Service() {
             // v104 (konfigurasi_notifikasi_persistent.md, bagian 2 & 4): atribut standar notifikasi persisten.
             .setAutoCancel(false)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
-            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setPriority(NotificationCompat.PRIORITY_HIGH) // v116: disamakan dgn channel HIGH (diabaikan di API 26+)
             .setOnlyAlertOnce(true)
             .setSilent(true)
             // v40: Android 12+ MENUNDA tampilnya notifikasi foreground service ~10 detik kecuali
@@ -182,7 +190,9 @@ class PersistentTrimService : Service() {
     }
 
     companion object {
-        private const val CHANNEL_ID = "lagfix_keep_alive"
+        // v116: ID channel lama (v27-v115) hanya untuk dihapus; ID baru = HIGH (channel lama tak bisa dinaikkan).
+        private const val LEGACY_CHANNEL_ID = "lagfix_keep_alive"
+        private const val CHANNEL_ID = "lagfix_keep_alive_high"
         private const val NOTIF_ID = 42
 
         private const val TAG = "PersistentTrimService"
