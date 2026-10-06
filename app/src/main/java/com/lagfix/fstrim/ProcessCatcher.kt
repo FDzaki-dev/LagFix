@@ -84,6 +84,7 @@ internal object ProcessCatcher {
             )
             val header = formatCatchHeader(source, reason, pid, procAgeMs, toggleOn)
             CrashLogger.logDiagnostic(app, CATCH_DIAG_TAG, (listOf(header) + sections).joinToString("\n"))
+            KillCatcher.capture(app) // v124: pelaku kill; berkas terpisah `diag_kill_context`, sekali per kematian
         }
     }
 

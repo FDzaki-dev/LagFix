@@ -491,7 +491,7 @@ object LogcatSnapshot {
     }
 
     /** Proses shell via Shizuku (refleksi, pola sama dgn `FstrimExecutor.sh`) — stdout+stderr digabung. */
-    private fun shizukuProcess(cmd: String): Process {
+    internal fun shizukuProcess(cmd: String): Process { // v124: internal agar dipakai `KillCatcher`
         val m = Shizuku::class.java.getDeclaredMethod(
             "newProcess",
             Array<String>::class.java,

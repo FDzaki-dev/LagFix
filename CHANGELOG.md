@@ -1,5 +1,9 @@
 # Changelog
 
+## v124
+- Pencatat baru untuk mencari pelaku yang mematikan app. Setiap kali app menyimpan berkas keadaan prosesnya (`process_catch`), app juga memeriksa kematian proses terbaru yang disebabkan sinyal SIGKILL (maksimal 3, hanya yang belum pernah diperiksa dan masih dalam 12 jam terakhir). Untuk tiap kematian, app menyalin dari logcat sistem (lewat Shizuku) baris yang menyebut nama app, pid, atau kata kunci kill dalam rentang 20 detik sebelum sampai 5 detik sesudah waktu kematian, lalu menyimpannya di `LagFix_diag_kill_context_*.txt` di Documents/LagFix.
+- Perlu Shizuku aktif. Kill yang barisnya sudah tertimpa di buffer logcat tidak bisa dibongkar; tombol "Ambil logcat sistem" memperbesar buffer sementara sampai perangkat dihidupkan ulang. Ditambah enam tes unit. Belum diuji di perangkat.
+
 ## v123
 - Pencatat gabungan untuk semua kondisi notifikasi persisten yang masih belum jelas. Saat panel Quick Settings dibuka, app dibuka, atau jadwal berjalan, app mencatat 1 baris di logcat. Berkas `LagFix_diag_process_catch_*.txt` di Documents/LagFix disimpan hanya pada dua keadaan: (1) proses app baru lahir saat panel QS dibuka atau app dibuka (sekali per proses), atau (2) proses app masih hidup tetapi notifikasi persisten tidak ada padahal toggle menyala (paling sering sekali per 30 menit).
 - Isi berkas adalah data mentah tanpa tafsiran: notifikasi aktif segera dan 1,5 detik kemudian, prioritas proses, status pembatasan latar belakang, daftar layanan app, lima riwayat start proses (Android 15 ke atas), dan lima riwayat kematian proses (Android 11 ke atas). Pencatat hanya merekam, tidak memulai atau menghentikan layanan. Ditambah empat tes unit. Belum diuji di perangkat.
