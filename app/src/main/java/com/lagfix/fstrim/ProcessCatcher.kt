@@ -39,7 +39,7 @@ private const val CATCH_REASON_WARM_ABSENT = "warmAbsent"
  * v123 (permintaan user: semua kondisi ambigu diberi catcher): merekam DATA MENTAH keadaan proses saat titik
  * pemanggil berjalan — notifikasi aktif (segera & +1500 ms), importance proses, `isBackgroundRestricted`,
  * servis milik app, riwayat start proses (API 35+), riwayat kematian proses (API 30+) & (v127) baris logcat
- * `LIFECYCLE` milik pid sendiri (`ownLogcat`).
+ * `LIFECYCLE` milik app sendiri (`ownLogcat`) & (v128) logcat sistem via Shizuku (`logcatShizuku`).
  *
  * Selalu 1 baris logcat (tag `ProcessCatcher`, kata kunci `LIFECYCLE`). Berkas `diag_process_catch` hanya ditulis:
  *  - `cold`: proses baru lahir (umur < 10 dtk) DAN pemanggil mengizinkan (`allowCold`), SEKALI per proses;
@@ -69,6 +69,7 @@ internal object ProcessCatcher {
         val shown = isPersistentShown(immediate)
         Log.i(CATCH_TAG, "LIFECYCLE catch source=$source pid=$pid procAge=${procAgeMs}ms shown=$shown")
         val toggleOn = Prefs(app).persistentServiceEnabled
+        val windowStartMs = logcatWindowStartMs(System.currentTimeMillis(), procAgeMs) // v128: awal jendela logcat
         val reason = claimWrite(procAgeMs, allowCold, toggleOn && !shown) ?: return
         CoroutineScope(Dispatchers.IO).launch {
             delay(CATCH_DELAYED_READ_MS)
@@ -82,7 +83,8 @@ internal object ProcessCatcher {
                 formatCatchSection("ownServices", readOwnServices(am)),
                 formatCatchSection("startHistory", readStartHistory(am)),
                 formatCatchSection("exitHistory", readExitHistory(am)),
-                formatCatchSection("ownLogcat", readOwnLogcat(pid))
+                formatCatchSection("ownLogcat", readOwnLogcat(pid)),
+                formatCatchSection("logcatShizuku", readShizukuLogcat(app, pid, windowStartMs)) // v128
             )
             val header = formatCatchHeader(source, reason, pid, procAgeMs, toggleOn)
             CrashLogger.logDiagnostic(app, CATCH_DIAG_TAG, (listOf(header) + sections).joinToString("\n"))

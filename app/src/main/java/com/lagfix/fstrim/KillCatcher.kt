@@ -108,7 +108,7 @@ internal fun selectNewDeaths(all: List<KillDeath>, lastTs: Long, nowMs: Long): L
         .take(KILL_MAX_DEATHS)
 
 /** v124: stempel logcat `MM-dd HH:mm:ss.SSS` zona perangkat (sama dgn kolom waktu `logcat -v threadtime`). */
-private fun logStamp(ms: Long): String = SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US).format(Date(ms))
+internal fun logStamp(ms: Long): String = SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US).format(Date(ms))
 
 /**
  * v124: perintah shell (konstanta + 2 angka, 0 input user): logcat sejak [startMs] (format epoch `-t sss.mmm`),

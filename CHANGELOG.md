@@ -1,5 +1,8 @@
 # Changelog
 
+## v128
+- Berkas `process_catch` kini punya bagian `logcatShizuku` (perlu Shizuku aktif): baris logcat sistem yang menyebut LagFix atau pid proses itu, mulai satu detik sebelum proses lahir (maksimal 150 baris, disalin apa adanya). Gunanya melihat siapa yang meminta notifikasi layanan persisten tampil dan kapan. Bagian `ownLogcat` kini mencoba lagi tanpa filter pid bila percobaan pertama kosong (di HP uji percobaan pertama mengembalikan 0 baris). Tidak ada perubahan perilaku lain. Ditambah empat tes unit. Belum diuji di perangkat.
+
 ## v127
 - Berkas `process_catch` kini punya bagian baru `ownLogcat`: baris logcat milik app sendiri yang bertanda `LIFECYCLE`, disalin apa adanya dengan urutan waktu aslinya (maksimal 200 baris terbaru), ditambah satu baris angka mentah di depannya. Dengan begitu terbaca komponen mana yang memulai notifikasi layanan persisten dan apa yang melahirkan proses, tanpa perlu menekan "Ambil logcat sistem" dan tanpa Shizuku. Widget kini juga menulis satu baris logcat tiap menerima broadcast. Tidak ada perubahan perilaku lain. Ditambah lima tes unit. Belum diuji di perangkat.
 
