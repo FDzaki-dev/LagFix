@@ -91,7 +91,8 @@ internal object ProcessCatcher {
                 formatCatchSection("ownLogcat", readOwnLogcat(pid)),
                 formatCatchSection("logcatShizuku", readShizukuLogcat(app, pid, windowStartMs)), // v128
                 formatCatchSection("logcatInfo", readLogcatInfo(app, windowStartMs)), // v130
-                formatCatchSection("appVersion", readAppVersion(app)) // v130
+                formatCatchSection("appVersion", readAppVersion(app)), // v130
+                formatCatchSection("recentsReadBack", Result.success(listOf(recentsReadBack(app)))) // v134
             )
             val header = formatCatchHeader(source, reason, pid, procAgeMs, toggleOn)
             CrashLogger.logDiagnostic(app, CATCH_DIAG_TAG, (listOf(header) + sections).joinToString("\n"))

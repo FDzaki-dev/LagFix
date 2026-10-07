@@ -21,4 +21,22 @@ class RecentsExclusionTest {
             recentsExclusionLine(false, 0)
         )
     }
+
+    @Test
+    fun readBackLine_noTasks_printsCountOnly() {
+        assertEquals("appTasks=0", recentsReadBackLine(emptyList()))
+    }
+
+    @Test
+    fun readBackLine_printsHexFlagsAndExcludeBitPerTask() {
+        assertEquals(
+            "appTasks=2 flags=0x10800000 excludeBit=true | flags=0x10200000 excludeBit=false",
+            recentsReadBackLine(listOf(0x10800000, 0x10200000))
+        )
+    }
+
+    @Test
+    fun readBackLine_nullBaseIntent_printsRawNull() {
+        assertEquals("appTasks=1 baseIntent=null", recentsReadBackLine(listOf(null)))
+    }
 }

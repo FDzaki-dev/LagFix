@@ -1,5 +1,9 @@
 # Changelog
 
+## v134
+- Ringkasan snapshot logcat dan berkas diagnostik `process_catch` kini memuat status Recents: jumlah task LagFix dan flag `baseIntent`-nya dibaca balik langsung dari sistem, sehingga terlihat apakah penyembunyian dari Recents (v133) benar-benar terpasang. Sebabnya: pada dump 7 Okt, logcat di HP uji tidak memuat satu pun baris milik app (hanya 11 tag sistem), jadi baris log `RecentsExclusion` tidak bisa dijadikan bukti.
+- Tidak ada perubahan perilaku app. Ditambah tiga tes unit. Belum diuji di perangkat.
+
 ## v133
 - Selama toggle "Layanan latar depan persisten" menyala, LagFix kini disembunyikan dari daftar aplikasi terbaru (Recents). Sebabnya: log mentah menunjukkan pada 3 dari 3 kematian yang tertangkap, menggeser LagFix dari Recents memicu pembunuhan proses oleh modul OEM `TranManualCleanMgr`, lalu notifikasi persisten dibatalkan dan servis tidak dipulihkan. Tanpa kartu di Recents, tidak ada yang bisa digeser. Toggle dimatikan, LagFix kembali tampil di Recents. Penyembunyian diterapkan saat toggle diubah dan setiap kali app dibuka, jadi tetap berlaku walau task baru lahir dari notifikasi, tile, atau widget. Buka LagFix lewat ikon, widget, tile, atau ketuk notifikasi. Teks bantu di bawah toggle ikut diperbarui.
 - Efektivitasnya di HP uji belum terbukti: pembersih OEM lain masih bisa membunuh lewat jalur berbeda. Hasil tiap penerapan dicatat apa adanya di logcat (tag `RecentsExclusion`). Ditambah dua tes unit. Belum diuji di perangkat.

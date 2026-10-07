@@ -536,6 +536,7 @@ object LogcatSnapshot {
         item("Pengecualian optimasi baterai") {
             ctx.getSystemService(PowerManager::class.java)?.isIgnoringBatteryOptimizations(ctx.packageName)
         }
+        item("Recents (baca balik flag task app)") { recentsReadBack(ctx) } // v134
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             item("Dibatasi di latar belakang (isBackgroundRestricted)") {
                 ctx.getSystemService(ActivityManager::class.java)?.isBackgroundRestricted
