@@ -1,5 +1,9 @@
 # Changelog
 
+## v135
+- Kode keluar (exit) perintah yang dijalankan lewat Shizuku kini terbaca. Di berkas diagnostik 7 Okt, seksi `logcatShizuku`, `logcatInfo`, dan "Jejak fstrim" selalu menulis `exit=null` walau perintah selesai (perintah lokal tetap `exit=0`), sehingga tak bisa dibedakan dari proses yang tak sempat selesai. Penyebab yang diduga: `exitValue()` proses Shizuku melempar jenis galat yang tak ditangani `waitFor(timeout)` bawaan; kini `exitValue()` dipoll sampai 2 detik. Seharusnya ikut memperbaiki percobaan perbesar buffer logcat (v132), yang sebelumnya tak pernah dianggap sukses karena exit tak terbaca sehingga diulang di tiap pembukaan app.
+- Tidak ada perubahan tampilan. Ditambah satu tes unit. Belum diuji di perangkat.
+
 ## v134
 - Ringkasan snapshot logcat dan berkas diagnostik `process_catch` kini memuat status Recents: jumlah task LagFix dan flag `baseIntent`-nya dibaca balik langsung dari sistem, sehingga terlihat apakah penyembunyian dari Recents (v133) benar-benar terpasang. Sebabnya: pada dump 7 Okt, logcat di HP uji tidak memuat satu pun baris milik app (hanya 11 tag sistem), jadi baris log `RecentsExclusion` tidak bisa dijadikan bukti.
 - Tidak ada perubahan perilaku app. Ditambah tiga tes unit. Belum diuji di perangkat.
