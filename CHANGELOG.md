@@ -1,5 +1,12 @@
 # Changelog
 
+## v138
+- Pencatat penyebab kematian proses (`kill_context`) kini juga memeriksa kematian yang dicatat sistem sebagai "OTHER", tidak hanya "SIGNALED". Sebabnya: di Infinix X6850 kematian karena swipe-up clean (pembersih bawaan HP) dicatat sebagai OTHER, sehingga berkas ini tidak pernah terbit di HP itu. Berkas diagnostik 7 Okt malam juga menunjukkan (satu sampel) swipe-up clean masih mematikan LagFix walau app sudah disembunyikan dari Recents (v133).
+- Tidak ada perubahan tampilan. Belum diuji di perangkat.
+
+## v137
+- Tidak ada perubahan pada aplikasi. Perapian dokumen proyek: riwayat batch v94 sampai v136 dipindah dari `PROJECT_STATE.md` ke `docs/archive/PROJECT_STATE_v94-v136.md` (isi identik, tidak ada yang dibuang) sehingga `PROJECT_STATE.md` susut dari sekitar 297 KB menjadi sekitar 14 KB. Catatan lanjutan untuk sesi berikutnya dibawa ke entri v137.
+
 ## v135
 - Kode keluar (exit) perintah yang dijalankan lewat Shizuku kini terbaca. Di berkas diagnostik 7 Okt, seksi `logcatShizuku`, `logcatInfo`, dan "Jejak fstrim" selalu menulis `exit=null` walau perintah selesai (perintah lokal tetap `exit=0`), sehingga tak bisa dibedakan dari proses yang tak sempat selesai. Penyebab yang diduga: `exitValue()` proses Shizuku melempar jenis galat yang tak ditangani `waitFor(timeout)` bawaan; kini `exitValue()` dipoll sampai 2 detik. Seharusnya ikut memperbaiki percobaan perbesar buffer logcat (v132), yang sebelumnya tak pernah dianggap sukses karena exit tak terbaca sehingga diulang di tiap pembukaan app.
 - Tidak ada perubahan tampilan. Ditambah satu tes unit. Belum diuji di perangkat.

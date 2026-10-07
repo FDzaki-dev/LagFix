@@ -34,7 +34,10 @@ private const val KILL_MILLIS_PER_SECOND = 1_000L
 private const val KILL_MILLIS_DIGITS = 3
 private val KILL_STAMP_REGEX = Regex("""\d\d-\d\d \d\d:\d\d:\d\d\.\d{3}""")
 
-/** v124: 1 kematian proses `SIGNALED` (SIGKILL) dari `ApplicationExitInfo`. */
+/**
+ * v124: 1 kematian proses `SIGNALED` (SIGKILL) dari `ApplicationExitInfo`. v138: + `OTHER` (13) — di X6850
+ * kematian swipe-up clean OEM dicatat sbg `OTHER` (bukan `SIGNALED`) sehingga sebelumnya tak pernah diperiksa.
+ */
 internal data class KillDeath(val timestampMs: Long, val pid: Int)
 
 /**
@@ -60,7 +63,7 @@ internal object KillCatcher {
     private fun captureUnsafe(app: Context) {
         val prefs = app.getSharedPreferences(KILL_PREFS, Context.MODE_PRIVATE)
         val lastTs = prefs.getLong(KILL_KEY_LAST_TS, 0L)
-        val deaths = selectNewDeaths(readSignaledDeaths(app), lastTs, System.currentTimeMillis())
+        val deaths = selectNewDeaths(readKillDeaths(app), lastTs, System.currentTimeMillis())
         if (deaths.isEmpty()) return
         val state = FstrimExecutor.state(app)
         if (state != ShizukuState.READY) {
@@ -76,11 +79,14 @@ internal object KillCatcher {
         CrashLogger.logDiagnostic(app, KILL_DIAG_TAG, formatKillContext(deaths.size, lines))
     }
 
-    private fun readSignaledDeaths(app: Context): List<KillDeath> =
+    private fun readKillDeaths(app: Context): List<KillDeath> =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             app.getSystemService(ActivityManager::class.java)
                 ?.getHistoricalProcessExitReasons(null, 0, KILL_MAX_RECORDS).orEmpty()
-                .filter { it.reason == ApplicationExitInfo.REASON_SIGNALED }
+                .filter {
+                    it.reason == ApplicationExitInfo.REASON_SIGNALED ||
+                        it.reason == ApplicationExitInfo.REASON_OTHER
+                }
                 .map { KillDeath(it.timestamp, it.pid) }
         } else {
             emptyList()
@@ -101,8 +107,8 @@ internal object KillCatcher {
 }
 
 /**
- * v124: kematian `SIGNALED` yg BELUM pernah diperiksa (timestamp > [lastTs]) dan masih dlm 12 jam terakhir
- * (log lebih tua pasti sudah tertimpa), terbaru dulu, maksimal 3.
+ * v124: kematian `SIGNALED`/`OTHER` (v138) yg BELUM pernah diperiksa (timestamp > [lastTs]) dan masih dlm
+ * 12 jam terakhir (log lebih tua pasti sudah tertimpa), terbaru dulu, maksimal 3.
  */
 internal fun selectNewDeaths(all: List<KillDeath>, lastTs: Long, nowMs: Long): List<KillDeath> =
     all.filter { it.timestampMs > lastTs && nowMs - it.timestampMs <= KILL_MAX_AGE_MS }
