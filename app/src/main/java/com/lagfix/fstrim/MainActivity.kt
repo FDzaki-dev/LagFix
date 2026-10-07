@@ -130,6 +130,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         vm.refresh()
+        syncExcludeFromRecents(applicationContext) // v133: task bisa lahir baru (notifikasi/tile) -> terapkan ulang
         // v123: catcher dibaca SEBELUM `ensureShowing` di bawah (keadaan notifikasi sebelum re-assert).
         ProcessCatcher.capture(applicationContext, ProcessCatcher.SOURCE_ACTIVITY, allowCold = true)
         // v96: app terlihat = start FGS DIIZINKAN OS walau app dibatasi di background (snapshot v95: bg
@@ -755,7 +756,9 @@ private fun SettingsTab(
             Text(
                 "Opsional — memaksa proses LagFix tetap hidup di HP yang agresif mematikan " +
                     "aplikasi latar belakang, dengan notifikasi permanen yang tak bisa disembunyikan " +
-                    "selama aktif. Coba dulu opsi baterai & Autostart di atas sebelum ini.",
+                    "selama aktif. Coba dulu opsi baterai & Autostart di atas sebelum ini. Selama aktif, " +
+                    "LagFix juga tidak tampil di daftar aplikasi terbaru (Recents); " +
+                    "buka lewat ikon, widget, atau tile.",
                 style = MaterialTheme.typography.bodySmall
             )
             // v28 (investigasi laporan "toggle aktif, izin POST_NOTIFICATIONS muncul, tapi

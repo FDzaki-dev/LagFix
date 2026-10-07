@@ -72,7 +72,10 @@ internal object ProcessCatcher {
         Log.i(CATCH_TAG, "LIFECYCLE catch source=$source pid=$pid procAge=${procAgeMs}ms shown=$shown")
         val toggleOn = Prefs(app).persistentServiceEnabled
         val windowStartMs = logcatWindowStartMs(System.currentTimeMillis(), procAgeMs) // v128: awal jendela logcat
-        val reason = claimWrite(procAgeMs, allowCold, toggleOn && !shown) ?: return
+        val reason = claimWrite(procAgeMs, allowCold, toggleOn && !shown) ?: run {
+            ensureLogBufferEnlarged(app) // v132: tak ada pembacaan logcat utk berkas ini -> aman diperbesar sekarang
+            return
+        }
         CoroutineScope(Dispatchers.IO).launch {
             delay(CATCH_DELAYED_READ_MS)
             val delayed = readCatchNotifications(app)
@@ -93,6 +96,7 @@ internal object ProcessCatcher {
             val header = formatCatchHeader(source, reason, pid, procAgeMs, toggleOn)
             CrashLogger.logDiagnostic(app, CATCH_DIAG_TAG, (listOf(header) + sections).joinToString("\n"))
             KillCatcher.capture(app) // v124: pelaku kill; berkas terpisah `diag_kill_context`, sekali per kematian
+            ensureLogBufferEnlarged(app) // v132: SESUDAH semua pembacaan logcat catcher
         }
     }
 

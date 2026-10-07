@@ -91,6 +91,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         prefs.persistentServiceEnabled = v
         val app = getApplication<Application>()
         if (v) PersistentTrimService.start(app) else PersistentTrimService.stop(app)
+        syncExcludeFromRecents(app) // v133: Recents disembunyikan hanya saat toggle ON
         ui = ui.copy(persistentServiceEnabled = v)
     }
 

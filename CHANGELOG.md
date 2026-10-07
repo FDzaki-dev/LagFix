@@ -1,5 +1,13 @@
 # Changelog
 
+## v133
+- Selama toggle "Layanan latar depan persisten" menyala, LagFix kini disembunyikan dari daftar aplikasi terbaru (Recents). Sebabnya: log mentah menunjukkan pada 3 dari 3 kematian yang tertangkap, menggeser LagFix dari Recents memicu pembunuhan proses oleh modul OEM `TranManualCleanMgr`, lalu notifikasi persisten dibatalkan dan servis tidak dipulihkan. Tanpa kartu di Recents, tidak ada yang bisa digeser. Toggle dimatikan, LagFix kembali tampil di Recents. Penyembunyian diterapkan saat toggle diubah dan setiap kali app dibuka, jadi tetap berlaku walau task baru lahir dari notifikasi, tile, atau widget. Buka LagFix lewat ikon, widget, tile, atau ketuk notifikasi. Teks bantu di bawah toggle ikut diperbarui.
+- Efektivitasnya di HP uji belum terbukti: pembersih OEM lain masih bisa membunuh lewat jalur berbeda. Hasil tiap penerapan dicatat apa adanya di logcat (tag `RecentsExclusion`). Ditambah dua tes unit. Belum diuji di perangkat.
+
+## v132
+- App kini memperbesar buffer logcat sistem ke 16M secara otomatis (perlu Shizuku aktif), tidak lagi menunggu tombol "Ambil logcat sistem" ditekan. Sebabnya: pada berkas 6 Okt baris logcat yang dibutuhkan pencatat kill untuk dua kematian proses (pid 31286 dan 9172) tidak ada lagi saat dibaca, dan pada snapshot v84 buffer bawaan hanya mencakup sekitar 30 detik. Penyebab pasti hilangnya baris itu belum terbukti. Perbesar dijalankan sekali per proses, sesudah app selesai membaca logcat untuk berkas catcher; perintahnya sama dengan tombol snapshot dan bersifat sementara (kembali normal saat HP dihidupkan ulang). Hasilnya dicatat apa adanya di logcat (tag `LogBuffer`).
+- Tidak ada perubahan tampilan. Ditambah empat tes unit. Belum diuji di perangkat.
+
 ## v130
 - Berkas `process_catch` kini punya dua bagian baru. `logcatInfo` (perlu Shizuku aktif) mencetak apa adanya ukuran buffer logcat (`logcat -g`), dua baris paling tua yang masih ada di buffer, dan dua baris pertama sejak awal jendela waktu, tanpa saringan nama app. Gunanya membedakan apakah buffer log sudah tertimpa atau pembacaan berdasarkan waktu meleset, karena pada HP uji bagian `logcatShizuku` hanya memuat 16 baris yang mulai 3,4 detik setelah proses lahir. `appVersion` mencetak nama dan kode versi APK yang membuat berkas, supaya jelas versi mana yang diuji.
 - Tidak ada perubahan perilaku lain. Ditambah empat tes unit. Belum diuji di perangkat.

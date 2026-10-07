@@ -173,7 +173,7 @@ internal fun SnapshotSummary.feedback(): String {
 object LogcatSnapshot {
     private const val BUFFERS = "-b main -b system -b events -b crash"
     private const val RAW_CMD = "logcat -d -v threadtime $BUFFERS"
-    private const val BUFFER_RESIZE_CMD = "logcat $BUFFERS -G 16M"
+    internal const val BUFFER_RESIZE_CMD = "logcat $BUFFERS -G 16M" // v132: internal agar dipakai `LogBuffer.kt`
     private const val RAW_CAP_BYTES = 192L * 1024L * 1024L // pagar pengaman; buffer 16M ~ <130 MiB
 
     // v98 (laporan user: "Mengambil…" tak kunjung selesai): tiap perintah shell ringkasan dibatasi waktu, dan
