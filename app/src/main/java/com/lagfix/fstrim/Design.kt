@@ -2,19 +2,30 @@
 
 package com.lagfix.fstrim
 
+import android.content.Context
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.Typography
@@ -22,6 +33,8 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,11 +44,18 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
+// v142: tema ke-2 "Neo Burgundy" (Neumorphism) ada di NeoTheme.kt; berkas ini = pilihan tema (AppTheme, disimpan di
+// prefs SENDIRI `lagfix_theme`, Prefs DO-NOT-TOUCH), pembungkus komponen yg berganti rupa per tema (LagButton dst.),
+// dan kartu Pengaturan > Tampilan. Tema Glass di bawah TIDAK berubah (default, perilaku identik v141).
+//
 // v61: sumber tunggal token UI — DARK ONLY + gaya Glassmorphism & Glow (keputusan user).
 // Visual-only: 0 perubahan state/callback/logic. Mode terang & "ikuti sistem" dihapus dari UI
 // (ThemeMode/Prefs.themeMode tetap ada tapi tak dipakai: Prefs DO-NOT-TOUCH).
@@ -240,6 +260,10 @@ internal fun GlassCard(
     animateSize: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    if (LocalAppTheme.current == AppTheme.NEO) { // v142: kartu pelat timbul
+        NeoCard(modifier, animateSize, content)
+        return
+    }
     val shape = MaterialTheme.shapes.large
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
         Column(
@@ -274,7 +298,12 @@ internal fun GlassCard(
 internal fun glassTopBarColors(): TopAppBarColors = TopAppBarDefaults.topAppBarColors(
     containerColor = Color.Transparent,
     scrolledContainerColor = Color.Transparent,
-    titleContentColor = MaterialTheme.colorScheme.onBackground
+    // v142: tema Neo = judul champagne (tertiary); Glass tetap onBackground.
+    titleContentColor = if (LocalAppTheme.current == AppTheme.NEO) {
+        MaterialTheme.colorScheme.tertiary
+    } else {
+        MaterialTheme.colorScheme.onBackground
+    }
 )
 
 // Bilah bawah translusen (alpha 0.72) di atas backdrop berglow + garis tepi atas tipis.
@@ -292,15 +321,141 @@ internal fun Modifier.glassTopEdge(): Modifier = this.drawWithContent {
     )
 }
 
+// --- Pilihan tema (v142) ---------------------------------------------------------------------------
+internal enum class AppTheme(val label: String, val caption: String) {
+    GLASS("Glassmorphism", "Kaca translusen dengan midnight biru."),
+    NEO("Neumorphism", "Timbul dan cekung, burgundy dengan sage.")
+}
+
+private const val THEME_PREFS = "lagfix_theme"
+private const val THEME_KEY = "theme"
+
+/** Nama tersimpan -> tema; null/tak dikenal -> GLASS (default = tampilan lama, non-breaking). Murni (diuji unit). */
+internal fun parseAppTheme(name: String?): AppTheme = AppTheme.entries.firstOrNull { it.name == name } ?: AppTheme.GLASS
+
+internal fun readAppTheme(ctx: Context): AppTheme =
+    parseAppTheme(ctx.getSharedPreferences(THEME_PREFS, Context.MODE_PRIVATE).getString(THEME_KEY, null))
+
+internal fun writeAppTheme(ctx: Context, theme: AppTheme) {
+    ctx.getSharedPreferences(THEME_PREFS, Context.MODE_PRIVATE).edit().putString(THEME_KEY, theme.name).apply()
+}
+
+internal val LocalAppTheme = staticCompositionLocalOf { AppTheme.GLASS }
+internal val LocalAppThemeSetter = staticCompositionLocalOf<(AppTheme) -> Unit> { { _ -> } }
+
 @Composable
 internal fun LagFixTheme(content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalStatusColors provides glassStatusColors) {
-        MaterialTheme(colorScheme = glassScheme, shapes = glassShapes, typography = lagTypography) {
+    val appCtx = LocalContext.current.applicationContext
+    val state = remember { mutableStateOf(readAppTheme(appCtx)) }
+    val setTheme = remember { { t: AppTheme -> state.value = t; writeAppTheme(appCtx, t) } }
+    val neo = state.value == AppTheme.NEO
+    val scheme = if (neo) neoScheme else glassScheme
+    CompositionLocalProvider(
+        LocalAppTheme provides state.value,
+        LocalAppThemeSetter provides setTheme,
+        LocalStatusColors provides (if (neo) neoStatusColors else glassStatusColors)
+    ) {
+        MaterialTheme(
+            colorScheme = scheme,
+            shapes = if (neo) neoShapes else glassShapes,
+            typography = if (neo) neoTypography else lagTypography
+        ) {
             // Latar translusen -> tanpa Surface yang mengisi LocalContentColor; set eksplisit supaya Text
             // default tidak jatuh ke hitam (default LocalContentColor = Black).
-            CompositionLocalProvider(LocalContentColor provides glassScheme.onBackground) {
-                Box(Modifier.fillMaxSize().glassBackdrop()) { content() }
+            CompositionLocalProvider(LocalContentColor provides scheme.onBackground) {
+                Box(Modifier.fillMaxSize().then(if (neo) Modifier.neoBackdrop() else Modifier.glassBackdrop())) {
+                    content()
+                }
             }
+        }
+    }
+}
+
+// --- Komponen yang berganti rupa per tema (v142) -------------------------------------------------
+// Tema Glass memanggil komponen Material3 dgn parameter identik v141 (0 perubahan visual/perilaku).
+@Composable
+internal fun lagNavContainer(): Color =
+    if (LocalAppTheme.current == AppTheme.NEO) NeoPalette.NavBar else GlassNavContainer
+
+internal fun Modifier.lagTopEdge(theme: AppTheme): Modifier =
+    if (theme == AppTheme.NEO) this.neoTopEdge() else this.glassTopEdge()
+
+// Lencana status hero: Glass = lingkaran tint 16%; Neo = sumur cekung.
+internal fun Modifier.lagBadge(tint: Color, neo: Boolean): Modifier =
+    if (neo) this.neoInset(36.dp) else this.background(tint.copy(alpha = 0.16f), CircleShape)
+
+@Composable
+internal fun LagButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable RowScope.() -> Unit
+) {
+    if (LocalAppTheme.current == AppTheme.NEO) {
+        NeoButton(onClick = onClick, modifier = modifier, enabled = enabled, tone = NeoTone.BURGUNDY, content = content)
+    } else {
+        Button(onClick = onClick, modifier = modifier, enabled = enabled, content = content)
+    }
+}
+
+@Composable
+internal fun LagTonalButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable RowScope.() -> Unit
+) {
+    if (LocalAppTheme.current == AppTheme.NEO) {
+        NeoButton(onClick = onClick, modifier = modifier, enabled = enabled, tone = NeoTone.SAGE, content = content)
+    } else {
+        FilledTonalButton(onClick = onClick, modifier = modifier, enabled = enabled, content = content)
+    }
+}
+
+@Composable
+internal fun LagChip(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: @Composable () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (LocalAppTheme.current == AppTheme.NEO) {
+        NeoChip(selected = selected, onClick = onClick, label = label, modifier = modifier)
+    } else {
+        FilterChip(selected = selected, onClick = onClick, label = label, modifier = modifier)
+    }
+}
+
+@Composable
+internal fun LagSwitch(checked: Boolean, modifier: Modifier = Modifier) {
+    if (LocalAppTheme.current == AppTheme.NEO) {
+        NeoSwitch(checked = checked, modifier = modifier)
+    } else {
+        Switch(checked = checked, onCheckedChange = null, modifier = modifier)
+    }
+}
+
+/** Kartu Pengaturan > Tampilan: pilih tema. Pilihan langsung berlaku & disimpan di prefs `lagfix_theme`. */
+@Composable
+internal fun ThemePickerCard() {
+    val current = LocalAppTheme.current
+    val setTheme = LocalAppThemeSetter.current
+    GlassCard(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
+            Text("Tampilan", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+            AppTheme.entries.forEach { option ->
+                LagChip(
+                    selected = option == current,
+                    onClick = { setTheme(option) },
+                    label = { Text(option.label) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            Text(
+                current.caption,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

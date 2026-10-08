@@ -4,7 +4,6 @@ package com.lagfix.fstrim
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,8 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
+import com.lagfix.fstrim.LagButton as Button // v142: pembungkus tema (Glass = Material3 identik)
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -88,7 +86,7 @@ internal fun HeroStatusCard(
             verticalArrangement = Arrangement.spacedBy(LagSpacing.md)
         ) {
             Box(
-                Modifier.size(72.dp).background(tint.copy(alpha = 0.16f), CircleShape),
+                Modifier.size(72.dp).lagBadge(tint, neo = LocalAppTheme.current == AppTheme.NEO),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

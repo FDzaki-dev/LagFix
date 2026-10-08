@@ -44,11 +44,12 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+// v142: alias ke pembungkus tema (Glass = Material3 identik; Neo = neumorphic). Call site tak berubah.
+import com.lagfix.fstrim.LagButton as Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
+import com.lagfix.fstrim.LagChip as FilterChip
+import com.lagfix.fstrim.LagTonalButton as FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -58,7 +59,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -229,7 +229,7 @@ private fun HomeScreen(vm: MainViewModel) {
         topBar = { TopAppBar(title = { Text("LagFix (fstrim)") }, colors = glassTopBarColors()) },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            NavigationBar(containerColor = GlassNavContainer, modifier = Modifier.glassTopEdge()) {
+            NavigationBar(containerColor = lagNavContainer(), modifier = Modifier.lagTopEdge(LocalAppTheme.current)) {
                 NavigationBarItem(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
@@ -467,6 +467,7 @@ private fun SettingsTab(
     // v79 (M5): bagian yang jarang dipakai dilipat; state tahan rotasi. Default tertutup.
     var guideOpen by rememberSaveable { mutableStateOf(false) }
     var logOpen by rememberSaveable { mutableStateOf(false) }
+    ThemePickerCard() // v142: pilih tema (Glass / Neo Burgundy)
     GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             CardTitle("Jadwal")
@@ -1448,7 +1449,7 @@ private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(label, Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = null)
+        LagSwitch(checked = checked)
     }
 }
 

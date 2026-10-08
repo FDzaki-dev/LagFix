@@ -1,5 +1,8 @@
 # Changelog
 
+## v142
+- Tambah opsi tema ke-2 "Neumorphism" (hanya mode gelap) di Pengaturan > Tampilan; tema Glassmorphism tetap default dan tampil sama seperti v141. Tema baru memakai burgundy sebagai warna utama dengan sage yang tenang sebagai pendamping dan champagne sebagai aksen tipis. Kartu, tombol, chip, dan switch timbul dari latar yang nadanya beda, dengan dua lapis bayangan gelap, tepi berkilau di kiri-atas, serta sumur cekung untuk lencana status, trek switch, chip terpilih, dan tombol yang sedang ditekan. Judul memakai huruf kaligrafi TeX Gyre Chorus dan isi memakai Caladea (font disertakan di aplikasi, lisensi di `docs/licenses/`). Pilihan tema tersimpan dan langsung berlaku.
+
 ## v141
 - Uji v140 di Infinix X6850 menunjukkan penutupan layar saat meninggalkan app tidak pernah tercatat ketika Recents dibuka dari dalam app, sehingga kartu LagFix masih bisa digeser pembersih bawaan HP dan prosesnya mati. Kini penutupan juga dipicu saat layar app berhenti terlihat (selain saat tombol Home ditekan), dengan pengaman yang sama; tambahan: tidak menutup saat layar HP dimatikan atau saat layar diputar. Catatan diagnostik `recentsReadBack` kini memuat jumlah panggilan per pemicu, panggilan terakhir, dan teks galat mentah bila ada. Belum diuji di perangkat.
 
