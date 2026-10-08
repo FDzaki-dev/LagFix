@@ -2,7 +2,9 @@
 
 package com.lagfix.fstrim
 
+import android.app.Activity
 import android.content.Context
+import android.graphics.drawable.ColorDrawable
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -33,6 +35,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -44,7 +47,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -340,6 +345,19 @@ internal fun writeAppTheme(ctx: Context, theme: AppTheme) {
     ctx.getSharedPreferences(THEME_PREFS, Context.MODE_PRIVATE).edit().putString(THEME_KEY, theme.name).apply()
 }
 
+/**
+ * v144: latar JENDELA mengikuti tema (tampil sebelum frame Compose pertama: start dingin & rotasi). Tanpa ini tema Neo
+ * berkedip midnight biru sesaat. Glass = warna resource asli (identik v141). Splash Android 12+ tetap statis.
+ */
+internal fun applyWindowBackground(activity: Activity, theme: AppTheme = readAppTheme(activity)) {
+    val color = if (theme == AppTheme.NEO) {
+        NeoPalette.BackdropTop.toArgb()
+    } else {
+        activity.getColor(R.color.lag_window_background)
+    }
+    activity.window.setBackgroundDrawable(ColorDrawable(color))
+}
+
 internal val LocalAppTheme = staticCompositionLocalOf { AppTheme.GLASS }
 internal val LocalAppThemeSetter = staticCompositionLocalOf<(AppTheme) -> Unit> { { _ -> } }
 
@@ -349,6 +367,8 @@ internal fun LagFixTheme(content: @Composable () -> Unit) {
     val state = remember { mutableStateOf(readAppTheme(appCtx)) }
     val setTheme = remember { { t: AppTheme -> state.value = t; writeAppTheme(appCtx, t) } }
     val neo = state.value == AppTheme.NEO
+    val view = LocalView.current
+    LaunchedEffect(state.value) { (view.context as? Activity)?.let { applyWindowBackground(it, state.value) } }
     val scheme = if (neo) neoScheme else glassScheme
     CompositionLocalProvider(
         LocalAppTheme provides state.value,

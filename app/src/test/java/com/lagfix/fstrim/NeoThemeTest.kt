@@ -59,14 +59,13 @@ class NeoThemeTest {
     }
 
     @Test
-    fun shadowStepAlphas_areValidAndComposeToTarget() {
+    fun shadowBandAlphas_decreaseOutward_andStayWithinPeak() {
         val steps = 10
         val peak = 0.5f
-        val alphas = shadowStepAlphas(steps, peak)
+        val alphas = shadowBandAlphas(steps, peak)
         assertEquals(steps, alphas.size)
-        assertTrue(alphas.all { it in 0f..1f })
-        val composed = 1.0 - alphas.fold(1.0) { acc, a -> acc * (1.0 - a) }
-        val expected = peak * (1.0 - 0.5 / steps).pow(2)
-        assertEquals(expected, composed, 1e-4)
+        assertTrue(alphas.all { it in 0f..peak })
+        assertTrue(alphas.zipWithNext().all { (inner, outer) -> inner > outer })
+        assertEquals(peak * (1.0 - 0.5 / steps).pow(2), alphas.first().toDouble(), 1e-6)
     }
 }

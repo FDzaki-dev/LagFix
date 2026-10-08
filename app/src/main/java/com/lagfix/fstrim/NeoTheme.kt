@@ -248,38 +248,39 @@ private const val INSET_STEPS = 10
 private const val INSET_STEP_ALPHA = 0.075f
 
 /**
- * Alpha tiap lapis bayangan, dari lapis TERLUAR ke terdalam. Lapis i (1 = terdalam) menutup area sampai jarak
- * blur*i/steps dari tepi; gabungan semua lapis di wilayah lapis i = peak*(1-t)^2 (t = (i-0.5)/steps), jadi
- * kepekatan turun halus (mendekati Gaussian) tanpa BlurMaskFilter. Murni (diuji unit).
+ * Alpha tiap PITA bayangan, dari pita TERDALAM (indeks 0) ke terluar. Pita i (1 = terdalam) membentang sampai jarak
+ * blur*i/steps dari tepi dgn alpha peak*(1-t)^2 (t = (i-0.5)/steps): kepekatan turun halus (mendekati Gaussian)
+ * tanpa BlurMaskFilter. Pita tak saling menumpuk -> tiap piksel digambar ~1x (bukan N lapis). Murni (diuji unit).
  */
-internal fun shadowStepAlphas(steps: Int, peak: Float): List<Float> {
-    var outer = 0f
-    return List(steps) { k ->
-        val t = ((steps - k) - 0.5f) / steps
-        val cumulative = peak * (1f - t) * (1f - t)
-        val alpha = 1f - (1f - cumulative) / (1f - outer)
-        outer = cumulative
-        alpha
-    }
+internal fun shadowBandAlphas(steps: Int, peak: Float): List<Float> = List(steps) { k ->
+    val t = (k + 0.5f) / steps
+    peak * (1f - t) * (1f - t)
 }
 
-private fun DrawScope.drawShadowLayers(spec: ShadowSpec, radius: Float) {
+// v144: dulu N persegi-bulat penuh bertumpuk (17 lapis/kartu = ~17x overdraw per frame saat scroll). Kini 1 inti terisi
+// + (N-1) cincin Stroke tipis non-tumpang-tindih: alpha efektif per wilayah SAMA, piksel digambar ~1-2x.
+private fun DrawScope.drawShadowBands(spec: ShadowSpec, radius: Float) {
     val dx = spec.dx.toPx()
     val dy = spec.dy.toPx()
-    val blur = spec.blur.toPx()
+    val step = spec.blur.toPx() / spec.steps
     val spread = spec.spread.toPx()
-    shadowStepAlphas(spec.steps, spec.peak).forEachIndexed { k, alpha ->
-        val grow = blur * (spec.steps - k) / spec.steps + spread
-        val w = size.width + 2f * grow
-        val h = size.height + 2f * grow
-        if (w > 0f && h > 0f) {
-            drawRoundRect(
-                color = NeoPalette.Shadow.copy(alpha = alpha),
-                topLeft = Offset(dx - grow, dy - grow),
-                size = Size(w, h),
-                cornerRadius = CornerRadius((radius + grow).coerceAtLeast(0f))
-            )
-        }
+    val alphas = shadowBandAlphas(spec.steps, spec.peak)
+    val coreGrow = step + spread
+    drawRoundRect(
+        color = NeoPalette.Shadow.copy(alpha = alphas[0]),
+        topLeft = Offset(dx - coreGrow, dy - coreGrow),
+        size = Size(size.width + 2f * coreGrow, size.height + 2f * coreGrow),
+        cornerRadius = CornerRadius((radius + coreGrow).coerceAtLeast(0f))
+    )
+    for (i in 1 until spec.steps) {
+        val center = step * (i + 0.5f) + spread
+        drawRoundRect(
+            color = NeoPalette.Shadow.copy(alpha = alphas[i]),
+            topLeft = Offset(dx - center, dy - center),
+            size = Size(size.width + 2f * center, size.height + 2f * center),
+            cornerRadius = CornerRadius((radius + center).coerceAtLeast(0f)),
+            style = Stroke(width = step)
+        )
     }
 }
 
@@ -347,8 +348,8 @@ private fun DrawScope.drawInsetRelief(radius: Float, depth: Float) {
 /** Pelat TIMBUL: bayangan ambient + kontak, isi gradien cembung, lalu bevel. Isi tak dipotong (pakai `clip`). */
 internal fun Modifier.neoRaised(radius: Dp, level: NeoLevel, top: Color, bottom: Color): Modifier = this.drawBehind {
     val r = radius.toPx()
-    drawShadowLayers(level.ambient, r)
-    drawShadowLayers(level.contact, r)
+    drawShadowBands(level.ambient, r)
+    drawShadowBands(level.contact, r)
     drawPlate(r, top, bottom)
     drawBevel(r)
 }

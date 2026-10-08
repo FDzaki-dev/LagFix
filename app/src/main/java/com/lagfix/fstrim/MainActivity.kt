@@ -122,6 +122,7 @@ class MainActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
         )
+        applyWindowBackground(this) // v144: latar jendela sesuai tema (tak berkedip biru di tema Neo)
         setContent {
             LagFixTheme { HomeScreen(vm) }
         }

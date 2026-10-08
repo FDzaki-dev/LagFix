@@ -1,5 +1,8 @@
 # Changelog
 
+## v144
+- Polishing dan optimalisasi tema Neumorphism: bayangan kartu, tombol, chip, dan switch kini digambar sebagai pita tipis yang tidak bertumpuk, jadi jauh lebih ringan di GPU saat menggulir (tampilan tetap sama). Latar jendela kini mengikuti tema, sehingga tema Neumorphism tidak lagi berkedip biru sesaat saat start dingin atau rotasi layar. Tema Glassmorphism tidak berubah.
+
 ## v143
 - Perbaikan build CI v142: lint menolak posisi knob switch tema Neumorphism yang dianimasikan lewat `Modifier.offset` biasa. Posisi knob kini dihitung di fase layout; tampilan dan animasi tidak berubah.
 
