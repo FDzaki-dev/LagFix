@@ -1,5 +1,8 @@
 # Changelog
 
+## v141
+- Uji v140 di Infinix X6850 menunjukkan penutupan layar saat meninggalkan app tidak pernah tercatat ketika Recents dibuka dari dalam app, sehingga kartu LagFix masih bisa digeser pembersih bawaan HP dan prosesnya mati. Kini penutupan juga dipicu saat layar app berhenti terlihat (selain saat tombol Home ditekan), dengan pengaman yang sama; tambahan: tidak menutup saat layar HP dimatikan atau saat layar diputar. Catatan diagnostik `recentsReadBack` kini memuat jumlah panggilan per pemicu, panggilan terakhir, dan teks galat mentah bila ada. Belum diuji di perangkat.
+
 ## v140
 - Saat layanan latar depan persisten aktif, meninggalkan app (tombol Home atau membuka Recents dari dalam app) kini menutup layar app dan menghapus tasknya, supaya tidak ada kartu LagFix yang bisa digeser pembersih bawaan HP. Efeknya: saat dibuka lagi, app mulai dari tab awal. Penutupan ditahan saat ada proses berjalan (fstrim manual, cek atau unduh update, boot-trim, snapshot logcat), saat app membuka layar lain (setelan, izin, installer), dan di mode multi-window. Ada pemutus otomatis: bila proses mati dalam 10 detik setelah penutupan, fitur ini mati sendiri. Catatan diagnostik `recentsReadBack` kini memuat jumlah dan keputusan terakhirnya. Belum diuji di perangkat.
 

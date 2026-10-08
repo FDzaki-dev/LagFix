@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Build
+import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
 import java.util.concurrent.atomic.AtomicInteger
@@ -68,6 +69,7 @@ internal fun recentsReadBackLine(baseIntentFlags: List<Int?>): String {
 //    snapshot logcat),
 //  - tidak dihapus di multi-window / saat sudah finishing,
 //  - PEMUTUS: bila proses mati <= 10 dtk sesudah hapus-task (SIGNALED/OTHER), fitur dimatikan permanen.
+// v141: pemicu kedua `onStop` (sumber `stop`, lihat `LeaveStop.kt`); keputusan & pengaman sama.
 // ---------------------------------------------------------------------------------------------------------
 
 private const val LEAVE_EXTERNAL_WINDOW_MS = 5_000L
@@ -123,6 +125,10 @@ internal object LeaveGuard {
     private const val KEY_TRIPPED_AT_MS = "tripped_at_ms"
     private const val KEY_LAST_DECISION = "last_decision"
     private const val KEY_LAST_DECISION_MS = "last_decision_ms"
+    private const val KEY_CALLS_PREFIX = "calls_"
+    private const val KEY_LAST_CALL = "last_call"
+    private const val KEY_LAST_CALL_MS = "last_call_ms"
+    private const val KEY_LAST_ERROR = "last_error"
     private const val NO_DECISION = "none"
     private const val EXIT_RECORDS = 10
 
@@ -141,11 +147,19 @@ internal object LeaveGuard {
         workCount.decrementAndGet()
     }
 
-    /** Dipanggil `MainActivity.onUserLeaveHint`. [vmBusy] = pekerjaan ViewModel yg ikut mati bersama Activity. */
-    fun onUserLeave(activity: Activity, vmBusy: Boolean) {
+    /**
+     * Dipanggil `MainActivity.onUserLeaveHint` (sumber `hint`) & `onStop` (sumber `stop`, v141). [vmBusy] = pekerjaan
+     * ViewModel yg ikut mati bersama Activity. Panggilan dihitung & dicatat SEBELUM logika apa pun (v141).
+     */
+    fun onUserLeave(activity: Activity, vmBusy: Boolean, source: String) {
+        // `onStop` sesudah jalur `hint` sudah menghapus task (isFinishing): tak ada yg diputuskan/dicatat ulang.
+        if (source == LEAVE_SOURCE_STOP && activity.isFinishing) return
+        val app = activity.applicationContext
+        val sp = app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val callsKey = KEY_CALLS_PREFIX + source
+        sp.edit().putInt(callsKey, sp.getInt(callsKey, 0) + 1).putString(KEY_LAST_CALL, source)
+            .putLong(KEY_LAST_CALL_MS, System.currentTimeMillis()).apply()
         runCatching {
-            val app = activity.applicationContext
-            val sp = app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val state = LeaveState(
                 toggleOn = Prefs(app).persistentServiceEnabled,
                 // API < 30 tak bisa membaca ApplicationExitInfo -> pemutus mustahil dievaluasi -> fitur tak jalan.
@@ -155,10 +169,15 @@ internal object LeaveGuard {
                 external = isExternalFlow(externalMarkMs.get(), SystemClock.elapsedRealtime()),
                 busy = vmBusy || workCount.get() > 0
             )
-            val decision = leaveDecision(state)
+            val interactive = app.getSystemService(PowerManager::class.java)?.isInteractive != false
+            val decision = stopSkipReason(source, activity.isChangingConfigurations, interactive)
+                ?: leaveDecision(state)
             record(sp, decision)
             if (decision == LEAVE_REMOVE) activity.finishAndRemoveTask()
-        }.onFailure { Log.w(RECENTS_TAG, "Hapus task saat meninggalkan app gagal", it) }
+        }.onFailure {
+            sp.edit().putString(KEY_LAST_ERROR, it.toString()).apply()
+            Log.w(RECENTS_TAG, "Hapus task saat meninggalkan app gagal", it)
+        }
     }
 
     /** Dipanggil dari [syncExcludeFromRecents]: putuskan fitur bila hapus-task diikuti kematian proses. */
@@ -183,6 +202,12 @@ internal object LeaveGuard {
             sp.getString(KEY_LAST_DECISION, NO_DECISION) ?: NO_DECISION,
             sp.getLong(KEY_LAST_DECISION_MS, 0L),
             sp.getLong(KEY_TRIPPED_AT_MS, 0L)
+        ) + " " + formatLeaveCalls( // v141
+            sp.getInt(KEY_CALLS_PREFIX + LEAVE_SOURCE_HINT, 0),
+            sp.getInt(KEY_CALLS_PREFIX + LEAVE_SOURCE_STOP, 0),
+            sp.getString(KEY_LAST_CALL, NO_DECISION) ?: NO_DECISION,
+            sp.getLong(KEY_LAST_CALL_MS, 0L),
+            sp.getString(KEY_LAST_ERROR, NO_DECISION) ?: NO_DECISION
         )
     }
 

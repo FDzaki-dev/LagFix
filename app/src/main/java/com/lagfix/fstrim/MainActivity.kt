@@ -142,8 +142,17 @@ class MainActivity : ComponentActivity() {
         super.onUserLeaveHint()
         // v140: celah excludeFromRecents (task di depan tetap tampil di Recents) -> hapus task saat user pergi.
         // Aturan & pengaman di LeaveGuard (RecentsExclusion.kt); di sini hanya pekerjaan ViewModel yg ikut mati.
-        LeaveGuard.onUserLeave(this, vm.ui.running || vm.ui.downloading || vm.ui.updateChecking || vm.bootTrim.busy)
+        LeaveGuard.onUserLeave(this, leaveBusy(), LEAVE_SOURCE_HINT)
     }
+
+    override fun onStop() {
+        super.onStop()
+        // v141: uji X6850 (APK 114) Recents dari dalam app -> `leaveGuard lastDecision=none` = `onUserLeaveHint` tak
+        // mencatat apa pun. Pemicu kedua lewat `onStop`: keputusan & pengaman SAMA di `LeaveGuard.onUserLeave`.
+        LeaveGuard.onUserLeave(this, leaveBusy(), LEAVE_SOURCE_STOP)
+    }
+
+    private fun leaveBusy(): Boolean = vm.ui.running || vm.ui.downloading || vm.ui.updateChecking || vm.bootTrim.busy
 }
 
 // v12 (fix delay toast): showSnackbar() bawaan ANTRE kalau dipanggil beruntun cepat (mis. user

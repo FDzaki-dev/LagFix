@@ -2,6 +2,7 @@ package com.lagfix.fstrim
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -136,6 +137,34 @@ class RecentsExclusionTest {
         assertEquals(
             "leaveGuard removals=2 lastDecision=skip:busy lastDecisionAt=1791379211640 trippedAt=0",
             LeaveGuard.formatDiag(2, "skip:busy", 1791379211640L, 0L)
+        )
+    }
+
+    // ---- v141: pemicu `onStop` + catatan panggilan (fungsi murni; bukan perilaku di perangkat) ----
+
+    @Test
+    fun stopSkipReason_hintSource_isAlwaysNull() {
+        assertNull(stopSkipReason(LEAVE_SOURCE_HINT, changingConfig = true, interactive = false))
+    }
+
+    @Test
+    fun stopSkipReason_stopSource_configChangeThenScreenOffThenNull() {
+        assertEquals(
+            "skip:config_change",
+            stopSkipReason(LEAVE_SOURCE_STOP, changingConfig = true, interactive = false)
+        )
+        assertEquals(
+            "skip:screen_off",
+            stopSkipReason(LEAVE_SOURCE_STOP, changingConfig = false, interactive = false)
+        )
+        assertNull(stopSkipReason(LEAVE_SOURCE_STOP, changingConfig = false, interactive = true))
+    }
+
+    @Test
+    fun formatLeaveCalls_printsRawValuesWithoutInterpretation() {
+        assertEquals(
+            "calls_hint=0 calls_stop=3 lastCall=stop lastCallAt=1791453464000 lastError=none",
+            formatLeaveCalls(0, 3, "stop", 1791453464000L, "none")
         )
     }
 }
