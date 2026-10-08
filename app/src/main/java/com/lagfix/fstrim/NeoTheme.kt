@@ -53,6 +53,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -535,7 +536,7 @@ internal fun NeoSwitch(checked: Boolean, modifier: Modifier = Modifier) {
         Box(
             Modifier
                 .padding(SwitchPad)
-                .offset(x = shift)
+                .offset { IntOffset(shift.roundToPx(), 0) } // lambda: dibaca di fase layout (lint State-backed offset)
                 .size(SwitchKnob)
                 .neoRaised(SwitchKnob / 2, NeoLevel.KNOB, knobTop, knobBottom)
         )

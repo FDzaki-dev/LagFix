@@ -1,5 +1,8 @@
 # Changelog
 
+## v143
+- Perbaikan build CI v142: lint menolak posisi knob switch tema Neumorphism yang dianimasikan lewat `Modifier.offset` biasa. Posisi knob kini dihitung di fase layout; tampilan dan animasi tidak berubah.
+
 ## v142
 - Tambah opsi tema ke-2 "Neumorphism" (hanya mode gelap) di Pengaturan > Tampilan; tema Glassmorphism tetap default dan tampil sama seperti v141. Tema baru memakai burgundy sebagai warna utama dengan sage yang tenang sebagai pendamping dan champagne sebagai aksen tipis. Kartu, tombol, chip, dan switch timbul dari latar yang nadanya beda, dengan dua lapis bayangan gelap, tepi berkilau di kiri-atas, serta sumur cekung untuk lencana status, trek switch, chip terpilih, dan tombol yang sedang ditekan. Judul memakai huruf kaligrafi TeX Gyre Chorus dan isi memakai Caladea (font disertakan di aplikasi, lisensi di `docs/licenses/`). Pilihan tema tersimpan dan langsung berlaku.
 
