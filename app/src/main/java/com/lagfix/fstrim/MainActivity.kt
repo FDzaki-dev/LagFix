@@ -137,6 +137,13 @@ class MainActivity : ComponentActivity() {
         // restriction menolak start dari proses background). Idempoten: no-op bila toggle OFF / notif tampil.
         PersistentTrimService.ensureShowing(this, "onResume")
     }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // v140: celah excludeFromRecents (task di depan tetap tampil di Recents) -> hapus task saat user pergi.
+        // Aturan & pengaman di LeaveGuard (RecentsExclusion.kt); di sini hanya pekerjaan ViewModel yg ikut mati.
+        LeaveGuard.onUserLeave(this, vm.ui.running || vm.ui.downloading || vm.ui.updateChecking || vm.bootTrim.busy)
+    }
 }
 
 // v12 (fix delay toast): showSnackbar() bawaan ANTRE kalau dipanggil beruntun cepat (mis. user
@@ -580,7 +587,7 @@ private fun SettingsTab(
                     style = MaterialTheme.typography.bodySmall
                 )
                 TextButton(
-                    onClick = { runCatching { ctx.startActivity(batteryOptimizationIntent(ctx)) } },
+                    onClick = { runCatching { ctx.startExternal(batteryOptimizationIntent(ctx)) } },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Izinkan berjalan tanpa batas", Modifier.weight(1f))
@@ -692,7 +699,7 @@ private fun SettingsTab(
                 TextButton(
                     onClick = {
                         runCatching {
-                            ctx.startActivity(
+                            ctx.startExternal(
                                 Intent(
                                     Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                                     Uri.fromParts("package", ctx.packageName, null)
@@ -747,6 +754,7 @@ private fun SettingsTab(
                     ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) !=
                         PackageManager.PERMISSION_GRANTED
                 ) {
+                    LeaveGuard.markExternal() // v140: dialog izin = Activity lain di depan; jangan hapus task
                     notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 } else {
                     vm.setPersistentService(turnOn)
@@ -758,7 +766,8 @@ private fun SettingsTab(
                     "aplikasi latar belakang, dengan notifikasi permanen yang tak bisa disembunyikan " +
                     "selama aktif. Coba dulu opsi baterai & Autostart di atas sebelum ini. Selama aktif, " +
                     "LagFix juga tidak tampil di daftar aplikasi terbaru (Recents); " +
-                    "buka lewat ikon, widget, atau tile.",
+                    "buka lewat ikon, widget, atau tile. Meninggalkan aplikasi juga menutup layarnya " +
+                    "(tab dan dialog kembali ke awal saat dibuka lagi).",
                 style = MaterialTheme.typography.bodySmall
             )
             // v28 (investigasi laporan "toggle aktif, izin POST_NOTIFICATIONS muncul, tapi
@@ -876,7 +885,14 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
                     scope.launch {
                         // v98: pekerjaan berat di IO, tapi UI hanya menunggu sampai SNAPSHOT_UI_TIMEOUT_MS supaya
                         // label tak bisa macet selamanya (scope = Main, jadi state di bawah aman diubah langsung).
-                        val job = async(Dispatchers.IO) { LogcatSnapshot.capture(ctx) }
+                        val job = async(Dispatchers.IO) {
+                            LeaveGuard.beginWork() // v140: selama snapshot jalan, leave TIDAK menghapus task
+                            try {
+                                LogcatSnapshot.capture(ctx)
+                            } finally {
+                                LeaveGuard.endWork()
+                            }
+                        }
                         val result = withTimeoutOrNull(SNAPSHOT_UI_TIMEOUT_MS) { job.await() }
                         capturing = false
                         if (result == null) {
@@ -980,7 +996,7 @@ private fun LinkRow(label: String, onClick: () -> Unit) {
 }
 
 private fun openUrl(ctx: Context, url: String) {
-    runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+    runCatching { ctx.startExternal(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
 }
 
 // v9 (E2): beda dari LinkRow ("↗" = buka browser) — "›" krn ini buka dialog in-app, bukan tautan.
@@ -1455,7 +1471,7 @@ private fun openShizuku(ctx: Context, state: ShizukuState) {
     } else {
         ctx.packageManager.getLaunchIntentForPackage(FstrimExecutor.SHIZUKU_PKG)
     }
-    runCatching { intent?.let { ctx.startActivity(it) } }
+    runCatching { intent?.let { ctx.startExternal(it) } }
 }
 
 private fun formatTime(ms: Long): String =
@@ -1477,7 +1493,7 @@ private fun BackgroundRestrictedNotice(ctx: Context) {
         onClick = {
             runCatching {
                 val appUri = Uri.fromParts("package", ctx.packageName, null)
-                ctx.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, appUri))
+                ctx.startExternal(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, appUri))
             }
         },
         modifier = Modifier.fillMaxWidth()

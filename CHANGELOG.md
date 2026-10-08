@@ -1,5 +1,11 @@
 # Changelog
 
+## v140
+- Saat layanan latar depan persisten aktif, meninggalkan app (tombol Home atau membuka Recents dari dalam app) kini menutup layar app dan menghapus tasknya, supaya tidak ada kartu LagFix yang bisa digeser pembersih bawaan HP. Efeknya: saat dibuka lagi, app mulai dari tab awal. Penutupan ditahan saat ada proses berjalan (fstrim manual, cek atau unduh update, boot-trim, snapshot logcat), saat app membuka layar lain (setelan, izin, installer), dan di mode multi-window. Ada pemutus otomatis: bila proses mati dalam 10 detik setelah penutupan, fitur ini mati sendiri. Catatan diagnostik `recentsReadBack` kini memuat jumlah dan keputusan terakhirnya. Belum diuji di perangkat.
+
+## v139
+- Tidak ada perubahan pada aplikasi. Uji v138 di Infinix X6850 berhasil: berkas `kill_context` kini terbit untuk kematian swipe-up clean. Log menunjukkan LagFix mati sekitar 1 detik setelah dibuka ke Recents langsung dari dalam app (tanpa lewat Home); penyembunyian dari Recents (v133) belum melindungi jalur itu. Keputusan cara menutup celah ini menunggu persetujuan pengguna.
+
 ## v138
 - Pencatat penyebab kematian proses (`kill_context`) kini juga memeriksa kematian yang dicatat sistem sebagai "OTHER", tidak hanya "SIGNALED". Sebabnya: di Infinix X6850 kematian karena swipe-up clean (pembersih bawaan HP) dicatat sebagai OTHER, sehingga berkas ini tidak pernah terbit di HP itu. Berkas diagnostik 7 Okt malam juga menunjukkan (satu sampel) swipe-up clean masih mematikan LagFix walau app sudah disembunyikan dari Recents (v133).
 - Tidak ada perubahan tampilan. Belum diuji di perangkat.

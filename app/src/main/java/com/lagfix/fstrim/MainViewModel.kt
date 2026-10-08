@@ -171,7 +171,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     setDataAndType(uri, "application/vnd.android.package-archive")
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
-                app.startActivity(intent)
+                app.startExternal(intent)
                 ui = ui.copy(downloading = false)
             } catch (e: Exception) {
                 ui = ui.copy(downloading = false, downloadError = UpdateChecker.friendlyError(e))
@@ -232,6 +232,7 @@ internal fun batteryOptimizationIntent(ctx: Context): Intent = Intent(
 internal fun requestShizukuPermission() {
     runCatching {
         if (Shizuku.pingBinder() && !Shizuku.isPreV11()) {
+            LeaveGuard.markExternal() // v140: dialog izin Shizuku = Activity lain di depan; jangan hapus task
             Shizuku.requestPermission(SHIZUKU_PERMISSION_REQUEST_CODE)
         }
     }

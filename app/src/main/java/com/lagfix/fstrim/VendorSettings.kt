@@ -39,10 +39,10 @@ internal fun vendorBatteryIntent(): Intent {
 
 /** Buka pengaturan vendor; gagal (activity tak ada / struktur paket berubah) -> Info Aplikasi standar. */
 internal fun openVendorBatterySettings(ctx: Context) {
-    val opened = runCatching { ctx.startActivity(vendorBatteryIntent()) }.isSuccess
+    val opened = runCatching { ctx.startExternal(vendorBatteryIntent()) }.isSuccess
     if (!opened) {
         runCatching {
-            ctx.startActivity(
+            ctx.startExternal(
                 Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", ctx.packageName, null))
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
