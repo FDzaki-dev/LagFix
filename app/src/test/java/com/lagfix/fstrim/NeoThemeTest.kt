@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.hypot
 import kotlin.math.pow
 
 class NeoThemeTest {
@@ -67,5 +68,24 @@ class NeoThemeTest {
         assertTrue(alphas.all { it in 0f..peak })
         assertTrue(alphas.zipWithNext().all { (inner, outer) -> inner > outer })
         assertEquals(peak * (1.0 - 0.5 / steps).pow(2), alphas.first().toDouble(), 1e-6)
+    }
+
+    @Test
+    fun shadowCoreRing_reachesRegionAlwaysCoveredByPlate() {
+        NeoLevel.entries.forEach { level ->
+            listOf(level.ambient, level.contact).forEach { spec ->
+                val step = spec.blur.value / spec.steps
+                val innerExpansion = step + spec.spread.value - spec.coreWidth.value
+                val translation = hypot(spec.dx.value, spec.dy.value)
+                assertTrue("cincin inti $level tak cukup tebal", -innerExpansion >= translation)
+            }
+        }
+    }
+
+    @Test
+    fun neoSnackbar_isReadableOnPlumSurface() {
+        val bg = neoScheme.inverseSurface
+        assertTrue(contrast(neoScheme.inverseOnSurface, bg) >= 4.5)
+        assertTrue(contrast(neoScheme.inversePrimary, bg) >= 4.5)
     }
 }

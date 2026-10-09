@@ -1,5 +1,8 @@
 # Changelog
 
+## v145
+- Polishing dan optimalisasi lanjutan tema Neumorphism untuk mengurangi scroll yang masih tersendat: bayangan di bawah pelat tidak lagi digambar penuh, latar digambar sekali ke bitmap kecil, dan dekorasi tiap kartu punya layer sendiri sehingga animasi satu kartu tidak menggambar ulang kartu lain. Tombol dan chip kini tenggelam dan timbul secara mulus saat ditekan atau dipilih. Snackbar mengikuti warna anggur. Tema Glassmorphism tidak berubah.
+
 ## v144
 - Polishing dan optimalisasi tema Neumorphism: bayangan kartu, tombol, chip, dan switch kini digambar sebagai pita tipis yang tidak bertumpuk, jadi jauh lebih ringan di GPU saat menggulir (tampilan tetap sama). Latar jendela kini mengikuti tema, sehingga tema Neumorphism tidak lagi berkedip biru sesaat saat start dingin atau rotasi layar. Tema Glassmorphism tidak berubah.
 

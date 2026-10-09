@@ -4,8 +4,8 @@ package com.lagfix.fstrim
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -35,18 +35,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -54,8 +60,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.hypot
+import kotlin.math.roundToInt
 
 // v142: tema ke-2 "Neo Burgundy" (Neumorphism, DARK ONLY). Dipilih user di Pengaturan > Tampilan; Glass tetap default.
 //
@@ -118,7 +127,7 @@ internal val neoScheme = darkColorScheme(
     onPrimary = Color(0xFF2E0A15),
     primaryContainer = Color(0xFF6B1A2D),
     onPrimaryContainer = Color(0xFFF8DCE1),
-    inversePrimary = Color(0xFF8C2D45),
+    inversePrimary = NeoPalette.Rose,
     secondary = NeoPalette.Sage,
     onSecondary = Color(0xFF1F2B1B),
     secondaryContainer = Color(0xFF34402F),
@@ -133,8 +142,8 @@ internal val neoScheme = darkColorScheme(
     onSurface = NeoPalette.Ivory,
     surfaceVariant = Color(0xFF3A262D),
     onSurfaceVariant = NeoPalette.Muted,
-    inverseSurface = Color(0xFFEADFD3),
-    inverseOnSurface = Color(0xFF2C1F1F),
+    inverseSurface = Color(0xFF4A323C), // v145: snackbar = pelat anggur (bukan krem terang); ivory 9,5 / rose 4,9
+    inverseOnSurface = NeoPalette.Ivory,
     error = Color(0xFFF5A29A),
     onError = Color(0xFF3A0A08),
     errorContainer = Color(0xFF5C1F1B),
@@ -199,10 +208,17 @@ internal val neoTypography = Typography(
 
 // --- Latar ---------------------------------------------------------------------------------------
 // Gradien vertikal anggur-gelap + cahaya lembut kiri-atas (sumber cahaya) + peredam gelap kanan-bawah.
-internal fun Modifier.neoBackdrop(): Modifier = this
-    .background(Brush.verticalGradient(listOf(NeoPalette.BackdropTop, NeoPalette.BackdropBottom)))
-    .drawBehind {
+// v145: digambar SEKALI ke bitmap kecil (1/8 resolusi; gradien mulus, aman di-upscale) lalu 1 draw bitmap per frame,
+// menggantikan 3 pass gradien layar-penuh (hemat fill-rate GPU saat scroll). Cache dibangun ulang bila ukuran berubah.
+private const val BACKDROP_DOWNSCALE = 8
+
+internal fun Modifier.neoBackdrop(): Modifier = this.drawWithCache {
+    val bw = (size.width / BACKDROP_DOWNSCALE).roundToInt().coerceAtLeast(1)
+    val bh = (size.height / BACKDROP_DOWNSCALE).roundToInt().coerceAtLeast(1)
+    val bitmap = ImageBitmap(bw, bh)
+    CanvasDrawScope().draw(this, layoutDirection, Canvas(bitmap), Size(bw.toFloat(), bh.toFloat())) {
         val reach = size.maxDimension
+        drawRect(Brush.verticalGradient(listOf(NeoPalette.BackdropTop, NeoPalette.BackdropBottom)))
         drawRect(
             brush = Brush.radialGradient(
                 colors = listOf(NeoPalette.Highlight.copy(alpha = 0.06f), NeoPalette.Highlight.copy(alpha = 0f)),
@@ -218,25 +234,42 @@ internal fun Modifier.neoBackdrop(): Modifier = this
             )
         )
     }
+    val target = IntSize(size.width.roundToInt(), size.height.roundToInt())
+    onDrawBehind { drawImage(bitmap, dstSize = target) }
+}
 
 // --- Relief: bayangan, pelat, bevel, sumur ---------------------------------------------------------
-internal class ShadowSpec(val dx: Dp, val dy: Dp, val blur: Dp, val spread: Dp, val peak: Float, val steps: Int)
+/**
+ * Satu lapis bayangan. `alphas` dihitung SEKALI (bukan per gambar). `coreWidth` = lebar cincin inti (dp): cukup
+ * menjangkau dari tepi luar inti sampai wilayah yg PASTI tertutup pelat (translasi hypot(dx, dy) + 1 langkah margin),
+ * jadi bagian inti di bawah pelat tak digambar (dulu persegi penuh = overdraw sia-sia).
+ */
+internal class ShadowSpec(val dx: Dp, val dy: Dp, val blur: Dp, val spread: Dp, val peak: Float, val steps: Int) {
+    val alphas: List<Float> = shadowBandAlphas(steps, peak)
+    val coreWidth: Dp = (hypot(dx.value, dy.value) + 2f * blur.value / steps + spread.value).dp
+}
 
-/** Tingkat ketinggian pelat: kartu (tinggi), kontrol (tombol/chip), knob (kecil). Tiap tingkat = ambient + kontak. */
-internal enum class NeoLevel(val ambient: ShadowSpec, val contact: ShadowSpec) {
+/** Tingkat ketinggian pelat: kartu (tinggi), kontrol (tombol/chip), knob (kecil). `relief` = skala kedalaman sumur. */
+internal enum class NeoLevel(val ambient: ShadowSpec, val contact: ShadowSpec, val relief: Float) {
     CARD(
-        ShadowSpec(8.dp, 10.dp, 16.dp, (-5).dp, 0.50f, 10),
-        ShadowSpec(2.5.dp, 3.5.dp, 5.dp, (-1).dp, 0.55f, 7)
+        ShadowSpec(8.dp, 10.dp, 16.dp, (-5).dp, 0.50f, 8),
+        ShadowSpec(2.5.dp, 3.5.dp, 5.dp, (-1).dp, 0.55f, 5),
+        1f
     ),
     CONTROL(
-        ShadowSpec(4.dp, 5.dp, 9.dp, (-3).dp, 0.45f, 8),
-        ShadowSpec(1.5.dp, 2.dp, 3.dp, (-0.5).dp, 0.50f, 5)
+        ShadowSpec(4.dp, 5.dp, 9.dp, (-3).dp, 0.45f, 6),
+        ShadowSpec(1.5.dp, 2.dp, 3.dp, (-0.5).dp, 0.50f, 4),
+        0.8f
     ),
     KNOB(
-        ShadowSpec(2.dp, 3.dp, 5.dp, (-1.5).dp, 0.45f, 6),
-        ShadowSpec(1.dp, 1.5.dp, 2.dp, 0.dp, 0.50f, 4)
+        ShadowSpec(2.dp, 3.dp, 5.dp, (-1.5).dp, 0.45f, 5),
+        ShadowSpec(1.dp, 1.5.dp, 2.dp, 0.dp, 0.50f, 3),
+        0.8f
     )
 }
+
+/** Pasangan warna gradien pelat (kiri-atas -> kanan-bawah). */
+internal class NeoFill(val top: Color, val bottom: Color)
 
 private val BevelWidth = 1.2.dp
 private val InsetReach = 7.dp
@@ -257,25 +290,26 @@ internal fun shadowBandAlphas(steps: Int, peak: Float): List<Float> = List(steps
     peak * (1f - t) * (1f - t)
 }
 
-// v144: dulu N persegi-bulat penuh bertumpuk (17 lapis/kartu = ~17x overdraw per frame saat scroll). Kini 1 inti terisi
-// + (N-1) cincin Stroke tipis non-tumpang-tindih: alpha efektif per wilayah SAMA, piksel digambar ~1-2x.
-private fun DrawScope.drawShadowBands(spec: ShadowSpec, radius: Float) {
+// Inti = cincin tebal (bukan persegi penuh) + (N-1) cincin tipis non-tumpang-tindih. `strength` 0..1 meredam alpha
+// (dipakai saat pelat menekan ke bawah). Alpha efektif per wilayah = pita bertingkat, sama dgn tumpukan lapis lama.
+private fun DrawScope.drawShadowBands(spec: ShadowSpec, radius: Float, strength: Float) {
     val dx = spec.dx.toPx()
     val dy = spec.dy.toPx()
     val step = spec.blur.toPx() / spec.steps
     val spread = spec.spread.toPx()
-    val alphas = shadowBandAlphas(spec.steps, spec.peak)
-    val coreGrow = step + spread
+    val coreWidth = spec.coreWidth.toPx()
+    val coreCenter = step + spread - coreWidth / 2f
     drawRoundRect(
-        color = NeoPalette.Shadow.copy(alpha = alphas[0]),
-        topLeft = Offset(dx - coreGrow, dy - coreGrow),
-        size = Size(size.width + 2f * coreGrow, size.height + 2f * coreGrow),
-        cornerRadius = CornerRadius((radius + coreGrow).coerceAtLeast(0f))
+        color = NeoPalette.Shadow.copy(alpha = spec.alphas[0] * strength),
+        topLeft = Offset(dx - coreCenter, dy - coreCenter),
+        size = Size(size.width + 2f * coreCenter, size.height + 2f * coreCenter),
+        cornerRadius = CornerRadius((radius + coreCenter).coerceAtLeast(0f)),
+        style = Stroke(width = coreWidth)
     )
     for (i in 1 until spec.steps) {
         val center = step * (i + 0.5f) + spread
         drawRoundRect(
-            color = NeoPalette.Shadow.copy(alpha = alphas[i]),
+            color = NeoPalette.Shadow.copy(alpha = spec.alphas[i] * strength),
             topLeft = Offset(dx - center, dy - center),
             size = Size(size.width + 2f * center, size.height + 2f * center),
             cornerRadius = CornerRadius((radius + center).coerceAtLeast(0f)),
@@ -284,20 +318,13 @@ private fun DrawScope.drawShadowBands(spec: ShadowSpec, radius: Float) {
     }
 }
 
-private fun DrawScope.drawPlate(radius: Float, top: Color, bottom: Color) {
-    drawRoundRect(
-        brush = Brush.linearGradient(listOf(top, bottom), start = Offset.Zero, end = Offset(size.width, size.height)),
-        cornerRadius = CornerRadius(radius)
-    )
-}
-
 // Tepi pelat: pantulan cahaya hangat di kiri-atas, gelap di kanan-bawah. Antar-warna memakai RGB yg sama dgn alpha 0
 // (bukan Transparent hitam) supaya tak ada pinggiran abu-abu.
-private fun DrawScope.drawBevel(radius: Float) {
+private fun DrawScope.drawBevel(radius: Float, strength: Float) {
     val width = BevelWidth.toPx()
     val half = width / 2f
-    val hi = NeoPalette.Highlight.copy(alpha = 0.22f)
-    val lo = Color.Black.copy(alpha = 0.38f)
+    val hi = NeoPalette.Highlight.copy(alpha = 0.22f * strength)
+    val lo = Color.Black.copy(alpha = 0.38f * strength)
     drawRoundRect(
         brush = Brush.linearGradient(
             0f to hi,
@@ -315,7 +342,7 @@ private fun DrawScope.drawBevel(radius: Float) {
 }
 
 // Relief cekung di DALAM bentuk (dipanggil di dalam clipPath): bayangan dalam berjenjang yg digeser ke kanan-bawah
-// (jadi menebal di tepi kiri-atas) + bibir terang tipis di tepi kanan-bawah.
+// (jadi menebal di tepi kiri-atas) + bibir terang tipis di tepi kanan-bawah. `depth` 0..1 menskalakan semuanya.
 private fun DrawScope.drawInsetRelief(radius: Float, depth: Float) {
     val reach = InsetReach.toPx() * depth
     val shade = NeoPalette.InsetShadow.copy(alpha = INSET_STEP_ALPHA * depth)
@@ -329,7 +356,7 @@ private fun DrawScope.drawInsetRelief(radius: Float, depth: Float) {
         }
     }
     val lip = LipWidth.toPx()
-    val lipHi = NeoPalette.Highlight.copy(alpha = 0.16f)
+    val lipHi = NeoPalette.Highlight.copy(alpha = 0.16f * depth)
     drawRoundRect(
         brush = Brush.linearGradient(
             0f to lipHi.copy(alpha = 0f),
@@ -345,27 +372,50 @@ private fun DrawScope.drawInsetRelief(radius: Float, depth: Float) {
     )
 }
 
-/** Pelat TIMBUL: bayangan ambient + kontak, isi gradien cembung, lalu bevel. Isi tak dipotong (pakai `clip`). */
-internal fun Modifier.neoRaised(radius: Dp, level: NeoLevel, top: Color, bottom: Color): Modifier = this.drawBehind {
-    val r = radius.toPx()
-    drawShadowBands(level.ambient, r)
-    drawShadowBands(level.contact, r)
-    drawPlate(r, top, bottom)
-    drawBevel(r)
-}
-
-/** Sumur CEKUNG: isi lebih gelap + relief dalam. `depth` 0..1 menskalakan kedalaman (bentuk kecil = lebih dangkal). */
-internal fun Modifier.neoInset(
+/**
+ * Permukaan neumorphic satu-pintu. `depth()` = fraksi tenggelam 0 (timbul) .. 1 (cekung), DIBACA DI FASE GAMBAR
+ * (State dari animasi -> hanya gambar ulang, tanpa recomposition). 0 = bayangan ambient+kontak + isi cembung + bevel;
+ * 1 = isi sumur + relief dalam; di antaranya = peralihan mulus (tekan/pilih terasa taktil). Isi tak dipotong.
+ */
+internal fun Modifier.neoSurface(
     radius: Dp,
-    depth: Float = 1f,
-    top: Color = NeoPalette.WellTop,
-    bottom: Color = NeoPalette.WellBottom
+    level: NeoLevel,
+    raised: NeoFill,
+    sunk: NeoFill,
+    depth: () -> Float
 ): Modifier = this.drawBehind {
     val r = radius.toPx()
-    drawPlate(r, top, bottom)
-    val bounds = RoundRect(0f, 0f, size.width, size.height, CornerRadius(r))
-    clipPath(Path().apply { addRoundRect(bounds) }) { drawInsetRelief(r, depth) }
+    val d = depth().coerceIn(0f, 1f)
+    if (d < 1f) {
+        drawShadowBands(level.ambient, r, 1f - d)
+        drawShadowBands(level.contact, r, 1f - d)
+    }
+    drawRoundRect(
+        brush = Brush.linearGradient(
+            listOf(lerp(raised.top, sunk.top, d), lerp(raised.bottom, sunk.bottom, d)),
+            start = Offset.Zero,
+            end = Offset(size.width, size.height)
+        ),
+        cornerRadius = CornerRadius(r)
+    )
+    if (d < 1f) drawBevel(r, 1f - d)
+    if (d > 0f) {
+        val bounds = RoundRect(0f, 0f, size.width, size.height, CornerRadius(r))
+        clipPath(Path().apply { addRoundRect(bounds) }) { drawInsetRelief(r, d * level.relief) }
+    }
 }
+
+/** Pelat TIMBUL statis (kartu, knob). */
+internal fun Modifier.neoRaised(radius: Dp, level: NeoLevel, top: Color, bottom: Color): Modifier =
+    this.neoSurface(radius, level, NeoFill(top, bottom), NeoFill(top, bottom)) { 0f }
+
+/** Sumur CEKUNG statis (lencana, trek switch). */
+internal fun Modifier.neoInset(
+    radius: Dp,
+    level: NeoLevel = NeoLevel.CARD,
+    top: Color = NeoPalette.WellTop,
+    bottom: Color = NeoPalette.WellBottom
+): Modifier = this.neoSurface(radius, level, NeoFill(top, bottom), NeoFill(top, bottom)) { 1f }
 
 // Bilah navigasi: bayangan naik ke atas (bar terangkat dari latar) + garis cahaya di tepi atas.
 internal fun Modifier.neoTopEdge(): Modifier = this.drawWithContent {
@@ -396,18 +446,37 @@ private val SwitchTrackWidth = 52.dp
 private val SwitchTrackHeight = 30.dp
 private val SwitchKnob = 24.dp
 private val SwitchPad = 3.dp
+private const val PRESS_MS = 90
 
-/** Pengganti [GlassCard] utk tema Neo: kartu pelat timbul. Parameter & isi `ColumnScope` identik. */
+private val CardFill = NeoFill(NeoPalette.PlateTop, NeoPalette.PlateBottom)
+private val ChipRaised = NeoFill(NeoPalette.ControlTop, NeoPalette.ControlBottom)
+private val ChipSunk = NeoFill(NeoPalette.WellTop, NeoPalette.WellBottom)
+private val BurgundyRaised = NeoFill(NeoPalette.BurgundyTop, NeoPalette.BurgundyBottom)
+private val BurgundySunk = NeoFill(NeoPalette.BurgundyPressedTop, NeoPalette.BurgundyPressedBottom)
+private val SageRaised = NeoFill(NeoPalette.SageTop, NeoPalette.SageBottom)
+private val SageSunk = NeoFill(NeoPalette.SagePressedTop, NeoPalette.SagePressedBottom)
+private val DisabledFill = NeoFill(NeoPalette.DisabledTop, NeoPalette.DisabledBottom)
+
+/**
+ * Pengganti [GlassCard] utk tema Neo: kartu pelat timbul. Parameter & isi `ColumnScope` identik.
+ * v145: dekorasi (bayangan+pelat) punya LAYER sendiri & modifier di-`remember` -> animasi/ubah ukuran satu kartu tak
+ * merekam ulang dekorasi kartu lain, dan isi kartu (layer `clip` terpisah) tak memicu rekam ulang dekorasi.
+ */
 @Composable
 internal fun NeoCard(
     modifier: Modifier = Modifier,
     animateSize: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val decoration = remember {
+        Modifier
+            .graphicsLayer { clip = false }
+            .neoSurface(CardRadius, NeoLevel.CARD, CardFill, CardFill) { 0f }
+    }
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
         Column(
             modifier = modifier
-                .neoRaised(CardRadius, NeoLevel.CARD, NeoPalette.PlateTop, NeoPalette.PlateBottom)
+                .then(decoration)
                 .clip(RoundedCornerShape(CardRadius))
                 .then(
                     if (animateSize) {
@@ -423,7 +492,7 @@ internal fun NeoCard(
 
 internal enum class NeoTone { BURGUNDY, SAGE }
 
-/** Tombol Neo: pelat timbul (burgundy = utama, sage = tonal); saat ditekan berubah cekung. Tanpa ripple. */
+/** Tombol Neo: pelat timbul (burgundy = utama, sage = tonal); ditekan -> tenggelam mulus jadi cekung. Tanpa ripple. */
 @Composable
 internal fun NeoButton(
     onClick: () -> Unit,
@@ -434,21 +503,25 @@ internal fun NeoButton(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val sink = animateFloatAsState(
+        targetValue = if (pressed && enabled) 1f else 0f,
+        animationSpec = tween(durationMillis = PRESS_MS),
+        label = "neoPress"
+    )
     val burgundy = tone == NeoTone.BURGUNDY
-    val surface = when {
-        !enabled -> Modifier.neoRaised(
-            ControlRadius, NeoLevel.KNOB, NeoPalette.DisabledTop, NeoPalette.DisabledBottom
-        )
-        pressed && burgundy -> Modifier.neoInset(
-            ControlRadius, 0.8f, NeoPalette.BurgundyPressedTop, NeoPalette.BurgundyPressedBottom
-        )
-        pressed -> Modifier.neoInset(
-            ControlRadius, 0.8f, NeoPalette.SagePressedTop, NeoPalette.SagePressedBottom
-        )
-        burgundy -> Modifier.neoRaised(
-            ControlRadius, NeoLevel.CONTROL, NeoPalette.BurgundyTop, NeoPalette.BurgundyBottom
-        )
-        else -> Modifier.neoRaised(ControlRadius, NeoLevel.CONTROL, NeoPalette.SageTop, NeoPalette.SageBottom)
+    val raised = when {
+        !enabled -> DisabledFill
+        burgundy -> BurgundyRaised
+        else -> SageRaised
+    }
+    val sunk = when {
+        !enabled -> DisabledFill
+        burgundy -> BurgundySunk
+        else -> SageSunk
+    }
+    val level = if (enabled) NeoLevel.CONTROL else NeoLevel.KNOB
+    val surface = remember(raised, sunk, level) {
+        Modifier.neoSurface(ControlRadius, level, raised, sunk) { sink.value }
     }
     val contentColor = when {
         !enabled -> NeoPalette.Ivory.copy(alpha = 0.38f)
@@ -477,7 +550,7 @@ internal fun NeoButton(
     }
 }
 
-/** Chip Neo: tak terpilih = pelat timbul kecil; terpilih (atau ditekan) = sumur cekung dgn teks rose. */
+/** Chip Neo: tak terpilih = pelat timbul kecil; terpilih (atau ditekan) = tenggelam mulus jadi sumur, teks rose. */
 @Composable
 internal fun NeoChip(
     selected: Boolean,
@@ -487,17 +560,16 @@ internal fun NeoChip(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val sunken = selected || pressed
+    val sink = animateFloatAsState(
+        targetValue = if (selected || pressed) 1f else 0f,
+        animationSpec = tween(durationMillis = PRESS_MS),
+        label = "neoChip"
+    )
+    val surface = remember { Modifier.neoSurface(ChipRadius, NeoLevel.CONTROL, ChipRaised, ChipSunk) { sink.value } }
     Box(
         modifier = modifier
             .heightIn(min = 48.dp)
-            .then(
-                if (sunken) {
-                    Modifier.neoInset(ChipRadius, 0.8f)
-                } else {
-                    Modifier.neoRaised(ChipRadius, NeoLevel.CONTROL, NeoPalette.ControlTop, NeoPalette.ControlBottom)
-                }
-            )
+            .then(surface)
             .clip(RoundedCornerShape(ChipRadius))
             .selectable(
                 selected = selected,
@@ -532,7 +604,7 @@ internal fun NeoSwitch(checked: Boolean, modifier: Modifier = Modifier) {
     Box(
         modifier
             .size(width = SwitchTrackWidth, height = SwitchTrackHeight)
-            .neoInset(SwitchTrackHeight / 2, 0.8f, trackTop, trackBottom)
+            .neoInset(SwitchTrackHeight / 2, NeoLevel.CONTROL, trackTop, trackBottom)
     ) {
         Box(
             Modifier
