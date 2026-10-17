@@ -369,6 +369,7 @@ internal fun LagFixTheme(content: @Composable () -> Unit) {
     val neo = state.value == AppTheme.NEO
     val view = LocalView.current
     LaunchedEffect(state.value) { (view.context as? Activity)?.let { applyWindowBackground(it, state.value) } }
+    FrameJankRecorder(state.value) // v146: metrik frame mentah -> diag_frame_metrics (ukur jank scroll)
     val scheme = if (neo) neoScheme else glassScheme
     CompositionLocalProvider(
         LocalAppTheme provides state.value,

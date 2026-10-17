@@ -1,5 +1,8 @@
 # Changelog
 
+## v146
+- Tambah pengukur kelancaran layar bawaan untuk membuktikan apakah scroll tema Neumorphism masih tersendat. Saat app dipakai (mis. menggulir Pengaturan), app mencatat waktu render tiap frame, lalu menulis ringkasan angkanya (persentil waktu, jumlah frame yang melewati anggaran waktu, rerata tiap tahap render) ke `Documents/LagFix/LagFix_diag_frame_metrics_*.txt` ketika layar app berhenti terlihat, tema diganti, atau layar diputar. Berkas hanya ditulis bila sesi merekam minimal 120 frame dan maksimal 3 berkas per proses, jadi folder tidak penuh. Isi berkas hanya angka mentah. Tidak ada perubahan tampilan, izin, atau dependency; tema Glassmorphism dan Neumorphism tampil sama seperti v145. Belum diuji di perangkat.
+
 ## v145
 - Polishing dan optimalisasi lanjutan tema Neumorphism untuk mengurangi scroll yang masih tersendat: bayangan di bawah pelat tidak lagi digambar penuh, latar digambar sekali ke bitmap kecil, dan dekorasi tiap kartu punya layer sendiri sehingga animasi satu kartu tidak menggambar ulang kartu lain. Tombol dan chip kini tenggelam dan timbul secara mulus saat ditekan atau dipilih. Snackbar mengikuti warna anggur. Tema Glassmorphism tidak berubah.
 
