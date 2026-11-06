@@ -80,7 +80,7 @@ dependencies {
     // v17 (C4 kandidat b): FstrimExecutorTest.kt pindah dari mockStatic ke mock interface biasa
     // (ShizukuGateway) — mockito-core tetap dipakai utk mock() non-static ini.
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.mockito:mockito-core:5.23.0")
+    testImplementation("org.mockito:mockito-core:5.24.0")
 }
 
 // F1 (PENDING_ROADMAP.md, CI hardening): static analysis Kotlin. v88: BLOCKING (perintah user;
