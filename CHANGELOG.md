@@ -1,5 +1,10 @@
 # Changelog
 
+## v153
+- Build v152 gagal di `build.yml` (run 126) sebelum satu pun kode dikompilasi: Gradle tidak menemukan plugin `org.jetbrains.kotlin.android` versi 2.4.10 di Google, Maven Central, maupun Plugin Portal (yang dicari adalah artefak marker plugin, bukan modul Kotlin-nya). Penyebab marker tidak ditemukan belum terbukti karena sandbox tidak bisa menjangkau repositori. Modul `kotlin-gradle-plugin:2.4.10` tercantum di Maven Central (rilis 14 Juli 2026), jadi `settings.gradle.kts` kini mengarahkan plugin `org.jetbrains.kotlin.android` dan `org.jetbrains.kotlin.plugin.compose` langsung ke modulnya (`kotlin-gradle-plugin` dan `compose-compiler-gradle-plugin`) lewat `resolutionStrategy.eachPlugin`, sehingga tidak lagi bergantung pada marker. Hanya berlaku untuk permintaan berversi di `build.gradle.kts` akar; versi Kotlin tetap 2.4.10 dan tetap diatur di satu tempat.
+- Diuji lokal dengan Gradle 8.14.3 secara offline: skrip settings terkompilasi, dan Gradle kini meminta `org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.10` (sebelumnya marker). Resolusi nyata dan kompilasi tetap belum terbukti sampai CI berjalan.
+- Tidak ada perubahan kode aplikasi (`app/src`), tampilan, atau versi toolchain. Lanjutan pengecualian toolchain v152. Belum dijalankan di CI.
+
 ## v152
 - Migrasi toolchain tahap B (perintah user "Lanjut B"): Android Gradle plugin 8.7.3 menjadi 9.5.0, Gradle 8.9 menjadi 9.6.0 (kedua workflow), Kotlin dan plugin Compose 2.0.21 menjadi 2.4.10. Perilaku build lama dipertahankan: Kotlin bawaan AGP dan DSL baru dimatikan (`android.builtInKotlin=false`, `android.newDsl=false`), dan semua default yang berubah di AGP 9.0 dikembalikan ke nilai lama di `gradle.properties`. Heap Gradle naik ke 3 GB. Library (Compose, core, activity, lifecycle, work), compileSdk 35, dan targetSdk 35 belum berubah, jadi 6 info lint versi usang masih tampil.
 - `android.kotlinOptions {}` diganti `kotlin { compilerOptions { jvmTarget } }` (nilai sama, JVM 17); sejak Kotlin 2.2 cara lama menjadi galat.
