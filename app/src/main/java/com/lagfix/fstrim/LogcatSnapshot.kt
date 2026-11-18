@@ -486,7 +486,7 @@ object LogcatSnapshot {
         val dir = ctx.getExternalFilesDir(null) ?: ctx.filesDir
         val file = File(dir, name)
         ZipOutputStream(file.outputStream().buffered()).use(fill)
-        val note = mediaError?.let { " [MediaStore gagal: ${it.message}]" } ?: ""
+        val note = mediaError?.let { " [MediaStore gagal: ${it.message}]" }.orEmpty()
         return RawWrite("App files (cadangan): ${file.absolutePath}$note", file.length())
     }
 

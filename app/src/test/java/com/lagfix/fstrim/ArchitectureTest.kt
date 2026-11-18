@@ -12,7 +12,7 @@ import java.io.File
 
 private const val BASE_PACKAGE = "com.lagfix.fstrim"
 private const val REPORT_PATH = "build/reports/archunit/archunit-report.txt"
-private const val MAX_DETAIL_LINES = 8
+private const val MAX_DETAIL_LINES = 25
 private const val MAX_DETAIL_CHARS = 220
 
 // Berkas yang TIDAK meng-impor androidx.compose (hasil grep v148 atas app/src/main).
@@ -36,6 +36,13 @@ private val UI_FILES = listOf("MainActivity", "MainViewModel", "Design", "HomeHe
 private fun classesOf(files: List<String>): String =
     BASE_PACKAGE.replace(".", "\\.") + "\\.(" + files.joinToString("|") + ")(Kt)?(\\\$.*)?"
 
+/**
+ * Regex kelas `androidx.compose.*` KECUALI `runtime.internal.StabilityInferred`: anotasi itu disisipkan Compose
+ * compiler ke SETIAP kelas modul (laporan CI run 1: 18 "pelanggaran" semuanya anotasi ini), bukan kode.
+ */
+private const val COMPOSE_EXCEPT_STABILITY =
+    "androidx\\.compose\\.(?!runtime\\.internal\\.StabilityInferred\$).*"
+
 /** Regex semua kelas paket app KECUALI [name] (dan kelas bersarangnya). */
 private fun allExcept(name: String): String =
     BASE_PACKAGE.replace(".", "\\.") + "\\.(?!" + name + "(\\\$.*)?\$).*"
@@ -52,7 +59,7 @@ private fun architectureRules(): List<Pair<String, ArchRule>> = listOf(
         .haveNameMatching(allExcept("BoundedShell")).should().callMethod("java.lang.Thread", "sleep", "long"),
     "Kelas non-UI tidak bergantung pada Compose" to noClasses().that()
         .haveNameMatching(classesOf(NON_COMPOSE_FILES)).should().dependOnClassesThat()
-        .resideInAnyPackage("androidx.compose.."),
+        .haveNameMatching(COMPOSE_EXCEPT_STABILITY),
     "Logika inti tidak bergantung pada kelas UI (Activity/ViewModel/tema)" to noClasses().that()
         .haveNameMatching(classesOf(UI_FREE_CORE_FILES)).should().dependOnClassesThat()
         .haveNameMatching(classesOf(UI_FILES)),
@@ -144,5 +151,9 @@ class ArchitectureTest {
         assertTrue("com.lagfix.fstrim.Prefs".matches(notShell))
         assertFalse("com.lagfix.fstrim.BoundedShell".matches(notShell))
         assertFalse("com.lagfix.fstrim.BoundedShell\$sleepQuietly\$1".matches(notShell))
+        val compose = Regex(COMPOSE_EXCEPT_STABILITY)
+        assertFalse("androidx.compose.runtime.internal.StabilityInferred".matches(compose))
+        assertTrue("androidx.compose.runtime.Composer".matches(compose))
+        assertTrue("androidx.compose.ui.Modifier".matches(compose))
     }
 }

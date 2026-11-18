@@ -96,10 +96,10 @@ object UpdateChecker {
     // lalu exception yg SAMA dilempar ulang (tidak ditelan).
     @Suppress("TooGenericExceptionCaught")
     fun download(context: Context, url: String): File {
-        val dir = File(context.cacheDir, "updates").apply {
-            deleteRecursively()
-            mkdirs()
-        }
+        val dir = File(context.cacheDir, "updates")
+        dir.deleteRecursively()
+        // v149 (SpotBugs RV_RETURN_VALUE_IGNORED_BAD_PRACTICE): hasil mkdirs() dipakai; gagal = galat jelas.
+        if (!dir.mkdirs() && !dir.isDirectory) throw IOException("gagal membuat folder ${dir.name}")
         val dest = File(dir, "update.apk")
         val conn = URL(url).openConnection() as HttpURLConnection
         try {
@@ -112,7 +112,9 @@ object UpdateChecker {
             try {
                 saveStream(conn, dest)
             } catch (e: Exception) {
-                dest.delete() // v13 (B3): koneksi putus di tengah unduhan -> jangan tinggalkan APK parsial
+                // v13 (B3): koneksi putus di tengah unduhan -> jangan tinggalkan APK parsial.
+                // v149: hasil delete() dipakai; gagal hapus = suppressed, exception ASLI tetap dilempar ulang.
+                if (!dest.delete() && dest.exists()) e.addSuppressed(IOException("gagal menghapus ${dest.name}"))
                 throw e
             }
         } finally {

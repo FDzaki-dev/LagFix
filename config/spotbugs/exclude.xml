@@ -5,13 +5,11 @@
      sendiri), terbukti di laporan CI Boomly. Dipakai hanya lewat `gradle spotbugsDebug -Plagfix.spotbugs=true`
      (workflow `android-artifact.yml`); build/rilis biasa dan gerbang lint+detekt tidak menyentuh file ini.
 
-     SENGAJA TIDAK dibawa (hasil triase Boomly = khusus kode Boomly; di LagFix BELUM ada laporan yang membuktikannya,
-     jadi tetap DILAPORKAN sampai laporan CI LagFix pertama ditriase satu per satu):
-       NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE (bisa menutupi null-deref nyata dari API Android),
-       ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD, SA_FIELD_SELF_ASSIGNMENT, DMI_RANDOM_USED_ONLY_ONCE,
-       NP_LOAD_OF_KNOWN_NULL_VALUE, NP_NONNULL_PARAM_VIOLATION (semuanya diperiksa per kelas/baris di Boomly).
-     Pola tidak disaring (mis. DE_*, RV_*, DM_*, IS2_*, MS_*) TETAP dilaporkan. Hapus satu blok `<Match>` untuk
-     memulihkan pattern-nya. -->
+     v149: laporan CI LagFix run 1 (40 temuan) DITRIASE per titik terhadap sumber v148; blok di bawah berlabel "v149".
+     Boomly-khusus yang TETAP tidak dibawa (tak muncul / belum terbukti di LagFix): DMI_RANDOM_USED_ONLY_ONCE,
+     NP_LOAD_OF_KNOWN_NULL_VALUE, NP_NONNULL_PARAM_VIOLATION. Blok v149 sengaja SEMPIT (per kelas, bukan global) supaya
+     temuan serupa di kelas lain TETAP dilaporkan. Pola tidak disaring (mis. DE_*, RV_*, DM_*, IS2_*, MS_*) TETAP
+     dilaporkan. Hapus satu blok `<Match>` untuk memulihkan pattern-nya. -->
 <FindBugsFilter>
     <!-- Kelas hasil generator: resource R, singleton Compose, lambda/inline sintetis. -->
     <Match>
@@ -86,5 +84,51 @@
     <Match>
         <Bug pattern="UUF_UNUSED_PUBLIC_OR_PROTECTED_FIELD"/>
         <Field name="$stable"/>
+    </Match>
+
+    <!-- v149 (triase laporan CI LagFix run 1; tiap titik dicocokkan dgn sumber v148, SEMUANYA noise).
+         NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE (25 temuan, HANYA berkas UI Compose MainActivity/Design/NeoTheme):
+         MainActivity.kt baris 177-179, 186, 411, 469-470, 838-841, 1371 = `var x by rememberSaveable { mutableStateOf(..) }`
+         (nilai kembali delegasi state); 318/321 = `pointerInput { awaitPointerEvent(..) }` (fungsi suspend); 1564/1628/1709 =
+         di LUAR panjang berkas = isi fungsi inline; Design.kt 278 (`drawBehind`) & 369 (`remember { mutableStateOf }`);
+         NeoTheme.kt 505/562 (`by interaction.collectIsPressedAsState()`) & 572 (`Modifier.selectable`). Tidak satu pun
+         akses null nyata (sama dgn triase Boomly Batch 203). Berkas logika (Prefs, UpdateChecker, ...) TETAP diperiksa. -->
+    <Match>
+        <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+        <Class name="~com\.lagfix\.fstrim\.(MainActivity|Design|NeoTheme)(Kt)?(\$.*)?"/>
+    </Match>
+
+    <!-- v149: SA_FIELD_SELF_ASSIGNMENT (1 temuan, MainActivity.kt:321) jatuh tepat di baris `awaitPointerEvent(..)` dalam
+         `pointerInput { ... }` = state-machine coroutine hasil kompilator; sumbernya tak punya penugasan field ke dirinya
+         sendiri (sama dgn Boomly Batch 205). Hanya pattern ini di kelas MainActivity yang disaring. -->
+    <Match>
+        <Bug pattern="SA_FIELD_SELF_ASSIGNMENT"/>
+        <Class name="~com\.lagfix\.fstrim\.MainActivity(Kt)?(\$.*)?"/>
+    </Match>
+
+    <!-- v149: ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD (10 temuan): `internal object FrameJank` (FrameJank.kt 71-92) dan
+         `object FstrimExecutor` (FstrimExecutor.kt:37, `internal var gateway`). Properti Kotlin `object` dikompilasi jadi
+         field static yang ditulis dari "metode instance" singleton itu = bentuk bytecode normal `object`, bukan penulisan
+         static tak sengaja. State FrameJank SELALU di bawah `synchronized(lock)`; `gateway` = seam tes (dikembalikan di
+         @After). Hanya dua kelas ini yang disaring. -->
+    <Match>
+        <Bug pattern="ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD"/>
+        <Class name="~com\.lagfix\.fstrim\.(FrameJank|FstrimExecutor)"/>
+    </Match>
+
+    <!-- v149: NP_NONNULL_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR (1 temuan, FstrimExecutor.kt:37): `internal var gateway:
+         ShizukuGateway = RealShizukuGateway` di `object` diinisialisasi di blok static (`<clinit>`), bukan konstruktor;
+         Kotlin menjamin nilainya terisi sebelum dipakai. Hanya kelas ini yang disaring. -->
+    <Match>
+        <Bug pattern="NP_NONNULL_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR"/>
+        <Class name="com.lagfix.fstrim.FstrimExecutor"/>
+    </Match>
+
+    <!-- v149: RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT (1 temuan, PersistentTrimService.kt:116): `CoroutineScope(Dispatchers.IO)
+         .launch { recheckShown(..) }` = fire-and-forget di IO (Job sengaja tak dipakai; alasan di komentar v111).
+         Berkas ini DO-NOT-TOUCH + BUG_TARGET v147 terbuka -> tak diubah; hanya kelas ini yang disaring. -->
+    <Match>
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+        <Class name="com.lagfix.fstrim.PersistentTrimService"/>
     </Match>
 </FindBugsFilter>

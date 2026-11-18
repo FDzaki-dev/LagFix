@@ -1,5 +1,13 @@
 # Changelog
 
+## v149
+- Laporan CI pertama (workflow laporan v148, run 1) ditindaklanjuti sampai tuntas. Tes unit lulus (122 tes), detekt 0 temuan, peringatan kompilator Kotlin 0. Sisanya dibereskan satu per satu.
+- Kode: pembuatan folder unduhan update kini memakai hasil `mkdirs()` (gagal membuat folder = galat jelas) dan penghapusan APK parsial memakai hasil `delete()` (gagal hapus dilampirkan sebagai suppressed, exception asli tetap dilempar ulang). `Prefs`: pembacaan tema tanpa `!!` dan pembacaan log memakai `orEmpty()`. `RecentsExclusion`: safe call yang tidak perlu dihapus. `LogcatSnapshot`: `orEmpty()`. Perilaku normal tidak berubah.
+- Aturan ArchUnit "kelas non-UI tidak bergantung pada Compose" memberi 18 pelanggaran palsu karena anotasi `StabilityInferred` yang disisipkan Compose compiler ke setiap kelas; anotasi itu kini dikecualikan. Daftar rincian pelanggaran di laporan dinaikkan dari 8 ke 25 baris.
+- Filter SpotBugs: 40 temuan ditriase per titik terhadap sumber. Semuanya artefak kompilator Kotlin/Compose (delegasi state `by rememberSaveable`, fungsi suspend, objek singleton, fire-and-forget di IO), disaring per kelas saja; temuan serupa di kelas lain tetap dilaporkan. Detekt typed: rule `InjectDispatcher` dimatikan karena bertentangan dengan aturan proyek yang mewajibkan `Dispatchers.IO`.
+- Tidak dikerjakan: 6 info lint (`OldTargetApi` dan 5 `GradleDependency`). Itu butuh naik AGP, compileSdk, dan Kotlin, tidak bisa dicek tanpa build, dan memang sengaja informational di `lint.xml`.
+- Tidak ada perubahan tampilan. Belum dijalankan di CI.
+
 ## v148
 - Konfigurasi CI/analisis dari proyek Boomly diadaptasi ke LagFix. Workflow baru "Android CI Artifact for Claude" berjalan paralel dengan build dan menghasilkan satu berkas `laporan-untuk-claude.txt` (artifact `LagFix_laporan-untuk-claude_run<N>`, retensi 7 hari) berisi ArchUnit, SpotBugs, detekt, detekt typed (`detektDebug`), lintDebug, tes unit, dan peringatan kompilator Kotlin. Semua langkahnya tidak menggagalkan build; alat yang tidak jalan dicatat `NOT VERIFIED`, bukan lulus.
 - `build.yml`: runner dipin ke `ubuntu-24.04` (GitHub memindah `ubuntu-latest` ke Ubuntu 26.04 sampai 19 Nov 2026), ditambah Stale Run Guard (run usang tidak mem-publish rilis), publish rilis berlapis (action lalu cadangan `gh release create` sampai 5 kali), ringkasan run di tab Summary, versi action dinaikkan (checkout v7, setup-java v6, upload-artifact v7, action-gh-release v3). Gerbang lint dan detekt tetap BLOCKING dan tidak diubah; tag, nama rilis, dan nama berkas APK sama seperti sebelumnya.

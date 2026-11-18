@@ -57,6 +57,12 @@ coroutines:
   active: true
   SleepInsteadOfDelay:
     active: true
+  # v149 (laporan CI LagFix run 1: 17 dari 21 temuan `detektDebug` = rule ini): bawaan detekt AKTIF dgn type-resolution &
+  # menolak `Dispatchers.IO` langsung (20+ pemakaian). Konstitusi/Vital Guard Threading justru MEWAJIBKAN
+  # `Dispatchers.IO` utk I/O berat -> rule ini bertentangan, DIMATIKAN (keputusan sama dgn PENDING_CONSTITUTION_PLAN §2:
+  # "JANGAN diaktifkan"). Gerbang BLOCKING `detekt` polos memang tak menjalankannya (butuh type-resolution).
+  InjectDispatcher:
+    active: false
   GlobalCoroutineUsage:
     active: true
 

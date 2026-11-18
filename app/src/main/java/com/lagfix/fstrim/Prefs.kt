@@ -22,7 +22,7 @@ class Prefs(context: Context) {
 
     var themeMode: ThemeMode
         get() = runCatching {
-            ThemeMode.valueOf(sp.getString("themeMode", ThemeMode.SYSTEM.name)!!)
+            ThemeMode.valueOf(sp.getString("themeMode", null) ?: ThemeMode.SYSTEM.name) // v149: tanpa `!!`
         }.getOrDefault(ThemeMode.SYSTEM)
         set(v) { sp.edit().putString("themeMode", v.name).apply() }
 
@@ -63,7 +63,7 @@ class Prefs(context: Context) {
     val lastOk: Boolean get() = sp.getBoolean("lastOk", false)
 
     val log: List<String>
-        get() = (sp.getString("log", "") ?: "").split("\n").filter { it.isNotBlank() }
+        get() = sp.getString("log", "").orEmpty().split("\n").filter { it.isNotBlank() } // v149: orEmpty()
 
     // v38 (permintaan user: tampilkan run ini dipicu oleh apa — Manual/Otomatis): parameter
     // `trigger` WAJIB diisi eksplisit di semua call site (sengaja tanpa default value, biar tak
