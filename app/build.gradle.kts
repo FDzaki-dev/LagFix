@@ -81,6 +81,9 @@ dependencies {
     // (ShizukuGateway) — mockito-core tetap dipakai utk mock() non-static ini.
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.mockito:mockito-core:5.23.0")
+    // v148 (adaptasi Boomly Batch 201): ArchUnit utk `ArchitectureTest` (REPORT-ONLY, tak pernah menggagalkan tes; laporan
+    // ke app/build/reports/archunit/archunit-report.txt dibaca workflow `android-artifact.yml`). Hanya classpath tes.
+    testImplementation("com.tngtech.archunit:archunit:1.3.0")
 }
 
 // F1 (PENDING_ROADMAP.md, CI hardening): static analysis Kotlin. v88: BLOCKING (perintah user;
@@ -98,5 +101,26 @@ tasks.withType<Detekt>().configureEach {
     jvmTarget = "17"
     reports {
         html.required.set(true)
+        // v148: xml (dibaca workflow `android-artifact.yml` utk ringkasan) & txt (dibaca manusia) dinyalakan eksplisit,
+        // tak bergantung default plugin. Hanya menambah berkas laporan; aturan & gerbang BLOCKING tak berubah.
+        xml.required.set(true)
+        txt.required.set(true)
     }
+}
+
+// v148 (adaptasi Boomly Batch 164): jaring TAMBAHAN type-resolution HANYA utk task `detektDebug` (dijalankan workflow laporan
+// NON-BLOCKING, bukan gerbang `build.yml`). `config/detekt/detekt-typed.yml` digabung DI ATAS `detekt.yml` (rule lama tetap
+// aktif); task `detekt` polos (gerbang BLOCKING) TIDAK membaca file itu, jadi temuan/salah ketik di sana tak bisa
+// membuat build merah.
+tasks.withType<Detekt>().matching { it.name == "detektDebug" }.configureEach {
+    config.setFrom(
+        rootProject.file("config/detekt/detekt.yml"),
+        rootProject.file("config/detekt/detekt-typed.yml"),
+    )
+}
+
+// v148 (adaptasi Boomly Batch 201): SpotBugs REPORT-ONLY. Skrip HANYA di-apply bila `-Plagfix.spotbugs=true` (workflow
+// `android-artifact.yml`); build/rilis/lint/detekt/tes biasa tak memuatnya sama sekali.
+if (providers.gradleProperty("lagfix.spotbugs").orNull == "true") {
+    apply(from = rootProject.file("config/spotbugs/spotbugs.gradle.kts"))
 }

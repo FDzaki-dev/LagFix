@@ -1,0 +1,90 @@
+# v148 — jaring TAMBAHAN detekt untuk LagFix, HANYA dipakai task `detektDebug` (type-resolution) di workflow laporan
+# `android-artifact.yml` (adaptasi `config/detekt/detekt-typed.yml` Boomly Batch 164 + rule non-default dari
+# `config/detekt/detekt.yml` Boomly Batch 142).
+#
+# Digabung DI ATAS `config/detekt/detekt.yml` lewat `tasks.withType<Detekt>` di `app/build.gradle.kts` (hanya task bernama
+# `detektDebug`). Gerbang BLOCKING `build.yml` menjalankan `gradle detekt` polos dan TIDAK membaca file ini, jadi salah
+# ketik / temuan di sini TIDAK bisa membuat build merah — hanya `detektDebug` yang gagal (jadi `NOT VERIFIED` /
+# temuan di `laporan-untuk-claude.txt`). Ruleset dasar tetap `buildUponDefaultConfig = true` (strict, tak dilonggarkan).
+#
+# Isi = (1) rule yang butuh type-resolution [TR] (di `detekt` polos diam-diam tidak jalan, di sini jalan) dan (2) rule
+# yang bawaan-detekt-nya MATI tetapi dipakai Boomly sebagai jaring bug. Kandidat promosi ke gerbang BLOCKING = batch
+# tersendiri atas perintah user setelah laporan menunjukkan 0 temuan untuk rule itu.
+# Tidak diduplikasi: ForbiddenImport (sudah di detekt.yml; AsyncTask/GlobalScope juga dijaga ArchUnit
+# `ArchitectureTest`), DefaultLocale/SimpleDateFormat/NewApi/Wakelock/StaticFieldLeak (lint sudah menutup).
+
+potential-bugs:
+  active: true
+  # [TR] cast yang pasti gagal / kode tak terjangkau / catch yang tak mungkin kena
+  UnsafeCast:
+    active: true
+  UnreachableCode:
+    active: true
+  UnreachableCatchBlock:
+    active: true
+  # [TR] hasil fungsi ber-@CheckResult/@CheckReturnValue dibuang
+  IgnoredReturnValue:
+    active: true
+  # [TR] null-handling mubazir = tanda asumsi tipe salah (guard `!!` konstitusi)
+  NullableToStringCall:
+    active: true
+  UnnecessarySafeCall:
+    active: true
+  UnnecessaryNotNullOperator:
+    active: true
+  UnnecessaryNotNullCheck:
+    active: true
+  # properti dipakai SEBELUM dideklarasi (jebakan urutan init)
+  PropertyUsedBeforeDeclaration:
+    active: true
+  UnusedUnaryOperator:
+    active: true
+  # Bawaan detekt MATI, aktif di Boomly (tanpa type-resolution):
+  CastToNullableType:
+    active: true
+  ExitOutsideMain:
+    active: true
+  MapGetWithNotNullAssertionOperator:
+    active: true
+  MissingPackageDeclaration:
+    active: true
+  UnconditionalJumpStatementInLoop:
+    active: true
+
+# [TR] Thread.sleep di dalam coroutine (blocking thread, bukan delay) — guard Thread Safety/Battery.
+# GlobalCoroutineUsage: bawaan MATI; GlobalScope tanpa impor eksplisit tetap tertangkap.
+coroutines:
+  active: true
+  SleepInsteadOfDelay:
+    active: true
+  GlobalCoroutineUsage:
+    active: true
+
+exceptions:
+  active: true
+  NotImplementedDeclaration:
+    active: true
+  ObjectExtendsThrowable:
+    active: true
+  ThrowingExceptionInMain:
+    active: true
+
+# Guard Compose/Battery: boxing array primitif, forEach pada range, objek sementara mubazir ([TR] semua).
+performance:
+  active: true
+  ArrayPrimitive:
+    active: true
+  ForEachOnRange:
+    active: true
+  UnnecessaryTemporaryInstantiation:
+    active: true
+
+style:
+  active: true
+  # Import mati (kotlinc tidak memperingatkan). Operator delegasi `getValue`/`setValue` diabaikan rule ini;
+  # kalau malah ter-flag = false positive rule -> cabut UnusedImports di sini, JANGAN hapus import-nya.
+  UnusedImports:
+    active: true
+  # Sisa penanda TODO:/FIXME:/STOPSHIP: di source (backlog = PROJECT_STATE.md, bukan komentar kode).
+  ForbiddenComment:
+    active: true

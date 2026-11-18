@@ -9,10 +9,33 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # v148 (adaptasi Boomly Batch 320): label DIPIN ke `ubuntu-24.04` (bukan `ubuntu-latest`). GitHub memindah
+    # `ubuntu-latest` ke Ubuntu 26.04 bertahap 19 Okt - 19 Nov 2026 (runner-images#14748); image 26.04 membawa JDK/SDK/tool
+    # berbeda dari image yang menghasilkan run hijau. Pindah ke `ubuntu-26.04` = batch terpisah, diuji dulu.
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      # v148: actions dinaikkan ke major yang sudah berjalan hijau di CI Boomly (checkout@v7, setup-java@v6,
+      # upload-artifact@v7, action-gh-release@v3; runtime Node baru). Tag/nama rilis & nama artifact TIDAK berubah.
+      - uses: actions/checkout@v7
+
+      # v148 (adaptasi Boomly Batch 65): "Stale Run Guard" — cegah run usang (commit main sudah maju lagi) mem-publish rilis
+      # dari kode lama. Kasus nyata: 2 push Termux beruntun -> run PERTAMA (SHA lama) lambat, run KEDUA (SHA baru) selesai &
+      # rilis duluan, run PERTAMA lanjut & membuat rilis `build-N` baru berisi kode LAMA (updater in-app membaca `latest`).
+      # `git ls-remote` (bukan `origin/main` lokal: checkout default SHALLOW) bertanya langsung ke server. Ditaruh PALING AWAL
+      # supaya run usang berhenti secepat mungkin. Gagal ambil SHA remote = guard dilewati (peringatan), bukan gagal.
+      - name: Stale Run Guard
+        run: |
+          REMOTE_MAIN_SHA=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [ -z "$REMOTE_MAIN_SHA" ]; then
+            echo "::warning::Tidak bisa ambil SHA remote main (network/repo issue?) - guard dilewati, lanjut build."
+          elif [ "$GITHUB_SHA" != "$REMOTE_MAIN_SHA" ]; then
+            echo "::error::Stale run terdeteksi - GITHUB_SHA ($GITHUB_SHA) sudah bukan HEAD main lagi (HEAD sekarang: $REMOTE_MAIN_SHA). Run ini dibatalkan supaya tidak publish rilis untuk commit yang sudah usang."
+            exit 1
+          else
+            echo "OK - GITHUB_SHA sama dengan HEAD main ($GITHUB_SHA)."
+          fi
+
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
@@ -20,6 +43,7 @@ jobs:
         with:
           gradle-version: "8.9"
       - name: Unit test
+        id: unit_test
         run: |
           set -o pipefail
           gradle --no-daemon --stacktrace testDebugUnitTest 2>&1 | tee build_output.log
@@ -108,14 +132,15 @@ jobs:
       # LagFix_build_fail_log_<run>.txt + lint_detekt/ (laporan lint & detekt).
       - name: Unggah log kegagalan
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: LagFix-fail-log-${{ github.run_number }}
           path: logs/
+          retention-days: 14
 
       - name: Unggah APK (artifact)
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: LagFix-apk
           path: app/build/outputs/apk/**/*.apk
@@ -129,7 +154,7 @@ jobs:
       - name: Unggah laporan lint & detekt (artifact)
         if: success()
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: LagFix-lint-detekt-${{ github.run_number }}
           path: logs/lint_detekt/
@@ -147,14 +172,54 @@ jobs:
           cp "$APK_SRC" "dist/LagFix_build-${{ github.run_number }}_${APK_KIND}.apk"
 
       # Pathway GitHub Release: tag & nama rilis dari run_number yang sama dengan log_fail agar mudah ditelusuri.
+      # v148 (adaptasi Boomly Batch 236): satu-satunya jalur publish dulu = action; galat sisi GitHub (mis. `GitHub release
+      # failed with status: 500`, body kosong) = build sukses tapi TAK ada rilis. Kini action berstatus `continue-on-error` dan,
+      # bila gagal, step cadangan `gh release create` mencoba sampai 5x dgn jeda bertahap (20/40/60/80 dtk). Release yang
+      # terlanjur separuh jadi (ada, tanpa APK) dilengkapi lewat `gh release upload --clobber`. Bila cadangan pun habis, run
+      # GAGAL (merah): kegagalan TIDAK disembunyikan. APK sudah ada di artifact `LagFix-apk` SEBELUM step ini (jalur rilis
+      # tak bisa menghilangkannya). Tag `build-<run_number>`, nama rilis, nama berkas APK & status `latest` TIDAK berubah
+      # (dibaca updater in-app).
       - name: Buat GitHub Release
+        id: release
         if: success()
-        uses: softprops/action-gh-release@v2
+        continue-on-error: true
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: build-${{ github.run_number }}
           name: "LagFix build ${{ github.run_number }}"
           make_latest: true
           files: dist/*.apk
+
+      - name: Buat GitHub Release (cadangan gh CLI)
+        id: release_fallback
+        if: success() && steps.release.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: build-${{ github.run_number }}
+          TITLE: "LagFix build ${{ github.run_number }}"
+        run: |
+          APK_FILES=(dist/*.apk)
+          ok=0
+          for attempt in 1 2 3 4 5; do
+            echo "Cadangan publish Release: percobaan $attempt/5 (tag $TAG)"
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              # Release sudah terbentuk separuh (action membuatnya tetapi unggah APK gagal): lengkapi asetnya saja.
+              if gh release upload "$TAG" "${APK_FILES[@]}" --clobber && gh release edit "$TAG" --latest; then ok=1; fi
+            else
+              if gh release create "$TAG" "${APK_FILES[@]}" --title "$TITLE" --target "$GITHUB_SHA" --latest --notes ""; then ok=1; fi
+            fi
+            if [ "$ok" = "1" ]; then break; fi
+            if [ "$attempt" -lt 5 ]; then
+              echo "Gagal; tunggu $((attempt * 20)) dtk sebelum mencoba lagi"
+              sleep $((attempt * 20))
+            fi
+          done
+          if [ "$ok" != "1" ]; then
+            echo "::error::Release TIDAK berhasil dipublish (action + 5 percobaan cadangan). APK tetap tersedia di artifact LagFix-apk pada run ini."
+            exit 1
+          fi
+          echo "Release dipublish lewat jalur cadangan (tag $TAG)."
 
       # Pathway APK debug -> artifact GitHub (v41, utk diagnosis logcat): SENGAJA di PALING AKHIR
       # & terpisah total dari jalur rilis (dir dist_debug, BUKAN dist; 0 masuk GitHub Release, jadi
@@ -193,15 +258,51 @@ jobs:
           fi
       - name: Unggah APK debug (artifact)
         if: steps.debug_pack.outcome == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: LagFix-debug-apk-${{ github.run_number }}
           path: dist_debug/LagFix_build-${{ github.run_number }}_debug.apk
           if-no-files-found: error
       - name: Unggah log gagal build debug
         if: steps.debug_build.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: LagFix-debug-fail-log-${{ github.run_number }}
           path: debug_build_output.log
+          retention-days: 14
           if-no-files-found: ignore
+
+      # v148 (adaptasi Boomly `Publish build summary`): ringkasan run di tab Summary. 100% aditif, `continue-on-error`, jalan
+      # SETELAH semua jalur rilis/artifact -> tak bisa menunda atau menggagalkan rilis. `outcome` = hasil mentah step.
+      - name: Publish build summary
+        if: always()
+        continue-on-error: true
+        env:
+          TAG: build-${{ github.run_number }}
+          RELEASE_OUTCOME: ${{ steps.release.outcome }}
+          FALLBACK_OUTCOME: ${{ steps.release_fallback.outcome }}
+          UNIT_OUTCOME: ${{ steps.unit_test.outcome }}
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+          DETEKT_OUTCOME: ${{ steps.detekt.outcome }}
+          DEBUG_OUTCOME: ${{ steps.debug_build.outcome }}
+        run: |
+          {
+            echo "## LagFix - Build ${{ github.run_number }}"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| **Commit** | \`$(git rev-parse --short HEAD)\` |"
+            echo "| **Trigger** | ${{ github.event_name }} oleh @${{ github.actor }} |"
+            echo "| **Pesan commit** | $(git log -1 --pretty=%s | tr '|' '/' | cut -c1-120) |"
+            echo "| **Tes unit** | ${UNIT_OUTCOME:-n/a} |"
+            echo "| **Gerbang BLOCKING** | lintDebug=${LINT_OUTCOME:-n/a} detekt=${DETEKT_OUTCOME:-n/a} |"
+            if [ "$RELEASE_OUTCOME" = "success" ] || [ "$FALLBACK_OUTCOME" = "success" ]; then
+              echo "| **Release** | [Lihat di GitHub Releases](${{ github.server_url }}/${{ github.repository }}/releases/tag/${TAG}) |"
+            elif [ "$RELEASE_OUTCOME" = "failure" ]; then
+              echo "| **Release** | GAGAL dipublish (galat API GitHub) - APK ada di artifact \`LagFix-apk\` pada run ini |"
+            else
+              echo "| **Release** | tidak dipublish - cek step yang gagal di atas |"
+            fi
+            echo "| **APK debug (artifact)** | ${DEBUG_OUTCOME:-n/a} |"
+            echo "| **Laporan Claude** | workflow \"Android CI Artifact for Claude\" (paralel, artifact \`LagFix_laporan-untuk-claude_run<N>\`) |"
+          } >> "$GITHUB_STEP_SUMMARY"

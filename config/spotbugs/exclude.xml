@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- v148 — filter SpotBugs REPORT-ONLY untuk LagFix (adaptasi `config/spotbugs/exclude.xml` Boomly Batch 201/203/205/258).
+     Prinsip konstitusi: buang false positive TANPA menyembunyikan bug nyata; tampilkan hanya yang actionable.
+     Hanya dibawa ke LagFix blok yang penyebabnya MEKANISME kompilator Kotlin/Compose (tak bisa jadi bug nyata di kode
+     sendiri), terbukti di laporan CI Boomly. Dipakai hanya lewat `gradle spotbugsDebug -Plagfix.spotbugs=true`
+     (workflow `android-artifact.yml`); build/rilis biasa dan gerbang lint+detekt tidak menyentuh file ini.
+
+     SENGAJA TIDAK dibawa (hasil triase Boomly = khusus kode Boomly; di LagFix BELUM ada laporan yang membuktikannya,
+     jadi tetap DILAPORKAN sampai laporan CI LagFix pertama ditriase satu per satu):
+       NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE (bisa menutupi null-deref nyata dari API Android),
+       ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD, SA_FIELD_SELF_ASSIGNMENT, DMI_RANDOM_USED_ONLY_ONCE,
+       NP_LOAD_OF_KNOWN_NULL_VALUE, NP_NONNULL_PARAM_VIOLATION (semuanya diperiksa per kelas/baris di Boomly).
+     Pola tidak disaring (mis. DE_*, RV_*, DM_*, IS2_*, MS_*) TETAP dilaporkan. Hapus satu blok `<Match>` untuk
+     memulihkan pattern-nya. -->
+<FindBugsFilter>
+    <!-- Kelas hasil generator: resource R, singleton Compose, lambda/inline sintetis. -->
+    <Match>
+        <Class name="~.*\.R(\$.*)?"/>
+    </Match>
+    <Match>
+        <Class name="~.*ComposableSingletons.*"/>
+    </Match>
+    <Match>
+        <Class name="~.*\$\$inlined\$.*"/>
+    </Match>
+    <Match>
+        <Class name="~.*\$\$ExternalSyntheticLambda.*"/>
+    </Match>
+
+    <!-- Null-check yang disisipkan kompilator Kotlin (Intrinsics.checkNotNull*) dibaca sebagai "redundant". -->
+    <Match>
+        <Bug pattern="RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE,RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"/>
+    </Match>
+
+    <!-- Store lokal "mati" hasil ekspansi fungsi inline / destructuring Kotlin. -->
+    <Match>
+        <Bug pattern="DLS_DEAD_LOCAL_STORE,DLS_DEAD_LOCAL_STORE_OF_NULL"/>
+    </Match>
+
+    <!-- Lambda/objek anonim Kotlin yang menangkap `this`, data class yang mengembalikan List/array apa adanya,
+         properti `lateinit`. -->
+    <Match>
+        <Bug pattern="SIC_INNER_SHOULD_BE_STATIC_ANON,SIC_INNER_SHOULD_BE_STATIC,SIC_INNER_SHOULD_BE_STATIC_NEEDS_THIS"/>
+    </Match>
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Bug pattern="UWF_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR"/>
+    </Match>
+
+    <!-- Cast generik hasil `as`/smart-cast di lambda Compose. -->
+    <Match>
+        <Bug pattern="BC_UNCONFIRMED_CAST,BC_UNCONFIRMED_CAST_OF_RETURN_VALUE"/>
+    </Match>
+
+    <!-- Metode privat yang hanya dipanggil dari lambda/akses sintetis. -->
+    <Match>
+        <Bug pattern="UPM_UNCALLED_PRIVATE_METHOD"/>
+    </Match>
+
+    <!-- Parameter `$composer: Composer?` hasil Compose compiler terbaca "nullable tapi tak dicek". Kotlin murni tidak
+         bisa menghasilkan pola ini dari kode sendiri (param nullable tanpa cek = galat kompilasi). -->
+    <Match>
+        <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>
+    </Match>
+
+    <!-- `instanceof` dan cast koleksi di dalam fungsi inline Compose/stdlib: lokasinya isi fungsi inline dari berkas
+         lain, bukan kode proyek. -->
+    <Match>
+        <Bug pattern="BC_VACUOUS_INSTANCEOF,BC_BAD_CAST_TO_ABSTRACT_COLLECTION"/>
+    </Match>
+
+    <!-- Fungsi `@Composable` wajib PascalCase (konvensi Compose). detekt LagFix sudah mengatur FunctionNaming. -->
+    <Match>
+        <Bug pattern="NM_METHOD_NAMING_CONVENTION"/>
+    </Match>
+
+    <!-- Mask `$default`/`$changed` di tanda tangan fungsi Composable hasil Compose compiler. -->
+    <Match>
+        <Bug pattern="BIT_AND_ZZ"/>
+    </Match>
+
+    <!-- Field `$stable` yang disisipkan Compose compiler tiap kelas dibaca "tak pernah dibaca". Hanya field bernama
+         `$stable`: UUF lain (bila ada) TETAP dilaporkan. -->
+    <Match>
+        <Bug pattern="UUF_UNUSED_PUBLIC_OR_PROTECTED_FIELD"/>
+        <Field name="$stable"/>
+    </Match>
+</FindBugsFilter>
