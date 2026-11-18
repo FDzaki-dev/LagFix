@@ -35,7 +35,7 @@ PRIORITY: P0 STABILITAS + ZERO-REGRESI > USER INTENT + ZIP/SOURCE > PROJECT_STAT
 - Minimum scope: UI task = UI only; Logic = logic minimum; Bug = root-cause minimum. Pertahankan navigasi, persistensi, izin, package identity, signing.
 - Rantai validasi: Syntax -> Build -> Affected behavior (bukti minimum per jenis task) -> Regression -> Package integrity -> Docs. Compile-success BUKAN bukti zero-regresi. Sandbox tanpa Gradle/SDK -> nyatakan jujur BELUM dikompilasi/diuji.
 - Jalur pengamat guard = `lintDebug` + `detekt` SAJA (keputusan user v103). Dilarang klaim guard "terverifikasi" tanpa keluaran alat; guard yang tak teramati keduanya dipegang saat menulis kode, bukan jadi gerbang atau antrean. Ubah aturan/konfigurasi lint-detekt = batch sendiri atas perintah user.
-- STRICT LINT & DETEKT: CI (build.yml) BLOCKING (keputusan user v88): lintDebug + detekt maxIssues 0 wajib hijau sebelum APK. Dilarang: kembali non-blocking, baseline, @Suppress massal tanpa alasan tertulis.
+- LINT & DETEKT (keputusan user v151, menggantikan v88): lintDebug + detekt + detektDebug HANYA di workflow `android-artifact.yml` (NON-BLOCKING), hasil lengkap dalam SATU berkas `laporan-untuk-claude.txt`; `build.yml` = tes unit + build saja. Dilarang: mengembalikan lint/detekt ke build.yml tanpa perintah user, baseline, @Suppress massal tanpa alasan tertulis. Temuan laporan tetap wajib diperbaiki di sumbernya.
 
 ## GIT / CI / R8
 - Git mengikuti ZIP. Dilarang git push --force. git commit -m: 1 baris terkuotasi, [Deskripsi Perubahan] = berkas/komponen aktual.

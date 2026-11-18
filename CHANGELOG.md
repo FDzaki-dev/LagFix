@@ -1,5 +1,12 @@
 # Changelog
 
+## v151
+- Lint dan detekt dipindah total dari `build.yml` ke workflow laporan `android-artifact.yml` (perintah user). `build.yml` kini hanya menjalankan tes unit dan build; gerbang lint+detekt yang memblokir build dihapus, begitu juga artifact `LagFix-lint-detekt`. Log kegagalan `build.yml` kini hanya berisi galat tes/build.
+- Artifact laporan kini satu berkas `laporan-untuk-claude.txt` yang lengkap: penanda proyek, data lingkungan runner (JDK, Gradle, platform SDK, versi AGP/Kotlin/SDK), ArchUnit, SpotBugs, detekt, detekt typed, dan lint dengan rincian penuh (bukan lagi kutipan), tes unit beserta stack tes yang gagal, peringatan kompilator Kotlin, pesan deprecated dari Gradle/AGP/plugin, dan hasil `assembleDebug`. Cukup unggah satu berkas ini ke Claude. Perakit laporan dipindah ke `.github/scripts/laporan-untuk-claude.sh` dan sudah diuji lokal dengan berkas tiruan.
+- Deprecated: `MainViewModel.checkUpdate` memakai `PackageInfoCompat.getLongVersionCode` sehingga satu `@Suppress("DEPRECATION")` untuk `versionCode` hilang (nilai sama). Dua `getRunningServices` di `ProcessCatcher` dan `LogcatSnapshot` tetap, karena tidak ada API pengganti untuk membaca layanan milik sendiri. `gradle/actions/setup-gradle` dinaikkan dari v4 (Node.js 20, anotasi deprecated di tiap run) ke v5 di kedua workflow.
+- Lint: `GradleDependency` dan `OldTargetApi` dikembalikan dari `ignore` ke `informational` supaya tampil apa adanya di laporan. Naik versi library dan targetSdk belum dilakukan: rilis terbaru lifecycle butuh compileSdk 37 dan AGP 9.2 ke atas, jadi itu migrasi toolchain tersendiri.
+- Tidak ada perubahan tampilan. Belum dijalankan di CI.
+
 ## v150
 - Build v149 gagal di gerbang detekt: aturan `ThrowsCount` menolak fungsi `download` di `UpdateChecker` karena v149 menambah satu `throw` sehingga jadi tiga (maksimal dua). Pembuatan folder unduhan dan pengecekan kode HTTP kini dipindah ke dua fungsi privat (`prepareUpdateDir`, `ensureHttpOk`). Urutan langkah, pesan galat, dan perilaku unduhan sama seperti v149.
 - Laporan CI run 2: ArchUnit lulus (0 pelanggaran), tes unit lulus (122 tes), peringatan kompilator Kotlin 0. SpotBugs turun dari 40 ke 1 temuan; sisanya (`PersistentTrimService.kt:116`) lolos dari filter karena letaknya di kelas lambda, bukan di kelas utama; filter kini mencakup kelas dalam. `PersistentTrimService` tidak diubah.

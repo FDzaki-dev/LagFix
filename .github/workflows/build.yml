@@ -39,7 +39,9 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - uses: gradle/actions/setup-gradle@v4
+      # v151: setup-gradle v4 = Node.js 20 (anotasi "Node.js 20 actions are deprecated" di tiap run). v5 = Node 24, tanpa
+      # syarat lisensi baru (v6 mewajibkan menerima Terms of Use komponen caching) -> pilih v5.
+      - uses: gradle/actions/setup-gradle@v5
         with:
           gradle-version: "8.9"
       - name: Unit test
@@ -48,56 +50,10 @@ jobs:
           set -o pipefail
           gradle --no-daemon --stacktrace testDebugUnitTest 2>&1 | tee build_output.log
 
-      # F1 (PENDING_ROADMAP.md): lint (Android, bawaan AGP) + detekt (static analysis Kotlin).
-      # v88 (perintah user: "lintDebug/detekt tolong diperketat"): BLOCKING. Step Lint & Detekt
-      # memakai continue-on-error HANYA supaya KEDUANYA selalu jalan & semua temuan terlihat dalam
-      # satu run; keputusan gagal dipegang step "Gerbang lint & detekt" di bawah (exit 1 bila salah
-      # satunya `failure`) -> build MERAH SEBELUM step Build/Release (0 APK/rilis dari kode yg
-      # melanggar). Merah di awal DISENGAJA (backlog temuan lama belum ditriase); jangan kembalikan
-      # ke non-blocking tanpa perintah user. Warning lint dihitung error: lihat `lint {}` di
-      # app/build.gradle.kts. detekt: ruleset default, maxIssues 0 (detekt.yml hanya override minimum).
-      # v52: lint & detekt DIPISAH jadi 2 step (dulu satu command `gradle lintDebug detekt` tanpa
-      # --continue: kegagalan task pertama menghentikan task kedua & menutupi penyebabnya). Log
-      # mentah tiap step disimpan (tee) lalu dimasukkan ke log kegagalan (step "Simpan log
-      # kegagalan").
-      # v92 (permintaan user: "disatukan pathway lintdebug/detekt dengan log failure biar gak
-      # double unduhan"): laporan lint & detekt TIDAK lagi diunggah sbg artifact terpisah
-      # (`LagFix-lint-detekt-report-<run>` dihapus). Semuanya masuk SATU artifact
-      # `LagFix-fail-log-<run>` (hanya saat build gagal): file `LagFix_build_fail_log_<run>.txt`
-      # di root + folder `lint_detekt/` (laporan detekt, file lint-results*, listing).
-      - name: Lint
-        id: lint
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          gradle --no-daemon --stacktrace lintDebug 2>&1 | tee lint_output.log
-      - name: Detekt
-        id: detekt
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          gradle --no-daemon --stacktrace detekt 2>&1 | tee detekt_output.log
-      # Kumpulkan ke logs/lint_detekt (if: always): log mentah, laporan detekt, semua file
-      # lint-results* yg ada di mana pun di app/build (path asli terbaca juga dari lint_output.log),
-      # daftar semua nama file ber-"lint" (hanya nama), dan listing app/build/reports.
-      # Folder ini diunggah BERSAMA log kegagalan (step "Unggah log kegagalan" di bawah).
-      - name: Kumpulkan laporan lint & detekt
-        if: always()
-        run: |
-          mkdir -p logs/lint_detekt
-          cp lint_output.log detekt_output.log logs/lint_detekt/ 2>/dev/null || true
-          cp -r app/build/reports/detekt logs/lint_detekt/ 2>/dev/null || true
-          find app/build -iname '*lint*' > logs/lint_detekt/lint_files_found.txt 2>&1 || true
-          find app/build -iname 'lint-results*' -type f -exec cp --parents {} logs/lint_detekt/ \; 2>/dev/null || true
-          ls -laR app/build/reports > logs/lint_detekt/reports_listing.txt 2>&1 || true
-
-      # v88: gerbang BLOCKING. `outcome` = hasil mentah step (tidak terpengaruh continue-on-error).
-      - name: Gerbang lint & detekt (BLOCKING)
-        if: ${{ steps.lint.outcome == 'failure' || steps.detekt.outcome == 'failure' }}
-        run: |
-          echo "lint=${{ steps.lint.outcome }} detekt=${{ steps.detekt.outcome }}"
-          echo "Build dihentikan: temuan lint/detekt wajib diperbaiki (rincian: artifact LagFix-fail-log-<run>: log kegagalan + folder lint_detekt/)."
-          exit 1
+      # v151 (perintah user: "pindahkan total lintdebug/detekt ke workflow artifact for Claude biar simple"): step Lint,
+      # Detekt, pengumpul laporan, dan gerbang BLOCKING lint+detekt (v88) DIHAPUS dari workflow ini. lintDebug + detekt +
+      # detektDebug kini HANYA jalan di `android-artifact.yml` (non-blocking) dan hasilnya lengkap di SATU berkas
+      # `laporan-untuk-claude.txt`. Gerbang build.yml = tes unit + build (APK/rilis) saja.
 
       - name: Decode keystore
         env:
@@ -121,15 +77,12 @@ jobs:
           mkdir -p logs
           OUT="logs/LagFix_build_fail_log_${{ github.run_number }}.txt"
           : > "$OUT"
-          # v88: lint & detekt kini blocking -> log-nya WAJIB ikut (dulu hanya build_output.log,
-          # yg pada kegagalan lint/detekt cuma berisi log Unit test yg hijau). Urutan = urutan pipeline.
-          for f in build_output.log lint_output.log detekt_output.log; do
+          # v151: lint/detekt tak lagi di workflow ini (lihat android-artifact.yml) -> log kegagalan = log tes/build saja.
+          for f in build_output.log; do
             if [ -f "$f" ]; then { echo "===== $f ====="; cat "$f"; echo; } >> "$OUT"; fi
           done
-          LINT_TXT="$(find app/build -name 'lint-results-debug.txt' -type f 2>/dev/null | head -n 1)"
-          if [ -n "$LINT_TXT" ]; then { echo "===== $LINT_TXT ====="; cat "$LINT_TXT"; } >> "$OUT"; fi
-      # v92: SATU artifact utk semuanya. path = folder logs/ -> root artifact berisi
-      # LagFix_build_fail_log_<run>.txt + lint_detekt/ (laporan lint & detekt).
+      # v92: SATU artifact. v151: isinya hanya LagFix_build_fail_log_<run>.txt (galat tes/build); analisis statis lengkap
+      # ada di artifact workflow laporan (`LagFix_laporan-untuk-claude_run<N>`).
       - name: Unggah log kegagalan
         if: failure()
         uses: actions/upload-artifact@v7
@@ -144,21 +97,6 @@ jobs:
         with:
           name: LagFix-apk
           path: app/build/outputs/apk/**/*.apk
-
-      # v106 (laporan user: "artefak GitHub hanya mengunggah zip aplikasi, lintdebug/detekt kosong"):
-      # saat build HIJAU laporan lint & detekt (folder logs/lint_detekt dari step "Kumpulkan" di atas)
-      # kini ikut diunggah sbg artifact tersendiri. Hanya if: success(): jalur GAGAL tetap SATU artifact
-      # `LagFix-fail-log-<run>` (v92, tanpa unduhan ganda) dan tak diubah. Nama beda dari artifact v92
-      # yg dihapus. Isi saat hijau = log mentah + laporan; kecil/ringkas karena 0 temuan blocking.
-      # continue-on-error: kegagalan unggah laporan TAK boleh menghentikan jalur rilis di bawahnya.
-      - name: Unggah laporan lint & detekt (artifact)
-        if: success()
-        continue-on-error: true
-        uses: actions/upload-artifact@v7
-        with:
-          name: LagFix-lint-detekt-${{ github.run_number }}
-          path: logs/lint_detekt/
-          if-no-files-found: warn
 
       # Asset rilis WAJIB nama unik per build (bukan "app-release.apk"/"app-debug.apk" generik dari Gradle):
       # nama generik yg sama di tiap rilis bikin browser nabrak nama saat unduh berkali-kali
@@ -282,8 +220,6 @@ jobs:
           RELEASE_OUTCOME: ${{ steps.release.outcome }}
           FALLBACK_OUTCOME: ${{ steps.release_fallback.outcome }}
           UNIT_OUTCOME: ${{ steps.unit_test.outcome }}
-          LINT_OUTCOME: ${{ steps.lint.outcome }}
-          DETEKT_OUTCOME: ${{ steps.detekt.outcome }}
           DEBUG_OUTCOME: ${{ steps.debug_build.outcome }}
         run: |
           {
@@ -295,7 +231,6 @@ jobs:
             echo "| **Trigger** | ${{ github.event_name }} oleh @${{ github.actor }} |"
             echo "| **Pesan commit** | $(git log -1 --pretty=%s | tr '|' '/' | cut -c1-120) |"
             echo "| **Tes unit** | ${UNIT_OUTCOME:-n/a} |"
-            echo "| **Gerbang BLOCKING** | lintDebug=${LINT_OUTCOME:-n/a} detekt=${DETEKT_OUTCOME:-n/a} |"
             if [ "$RELEASE_OUTCOME" = "success" ] || [ "$FALLBACK_OUTCOME" = "success" ]; then
               echo "| **Release** | [Lihat di GitHub Releases](${{ github.server_url }}/${{ github.repository }}/releases/tag/${TAG}) |"
             elif [ "$RELEASE_OUTCOME" = "failure" ]; then
@@ -304,5 +239,5 @@ jobs:
               echo "| **Release** | tidak dipublish - cek step yang gagal di atas |"
             fi
             echo "| **APK debug (artifact)** | ${DEBUG_OUTCOME:-n/a} |"
-            echo "| **Laporan Claude** | workflow \"Android CI Artifact for Claude\" (paralel, artifact \`LagFix_laporan-untuk-claude_run<N>\`) |"
+            echo "| **Laporan Claude** | workflow \"Android CI Artifact for Claude\" (paralel; lint + detekt + SpotBugs + ArchUnit + tes + deprecated dalam 1 berkas, artifact \`LagFix_laporan-untuk-claude_run<N>\`) |"
           } >> "$GITHUB_STEP_SUMMARY"

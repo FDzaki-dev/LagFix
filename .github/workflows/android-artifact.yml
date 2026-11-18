@@ -1,33 +1,32 @@
 name: Android CI Artifact for Claude
 
-# v148 — adaptasi `.github/workflows/android-artifact.yml` Boomly (Batch 199/201) ke LagFix.
-# Menghasilkan SATU berkas teks ringkas `laporan-untuk-claude.txt` sebagai artifact resmi GitHub
-# (upload-artifact@v7, retensi 7 hari): ArchUnit (`ArchitectureTest`, report-only) + SpotBugs (SARIF) + detekt +
-# detekt typed (`detektDebug`) + lintDebug + tes unit + peringatan kompilator Kotlin, di bawah penanda proyek.
+# v151 — SATU-SATUNYA tempat lint + detekt (perintah user: "pindahkan total lintdebug/detekt ke workflow artifact for
+# Claude biar simple"). Sebelumnya (v88-v150) lintDebug + detekt jadi gerbang BLOCKING di `build.yml`; sejak v151 gerbang itu
+# dihapus dan `build.yml` hanya tes unit + build.
 #
-# Workflow TERPISAH dari `build.yml` (gerbang + rilis): runner sendiri dan berjalan paralel, jadi tidak mengambil
-# jatah waktu build/rilis, dan kegagalan di sini TIDAK memengaruhi APK/Release. Semua langkah analisis di sini
-# NON-BLOCKING; alat yang tak jalan / laporan yang tak terbentuk dicatat `NOT VERIFIED` (alat gagal != lulus) — TIDAK
-# PERNAH "bersih". GERBANG BLOCKING lint+detekt (keputusan user v88) tetap HANYA di `build.yml`; baris lint/detekt di
-# laporan ini = informasi (satu sumber kebenaran untuk Claude), bukan gerbang kedua.
+# Keluaran = SATU berkas `laporan-untuk-claude.txt` (artifact `LagFix_laporan-untuk-claude_run<N>`, retensi 7 hari) yang
+# PAKET KOMPLIT: penanda proyek, data mentah lingkungan (JDK/Gradle/platform SDK runner/versi AGP-Kotlin-SDK), ArchUnit,
+# SpotBugs, detekt + detekt typed + lintDebug LENGKAP (bukan lagi kutipan), tes unit (+ frame stack tes gagal), peringatan
+# kompilator Kotlin, pesan DEPRECATED Gradle/AGP/plugin (`--warning-mode all`), dan hasil `assembleDebug` (galat kompilasi/paket
+# ikut masuk) -> cukup unggah SATU berkas ini ke Claude; `LagFix-fail-log-*` dari build.yml tidak perlu lagi dikirim.
 #
-# Beda dari berkas Boomly (alasan):
-#  - Gradle: LagFix tak menyimpan `gradlew`; `build.yml` memakai `gradle/actions/setup-gradle@v4` (Gradle 8.9) -> langkah
-#    yang SAMA dipakai di sini (`gradle ...`), BUKAN bootstrap wrapper Boomly (mengganti jalur Gradle = di luar planning).
-#  - Varian DEBUG semua (ArchUnit, SpotBugs, detekt, `detektDebug` typed, lintDebug, tes, kompilasi Kotlin): tanpa
-#    keystore/secret.
-#  - SpotBugs lewat `config/spotbugs/spotbugs.gradle.kts` (JavaExec CLI, bukan plugin), di-apply hanya dgn
-#    `-Plagfix.spotbugs=true`; `--no-configuration-cache` utk ArchUnit/SpotBugs.
-#  - ArchUnit = tes `ArchitectureTest` (JUnit polos, selalu menulis laporannya, TIDAK PERNAH menggagalkan tes); status
-#    dibaca dari berkas laporan tesnya, BUKAN grep nama kelas di log.
-#  - Urutan invocation Gradle TERPISAH (kegagalan satu tak menjatuhkan yang lain): detekt+lint, detektDebug (task/rule
-#    typed yang salah tak boleh mematikan yang lama), ArchUnit, SpotBugs, tes unit terakhir.
-#  - Semua invocation `--no-build-cache`: tugas kompilasi dari cache TIDAK mencetak peringatan -> tanpa ini 0
-#    peringatan bisa berarti "dari cache", bukan "bersih". Tak ada tugas `compileDebugKotlin` yang benar-benar
-#    dieksekusi -> peringatan kompilator `NOT VERIFIED`.
-#  - Pemicu: push `main` + manual (selaras `build.yml`). RUN_NUMBER di laporan = counter workflow ini, BUKAN
-#    versionCode APK (itu counter `build.yml`) -> cocokkan build lewat COMMIT.
-#  - Penanda versi di laporan = angka `RESUME POINT: v<N>` di `PROJECT_STATE.md` (LagFix tak punya baris "Batch terakhir").
+# Perakit laporan ada di `.github/scripts/laporan-untuk-claude.sh` (bisa diuji lokal dgn berkas tiruan).
+#
+# Workflow TERPISAH dari `build.yml` (tes + build + rilis): runner sendiri, berjalan paralel, kegagalan di sini TIDAK
+# memengaruhi APK/Release. Semua langkah analisis NON-BLOCKING; alat yang tak jalan / laporan yang tak terbentuk dicatat
+# `NOT VERIFIED` (alat gagal != lulus) — TIDAK PERNAH "bersih".
+#
+# Catatan desain (dibawa dari v148):
+#  - Gradle: LagFix tak menyimpan `gradlew`; langkah yang SAMA dgn `build.yml` (`gradle/actions/setup-gradle`, Gradle 8.9).
+#  - Varian DEBUG semua: tanpa keystore/secret.
+#  - SpotBugs lewat `config/spotbugs/spotbugs.gradle.kts` (JavaExec CLI), di-apply hanya dgn `-Plagfix.spotbugs=true`;
+#    `--no-configuration-cache` utk ArchUnit/SpotBugs.
+#  - ArchUnit = tes `ArchitectureTest` (JUnit polos, selalu menulis laporannya, TIDAK PERNAH menggagalkan tes).
+#  - Urutan invocation Gradle TERPISAH (kegagalan satu tak menjatuhkan yang lain).
+#  - Semua invocation `--no-build-cache` (tugas kompilasi dari cache tidak mencetak peringatan -> 0 peringatan bisa berarti
+#    "dari cache", bukan "bersih"). v151: + `--warning-mode all` supaya pesan deprecated Gradle/AGP/plugin tercetak lengkap.
+#  - Pemicu: push `main` + manual. RUN_NUMBER di laporan = counter workflow ini, BUKAN versionCode APK -> cocokkan lewat COMMIT.
+#  - Penanda versi = angka `RESUME POINT: v<N>` di `PROJECT_STATE.md`.
 
 on:
   push:
@@ -43,9 +42,8 @@ permissions:
 
 jobs:
   report:
-    # v148: label DIPIN ke `ubuntu-24.04` (bukan `ubuntu-latest`) — sama dgn `build.yml`. GitHub memindah `ubuntu-latest` ke
-    # Ubuntu 26.04 bertahap 19 Okt - 19 Nov 2026 (runner-images#14748); image 26.04 membawa JDK/SDK/tool berbeda dari
-    # image yang menghasilkan run hijau. Pindah ke `ubuntu-26.04` = batch terpisah, diuji dulu (satu variabel risiko).
+    # Label DIPIN `ubuntu-24.04` (bukan `ubuntu-latest`) — sama dgn `build.yml` (runner-images#14748). Pindah ke
+    # `ubuntu-26.04` = batch terpisah.
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -58,37 +56,52 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # Sama dengan `build.yml`. `continue-on-error`: gagal di sini -> laporan tetap terbentuk dan memuat `NOT VERIFIED`
-      # + kutipan log ("gradle: command not found" terbaca di gradle-*.log).
+      # v151: setup-gradle v4 = Node.js 20 (anotasi "Node.js 20 actions are deprecated"); v5 = Node 24, tanpa syarat lisensi
+      # baru (v6 mewajibkan menerima Terms of Use komponen caching). `continue-on-error`: gagal di sini -> laporan tetap
+      # terbentuk dan memuat `NOT VERIFIED` + kutipan log.
       - name: Set up Gradle 8.9
         continue-on-error: true
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
         with:
           gradle-version: "8.9"
 
-      # 1. Lima invocation Gradle TERPISAH (kegagalan satu tak menjatuhkan yang lain). Exit code disimpan ke
-      #    berkas; langkah ini SELALU sukses. Urutan: lint/detekt dulu, tes unit terakhir.
-      - name: detekt + lintDebug + detektDebug + ArchUnit + SpotBugs + tes unit (NON-BLOCKING)
+      # 1. Data mentah lingkungan (dibaca perakit laporan). Tak pernah gagal.
+      - name: Catat lingkungan runner
+        if: always()
+        run: |
+          {
+            echo "JAVA=$(java -version 2>&1 | head -n 1)"
+            echo "GRADLE=$(gradle --version 2>/dev/null | grep -m1 '^Gradle ' || echo 'n/a')"
+            echo "SDK_PLATFORMS=$(ls "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/nonexistent}}/platforms" 2>/dev/null | sort -V | tr '\n' ' ')"
+          } > gradle-env.txt
+          cat gradle-env.txt
+          exit 0
+
+      # 2. Enam invocation Gradle TERPISAH. Exit code disimpan ke berkas; langkah ini SELALU sukses.
+      #    Urutan: lint/detekt, detektDebug, ArchUnit, SpotBugs, tes unit, assembleDebug.
+      - name: lintDebug + detekt + detektDebug + ArchUnit + SpotBugs + tes unit + assembleDebug (NON-BLOCKING)
         id: analysis
         continue-on-error: true
         timeout-minutes: 50
         run: |
           set +e
-          gradle detekt lintDebug --continue --no-build-cache > gradle-static.log 2>&1
+          gradle detekt lintDebug --continue --no-build-cache --warning-mode all > gradle-static.log 2>&1
           echo "STATIC_EXIT=$?" > gradle-exit.txt
-          gradle detektDebug --continue --no-build-cache > gradle-typed.log 2>&1
+          gradle detektDebug --continue --no-build-cache --warning-mode all > gradle-typed.log 2>&1
           echo "TYPED_EXIT=$?" >> gradle-exit.txt
-          gradle testDebugUnitTest --tests "com.lagfix.fstrim.ArchitectureTest" --continue --no-build-cache --no-configuration-cache > gradle-arch.log 2>&1
+          gradle testDebugUnitTest --tests "com.lagfix.fstrim.ArchitectureTest" --continue --no-build-cache --no-configuration-cache --warning-mode all > gradle-arch.log 2>&1
           echo "ARCH_EXIT=$?" >> gradle-exit.txt
-          gradle spotbugsDebug -Plagfix.spotbugs=true --no-build-cache --no-configuration-cache > gradle-spotbugs.log 2>&1
+          gradle spotbugsDebug -Plagfix.spotbugs=true --no-build-cache --no-configuration-cache --warning-mode all > gradle-spotbugs.log 2>&1
           echo "SPOTBUGS_EXIT=$?" >> gradle-exit.txt
-          gradle testDebugUnitTest --continue --no-build-cache > gradle-test.log 2>&1
+          gradle testDebugUnitTest --continue --no-build-cache --warning-mode all > gradle-test.log 2>&1
           echo "TEST_EXIT=$?" >> gradle-exit.txt
+          gradle assembleDebug --continue --no-build-cache --warning-mode all > gradle-assemble.log 2>&1
+          echo "ASSEMBLE_EXIT=$?" >> gradle-exit.txt
           cat gradle-exit.txt
           exit 0
 
-      # 2. Rakit laporan ringkas. Status tiap alat HANYA dari berkas laporan yang benar-benar ada.
-      - name: Create Compact Report for Claude
+      # 3. Rakit SATU laporan lengkap. Status tiap alat HANYA dari berkas laporan yang benar-benar ada.
+      - name: Create Complete Report for Claude
         if: always()
         env:
           REPO_NAME: ${{ github.event.repository.name }}
@@ -96,289 +109,14 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           COMMIT_SHA: ${{ github.sha }}
           REF_NAME: ${{ github.ref_name }}
-        run: |
-          set +e
-          DET_XML=app/build/reports/detekt/detekt.xml
-          DETT_XML=$(find app/build/reports/detekt -maxdepth 1 -name '*.xml' ! -name 'detekt.xml' 2>/dev/null | head -n 1)
-          LINT_XML=app/build/reports/lint-results-debug.xml
-          LINT_TXT=app/build/reports/lint-results-debug.txt
-          TEST_DIR=app/build/test-results/testDebugUnitTest
-          ARCH=app/build/reports/archunit/archunit-report.txt
-          SARIF=app/build/reports/spotbugs/spotbugs.sarif
-          STATIC_EXIT=$(sed -n 's/^STATIC_EXIT=//p' gradle-exit.txt 2>/dev/null | head -n 1)
-          TYPED_EXIT=$(sed -n 's/^TYPED_EXIT=//p' gradle-exit.txt 2>/dev/null | head -n 1)
-          TEST_EXIT=$(sed -n 's/^TEST_EXIT=//p' gradle-exit.txt 2>/dev/null | head -n 1)
-          ARCH_EXIT=$(sed -n 's/^ARCH_EXIT=//p' gradle-exit.txt 2>/dev/null | head -n 1)
-          SPOTBUGS_EXIT=$(sed -n 's/^SPOTBUGS_EXIT=//p' gradle-exit.txt 2>/dev/null | head -n 1)
-          STATIC_EXIT=${STATIC_EXIT:-n/a}
-          TYPED_EXIT=${TYPED_EXIT:-n/a}
-          TEST_EXIT=${TEST_EXIT:-n/a}
-          ARCH_EXIT=${ARCH_EXIT:-n/a}
-          SPOTBUGS_EXIT=${SPOTBUGS_EXIT:-n/a}
-          A_VIOL=""
-          : > report-arch.tmp
-          : > report-sarif.tmp
-          : > report-static.tmp
-          : > report-test.tmp
-          : > report-kwarn.tmp
+        run: bash .github/scripts/laporan-untuk-claude.sh
 
-          # Kutipan akar masalah dari log Gradle (tanpa baris stack frame): blok FAILURE/"What went wrong",
-          # baris kompilasi `e:`, task FAILED, lalu ekor log.
-          excerpt() {
-            [ -f "$1" ] || { echo "(log $1 tidak ada)"; return; }
-            echo "-- AKAR MASALAH (kutipan $1) --"
-            sed -n '/^FAILURE:/,/^\* Try:/p' "$1" | grep -v -E '^\s+at ' | head -n 60
-            grep -E '^e: |^> Task .* FAILED|Script compilation error|Could not resolve|Unresolved reference|No such file' "$1" | head -n 30
-            echo "-- EKOR LOG $1 (40 baris terakhir, tanpa stack frame) --"
-            grep -v -E '^\s+at ' "$1" | tail -n 40
-          }
-
-          # detekt_report <label> <xml> <berkas-detail>: cetak 1 baris ringkasan, detail temuan ditambahkan ke
-          # <berkas-detail>. Status 1 = laporan XML tidak ada (NOT VERIFIED).
-          detekt_report() {
-            label="$1"; xml="$2"; out="$3"
-            if [ -n "$xml" ] && [ -f "$xml" ]; then
-              n=$(grep -c '<error ' "$xml" 2>/dev/null)
-              n=${n:-0}
-              if [ "$n" = "0" ]; then
-                echo "$label: LULUS (0 temuan)"
-              else
-                echo "$label: $n temuan"
-                {
-                  echo "$label (maks 60):"
-                  awk 'function dec(x) { gsub(/&quot;/, "\"", x); gsub(/&apos;/, "\047", x); gsub(/&lt;/, "<", x); gsub(/&gt;/, ">", x); gsub(/&amp;/, "\\&", x); return x } /<file name=/ { match($0, /name="[^"]*"/); f = substr($0, RSTART + 6, RLENGTH - 7); sub(/.*\/com\/lagfix\/fstrim\//, "", f) } /<error / { match($0, /line="[0-9]+"/); l = substr($0, RSTART + 6, RLENGTH - 7); match($0, /message="[^"]*"/); m = dec(substr($0, RSTART + 9, RLENGTH - 10)); match($0, /source="[^"]*"/); s = substr($0, RSTART + 8, RLENGTH - 9); print "- " s " @ " f ":" l " - " substr(m, 1, 140) }' "$xml" | head -n 60
-                } >> "$out"
-              fi
-              return 0
-            fi
-            echo "$label: NOT VERIFIED (laporan XML tidak terbentuk; lihat kutipan log)"
-            echo "Laporan XML $label tidak ada." >> "$out"
-            return 1
-          }
-
-          # --- ArchUnit (Batch 201): baris [PASS] dibuang, hanya header + pelanggaran. Status HANYA dari berkas laporan
-          #     yang ditulis `ArchitectureTest` (ARCHUNIT_STATUS=OK); tak ada berkas / status bukan OK -> NOT VERIFIED ---
-          NEED_ARCH_LOG=0
-          if [ -s "$ARCH" ]; then
-            A_STATUS=$(sed -n 's/^ARCHUNIT_STATUS=//p' "$ARCH" | head -n 1)
-            if [ "$A_STATUS" = "OK" ]; then
-              A_VIOL=$(sed -n 's/^VIOLATIONS=//p' "$ARCH" | head -n 1)
-              A_RULES=$(sed -n 's/^RULES=//p' "$ARCH" | head -n 1)
-              if [ "$A_VIOL" = "0" ]; then
-                ARCH_SUMMARY="ArchUnit: LULUS (${A_RULES:-?} aturan, 0 pelanggaran)"
-              else
-                ARCH_SUMMARY="ArchUnit: ${A_VIOL:-?} PELANGGARAN"
-              fi
-            else
-              ARCH_SUMMARY="ArchUnit: NOT VERIFIED (alat gagal jalan)"
-              NEED_ARCH_LOG=1
-            fi
-            grep -v '^\[PASS\] ' "$ARCH" > report-arch.tmp
-          else
-            ARCH_SUMMARY="ArchUnit: NOT VERIFIED (laporan tidak terbentuk: tes dilewati/gagal; lihat kutipan log)"
-            echo "Berkas $ARCH tidak ada." > report-arch.tmp
-            NEED_ARCH_LOG=1
-          fi
-          if [ "$NEED_ARCH_LOG" = "1" ] || [ "$ARCH_EXIT" != "0" ]; then
-            { echo ""; excerpt gradle-arch.log; } >> report-arch.tmp
-          fi
-
-          # --- SpotBugs (SARIF, Batch 201): 1 baris per titik, duplikat digabung "xN" ---
-          NEED_SB_LOG=0
-          if [ -s "$SARIF" ] && jq -e '.runs' "$SARIF" > /dev/null 2>&1 && S_COUNT=$(jq '[.runs[].results[]?] | length' "$SARIF" 2>/dev/null) && [ -n "$S_COUNT" ]; then
-            if [ "$S_COUNT" = "0" ]; then
-              SARIF_SUMMARY="SpotBugs: LULUS (0 temuan)"
-            else
-              SARIF_SUMMARY="SpotBugs: $S_COUNT temuan"
-            fi
-            {
-              if [ "$S_COUNT" -gt 0 ]; then
-                echo "Per aturan (terbanyak dulu):"
-                jq -r '[.runs[].results[]?] | group_by(.ruleId) | map({r: .[0].ruleId, n: length}) | sort_by(-.n)[] | "  \(.n)x \(.r)"' "$SARIF" 2>/dev/null | head -n 40
-                echo ""
-                echo "Titik temuan (noise Kotlin disaring di config/spotbugs/exclude.xml; maks 120):"
-                jq -r '[.runs[].results[]?] | map({k: "\(.ruleId) @ \(.locations[0].physicalLocation.artifactLocation.uri // "?"):\(.locations[0].physicalLocation.region.startLine // 0)"}) | group_by(.k) | map("- \(.[0].k)" + (if length > 1 then " x\(length)" else "" end)) | .[:120][]' "$SARIF" 2>/dev/null
-              fi
-            } > report-sarif.tmp
-          else
-            SARIF_SUMMARY="SpotBugs: NOT VERIFIED (SARIF tidak terbentuk / tidak valid / jq gagal; lihat kutipan log)"
-            echo "Berkas $SARIF tidak ada atau tidak bisa dibaca." > report-sarif.tmp
-            NEED_SB_LOG=1
-          fi
-          if [ "$NEED_SB_LOG" = "1" ] || [ "$SPOTBUGS_EXIT" != "0" ]; then
-            { echo ""; excerpt gradle-spotbugs.log; } >> report-sarif.tmp
-          fi
-
-          # --- detekt polos + detekt typed (detektDebug) + lintDebug ---
-          NEED_STATIC_LOG=0
-          NEED_TYPED_LOG=0
-          DET_SUMMARY=$(detekt_report "detekt" "$DET_XML" report-static.tmp) || NEED_STATIC_LOG=1
-          DETT_SUMMARY=$(detekt_report "detekt typed (detektDebug)" "$DETT_XML" report-static.tmp) || NEED_TYPED_LOG=1
-          DETEKT_TYPED_DIAG=$(grep -h -m1 'DETEKT_TYPED_DIAG' gradle-typed.log 2>/dev/null | head -n 1 | cut -c1-200)
-          DETEKT_TYPED_DIAG=${DETEKT_TYPED_DIAG:-n/a}
-          if [ -f "$LINT_XML" ]; then
-            LNT=$(grep -c -E '<issue([[:space:]]|$)' "$LINT_XML" 2>/dev/null)
-            LNE=$(grep -c -E 'severity="(Error|Fatal)"' "$LINT_XML" 2>/dev/null)
-            LNW=$(grep -c 'severity="Warning"' "$LINT_XML" 2>/dev/null)
-            LNI=$(grep -c 'severity="Informational"' "$LINT_XML" 2>/dev/null)
-            LNT=${LNT:-0}
-            LNE=${LNE:-0}
-            LNW=${LNW:-0}
-            LNI=${LNI:-0}
-            if [ "$LNT" = "0" ]; then
-              LINT_SUMMARY="lintDebug: LULUS (0 isu)"
-            else
-              LINT_SUMMARY="lintDebug: $LNT isu ($LNE error, $LNW warning, $LNI info)"
-              {
-                echo "lintDebug (maks 60 baris):"
-                grep -E '^[^[:space:]].*: (Fatal|Error|Warning|Information): ' "$LINT_TXT" 2>/dev/null | cut -c1-220 | head -n 60
-              } >> report-static.tmp
-            fi
-          else
-            LINT_SUMMARY="lintDebug: NOT VERIFIED (lint-results-debug.xml tidak terbentuk; lihat kutipan log)"
-            echo "Berkas $LINT_XML tidak ada." >> report-static.tmp
-            NEED_STATIC_LOG=1
-          fi
-          if [ "$NEED_STATIC_LOG" = "1" ] || [ "$STATIC_EXIT" != "0" ]; then
-            { echo ""; excerpt gradle-static.log; } >> report-static.tmp
-          fi
-          if [ "$NEED_TYPED_LOG" = "1" ] || [ "$TYPED_EXIT" != "0" ]; then
-            { echo ""; excerpt gradle-typed.log; } >> report-static.tmp
-          fi
-
-          # --- Tes unit (JUnit XML Gradle): status HANYA dari laporan tes, bukan dari nama kelas di log ---
-          NEED_TEST_LOG=0
-          if ls "$TEST_DIR"/*.xml > /dev/null 2>&1; then
-            T_SUM=$(awk '/<testsuite / { match($0, / tests="[0-9]+"/); t += substr($0, RSTART + 8, RLENGTH - 9); match($0, / failures="[0-9]+"/); f += substr($0, RSTART + 11, RLENGTH - 12); match($0, / errors="[0-9]+"/); e += substr($0, RSTART + 9, RLENGTH - 10); match($0, / skipped="[0-9]+"/); s += substr($0, RSTART + 10, RLENGTH - 11) } END { print t + 0, f + 0, e + 0, s + 0 }' "$TEST_DIR"/*.xml)
-            set -- $T_SUM
-            T_TOTAL=${1:-0}; T_FAIL=$(( ${2:-0} + ${3:-0} )); T_SKIP=${4:-0}
-            if [ "$T_TOTAL" = "0" ]; then
-              TEST_SUMMARY="Tes unit: NOT VERIFIED (0 tes dieksekusi; lihat kutipan log)"
-              NEED_TEST_LOG=1
-            elif [ "$T_FAIL" = "0" ]; then
-              TEST_SUMMARY="Tes unit: LULUS ($T_TOTAL tes, $T_SKIP dilewati)"
-            else
-              TEST_SUMMARY="Tes unit: GAGAL ($T_FAIL gagal dari $T_TOTAL tes)"
-              {
-                echo "Tes gagal (maks 40):"
-                awk 'function dec(x) { gsub(/&quot;/, "\"", x); gsub(/&apos;/, "\047", x); gsub(/&lt;/, "<", x); gsub(/&gt;/, ">", x); gsub(/&amp;/, "\\&", x); return x } /<testcase / { match($0, /classname="[^"]*"/); c = substr($0, RSTART + 11, RLENGTH - 12); match($0, / name="[^"]*"/); n = dec(substr($0, RSTART + 7, RLENGTH - 8)); sub(/.*\./, "", c) } /<(failure|error) / { match($0, /message="[^"]*"/); m = dec(substr($0, RSTART + 9, RLENGTH - 10)); print "- " c "." n ": " substr(m, 1, 160) }' "$TEST_DIR"/*.xml | head -n 40
-              } >> report-test.tmp
-            fi
-          else
-            TEST_SUMMARY="Tes unit: NOT VERIFIED (laporan tes tidak terbentuk: kompilasi/tes gagal sebelum jalan; lihat kutipan log)"
-            echo "Direktori $TEST_DIR tidak ada / kosong." >> report-test.tmp
-            NEED_TEST_LOG=1
-          fi
-          if [ "$NEED_TEST_LOG" = "1" ] || { [ "$TEST_EXIT" != "0" ] && [ "${T_FAIL:-0}" = "0" ]; }; then
-            { echo ""; excerpt gradle-test.log; } >> report-test.tmp
-          fi
-
-          # --- Peringatan kompilator Kotlin: baris `w: file://...`, tanpa kode tes, dedupe ---
-          if grep -q -E '^> Task :app:compileDebugKotlin$' gradle-static.log gradle-typed.log gradle-arch.log gradle-spotbugs.log gradle-test.log 2>/dev/null; then
-            grep -h '^w: file://' gradle-static.log gradle-typed.log gradle-arch.log gradle-spotbugs.log gradle-test.log 2>/dev/null | grep -v -E '/src/(test|androidTest)/' | sed -E 's#^w: file://.*/com/lagfix/fstrim/#w: #' | cut -c1-140 | sort -u > kwarn.list
-            KW=$(wc -l < kwarn.list | tr -d ' ')
-            KW=${KW:-0}
-            if [ "$KW" = "0" ]; then
-              KWARN_SUMMARY="Peringatan kompilator Kotlin: LULUS (0)"
-            else
-              KWD=$(grep -c 'deprecated' kwarn.list)
-              KWD=${KWD:-0}
-              KWARN_SUMMARY="Peringatan kompilator Kotlin: $KW ($KWD deprecated, $((KW - KWD)) lainnya)"
-              {
-                if [ "$((KW - KWD))" -gt 0 ]; then
-                  echo "Selain deprecated (maks 40):"
-                  grep -v 'deprecated' kwarn.list | head -n 40
-                fi
-                if [ "$KWD" -gt 0 ]; then
-                  echo "Deprecated (maks 40):"
-                  grep 'deprecated' kwarn.list | head -n 40
-                fi
-              } > report-kwarn.tmp
-            fi
-          else
-            KWARN_SUMMARY="Peringatan kompilator Kotlin: NOT VERIFIED (tak ada tugas :app:compileDebugKotlin yang dieksekusi / log tidak ada)"
-            echo "Tak ada baris '> Task :app:compileDebugKotlin' yang dieksekusi di gradle-static.log / gradle-typed.log / gradle-arch.log / gradle-spotbugs.log / gradle-test.log." > report-kwarn.tmp
-          fi
-
-          APP_NAME=$(grep -m1 'name="app_name"' app/src/main/res/values/strings.xml 2>/dev/null | sed -E 's/.*>([^<]*)<.*/\1/')
-          APPLICATION_ID=$(grep -m1 'applicationId' app/build.gradle.kts 2>/dev/null | sed -E 's/.*"([^"]+)".*/\1/')
-          GRADLE_ROOT=$(grep -m1 'rootProject.name' settings.gradle.kts 2>/dev/null | sed -E 's/.*"([^"]+)".*/\1/')
-          BATCH_PS=$(grep -o -m1 'RESUME POINT: v[0-9]*' PROJECT_STATE.md 2>/dev/null | grep -o '[0-9]*$')
-
-          {
-            echo "=== LAPORAN EVALUASI UNTUK CLAUDE ==="
-            echo "Dibuat (UTC): $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo ""
-            echo "--- PENANDA PROYEK (WAJIB cocok sebelum dipakai) ---"
-            echo "PROJECT=$REPO_NAME"
-            echo "APP_NAME=${APP_NAME:-n/a}"
-            echo "APPLICATION_ID=${APPLICATION_ID:-n/a}"
-            echo "GRADLE_ROOT_PROJECT=${GRADLE_ROOT:-n/a}"
-            echo "BATCH_PROJECT_STATE=${BATCH_PS:-n/a}"
-            echo "COMMIT=$COMMIT_SHA"
-            echo "BRANCH=$REF_NAME"
-            echo "RUN_NUMBER=$RUN_NUMBER (counter workflow laporan; BUKAN versionCode APK) · RUN_ID=$RUN_ID"
-            echo "DETEKT_TYPED_DIAG=$DETEKT_TYPED_DIAG"
-            echo "Gradle exit: detekt+lintDebug=$STATIC_EXIT · detektDebug=$TYPED_EXIT · ArchUnit=$ARCH_EXIT · SpotBugs=$SPOTBUGS_EXIT · tes unit=$TEST_EXIT"
-            echo ""
-            echo "--- RINGKASAN ---"
-            echo "$ARCH_SUMMARY"
-            echo "$SARIF_SUMMARY"
-            echo "$DET_SUMMARY"
-            echo "$DETT_SUMMARY"
-            echo "$LINT_SUMMARY"
-            echo "$TEST_SUMMARY"
-            echo "$KWARN_SUMMARY"
-            echo "Catatan: NOT VERIFIED = alat tidak jalan / laporan tidak ada; BUKAN berarti bersih."
-            if [ "$A_VIOL" != "0" ] || [ "$NEED_ARCH_LOG" = "1" ] || [ "$ARCH_EXIT" != "0" ]; then
-              echo ""
-              echo "--- ARSITEKTUR (ARCHUNIT) ---"
-              cat report-arch.tmp
-            fi
-            if [ -s report-sarif.tmp ]; then
-              echo ""
-              echo "--- KUALITAS KODE (SPOTBUGS · SARIF) ---"
-              cat report-sarif.tmp
-            fi
-            if [ -s report-static.tmp ]; then
-              echo ""
-              echo "--- STATIC ANALYSIS (DETEKT · LINT) ---"
-              cat report-static.tmp
-            fi
-            if [ -s report-test.tmp ]; then
-              echo ""
-              echo "--- TES UNIT ---"
-              cat report-test.tmp
-            fi
-            if [ -s report-kwarn.tmp ]; then
-              echo ""
-              echo "--- PERINGATAN KOMPILATOR KOTLIN ---"
-              cat report-kwarn.tmp
-            fi
-          } > laporan-untuk-claude.txt
-
-          echo "::notice::$ARCH_SUMMARY · $SARIF_SUMMARY · $DET_SUMMARY · $DETT_SUMMARY · $LINT_SUMMARY · $TEST_SUMMARY · $KWARN_SUMMARY"
-          {
-            echo "### 🔎 Laporan untuk Claude (non-blocking; gerbang BLOCKING lint+detekt = build.yml)"
-            echo ""
-            echo "- $ARCH_SUMMARY"
-            echo "- $SARIF_SUMMARY"
-            echo "- $DET_SUMMARY"
-            echo "- $DETT_SUMMARY"
-            echo "- $LINT_SUMMARY"
-            echo "- $TEST_SUMMARY"
-            echo "- $KWARN_SUMMARY"
-            echo "- Artifact: \`LagFix_laporan-untuk-claude_run${RUN_NUMBER}\`"
-          } >> "$GITHUB_STEP_SUMMARY"
-          cat laporan-untuk-claude.txt
-
-      # 3. Artifact resmi GitHub (berkas tunggal .txt; mudah diunduh di HP lalu diunggah ke Claude).
+      # 4. Artifact resmi GitHub: SATU berkas .txt (paket komplit; mudah diunduh di HP lalu diunggah ke Claude).
       - name: Upload Report for Claude
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          # v148: nama artifact = `LagFix_laporan-untuk-claude_run<N>` (awalan nama proyek + jenis berkas + nomor run;
-          # pendek, jadi UI GitHub tidak memotongnya). Retensi 7 hari (konstitusi).
+          # Nama = `LagFix_laporan-untuk-claude_run<N>`. Retensi 7 hari (konstitusi).
           name: LagFix_laporan-untuk-claude_run${{ github.run_number }}
           path: laporan-untuk-claude.txt
           retention-days: 7

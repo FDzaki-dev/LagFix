@@ -55,7 +55,8 @@ android {
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
 
-    // v88 (perintah user: lint/detekt diperketat): lintDebug blocking di CI; warning dihitung error.
+    // v88 (perintah user: lint/detekt diperketat): warning dihitung error. v151: lintDebug TIDAK lagi di build.yml; hanya jalan di
+    // workflow laporan `android-artifact.yml` (non-blocking, hasil di laporan-untuk-claude.txt).
     // Tanpa baseline & tanpa disable rule: temuan harus diperbaiki di sumbernya.
     lint {
         abortOnError = true
@@ -86,8 +87,8 @@ dependencies {
     testImplementation("com.tngtech.archunit:archunit:1.3.0")
 }
 
-// F1 (PENDING_ROADMAP.md, CI hardening): static analysis Kotlin. v88: BLOCKING (perintah user;
-// lihat step "Gerbang lint & detekt" di build.yml) — temuan detekt (maxIssues default 0)
+// F1 (PENDING_ROADMAP.md, CI hardening): static analysis Kotlin. v88-v150: BLOCKING di build.yml; v151 (perintah user): task
+// `detekt` HANYA jalan di workflow laporan `android-artifact.yml` (non-blocking) — temuan detekt (maxIssues default 0)
 // menggagalkan build. v58: config custom MINIMUM di
 // config/detekt/detekt.yml (override di atas ruleset default via buildUponDefaultConfig) —
 // hanya FunctionNaming & MagicNumber utk @Composable (false-positive Compose); sisanya default.
@@ -102,7 +103,7 @@ tasks.withType<Detekt>().configureEach {
     reports {
         html.required.set(true)
         // v148: xml (dibaca workflow `android-artifact.yml` utk ringkasan) & txt (dibaca manusia) dinyalakan eksplisit,
-        // tak bergantung default plugin. Hanya menambah berkas laporan; aturan & gerbang BLOCKING tak berubah.
+        // tak bergantung default plugin. Hanya menambah berkas laporan; aturan tak berubah.
         xml.required.set(true)
         txt.required.set(true)
     }
@@ -110,7 +111,7 @@ tasks.withType<Detekt>().configureEach {
 
 // v148 (adaptasi Boomly Batch 164): jaring TAMBAHAN type-resolution HANYA utk task `detektDebug` (dijalankan workflow laporan
 // NON-BLOCKING, bukan gerbang `build.yml`). `config/detekt/detekt-typed.yml` digabung DI ATAS `detekt.yml` (rule lama tetap
-// aktif); task `detekt` polos (gerbang BLOCKING) TIDAK membaca file itu, jadi temuan/salah ketik di sana tak bisa
+// aktif); task `detekt` polos TIDAK membaca file itu, jadi temuan/salah ketik di sana tak bisa
 // membuat build merah.
 tasks.withType<Detekt>().matching { it.name == "detektDebug" }.configureEach {
     config.setFrom(

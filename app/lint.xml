@@ -3,19 +3,16 @@
      Prinsip: temuan nyata diperbaiki di sumbernya; yang di bawah ini DIKECUALIKAN dgn alasan tertulis.
      Pengecualian per-berkas (bukan global) supaya cek yg sama TETAP aktif di berkas lain. -->
 <lint>
-    <!-- Cek bergantung waktu (versi library & targetSdk "terbaru" berubah tanpa perubahan kode):
-         kalau blocking, CI bisa merah sendiri. Pemantauan versi = Dependabot (`.github/dependabot.yml`, backlog F2);
-         upgrade = batch tersendiri (butuh AGP / compileSdk / Kotlin / detekt naik bersama, tak bisa diverifikasi tanpa
-         build).
-         v150 (perintah user "Bereskan semua temuan!!", laporan CI run 2: 6 isu informational = OldTargetApi
-         `app/build.gradle.kts:17` + 5 GradleDependency: compose-bom 2024.10.01 -> 2026.09.00, core-ktx 1.13.1 -> 1.19.1,
-         activity-compose 1.9.3 -> 1.13.0, lifecycle-viewmodel-ktx 2.8.7 -> 2.11.0, work-runtime-ktx 2.9.1 -> 2.12.0):
-         naik versi/targetSdk SENGAJA TIDAK dilakukan (P0 stabilitas: loncatan besar tanpa kompiler/Gradle di sandbox,
-         gerbang lint+detekt BLOCKING, bug notifikasi persisten v147 masih terbuka). Kedua cek ini DIABAIKAN (bukan
-         bug & bukan actionable dalam satu batch) supaya laporan hanya memuat temuan nyata. Pulihkan dgn mengubah
-         `ignore` -> `informational` (dan lakukan batch upgrade toolchain atas perintah user). -->
-    <issue id="GradleDependency" severity="ignore" />
-    <issue id="OldTargetApi" severity="ignore" />
+    <!-- Cek bergantung waktu (versi library & targetSdk "terbaru" berubah tanpa perubahan kode).
+         v151: lint HANYA jalan di workflow laporan `android-artifact.yml` (non-blocking; gerbang build.yml dihapus atas
+         perintah user), jadi kedua cek ini DIPULIHKAN ke `informational` (v150 sempat `ignore`) = tampil jujur di
+         `laporan-untuk-claude.txt` sebagai "versi usang", tanpa bisa merahkan build.
+         Isu yg tampil (laporan CI run 2): OldTargetApi `app/build.gradle.kts` + 5 GradleDependency (compose-bom,
+         core-ktx, activity-compose, lifecycle-viewmodel-ktx, work-runtime-ktx). Tak bisa dihapus bertahap: rilis
+         terbaru lifecycle 2.11.0 (artifak Compose) butuh compileSdk 37 + AGP >= 9.2, core 1.18+ butuh compileSdk 36.1
+         (AGP >= 8.13) -> hanya hilang lewat migrasi toolchain AGP 9 (batch tersendiri; lihat PROJECT_STATE). -->
+    <issue id="GradleDependency" severity="informational" />
+    <issue id="OldTargetApi" severity="informational" />
 
     <!-- CrashLogger.kt: VOLUME_EXTERNAL_PRIMARY hanya dipakai di jalur ber-guard SDK_INT >= 29
          (writeToFile / pembaca log). minSdk 26 tetap didukung lewat fallback app files dir. -->

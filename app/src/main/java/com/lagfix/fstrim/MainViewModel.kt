@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.FileProvider
+import androidx.core.content.pm.PackageInfoCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -146,9 +147,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             val app = getApplication<Application>()
             val installedBuild = runCatching {
-                val pi = app.packageManager.getPackageInfo(app.packageName, 0)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) pi.longVersionCode.toInt()
-                else @Suppress("DEPRECATION") pi.versionCode
+                // v151: `PackageInfoCompat` menggantikan cabang manual SDK_INT + `@Suppress("DEPRECATION")` utk
+                // `versionCode` (API 28+ = `longVersionCode`, di bawahnya `versionCode`); nilai & `toInt()` sama.
+                PackageInfoCompat.getLongVersionCode(app.packageManager.getPackageInfo(app.packageName, 0)).toInt()
             }.getOrDefault(1)
             val result = UpdateChecker.check(installedBuild)
             ui = ui.copy(updateChecking = false, updateResult = result)
