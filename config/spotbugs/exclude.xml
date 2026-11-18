@@ -126,9 +126,14 @@
 
     <!-- v149: RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT (1 temuan, PersistentTrimService.kt:116): `CoroutineScope(Dispatchers.IO)
          .launch { recheckShown(..) }` = fire-and-forget di IO (Job sengaja tak dipakai; alasan di komentar v111).
-         Berkas ini DO-NOT-TOUCH + BUG_TARGET v147 terbuka -> tak diubah; hanya kelas ini yang disaring. -->
+         Berkas ini DO-NOT-TOUCH + BUG_TARGET v147 terbuka -> tak diubah; hanya kelas ini yang disaring.
+         v150 (laporan CI LagFix run 2: temuan ini MASIH muncul di PersistentTrimService.kt:116 walau blok v149 ada): akar =
+         `recheckShown` (companion, mengembalikan `Result<List<NotifSnapshot>>`, PersistentTrimService.kt:268) dipanggil di
+         dalam lambda `launch { ... }` -> titik temuan ada di kelas LAMBDA `PersistentTrimService$onStartCommand$1`, bukan
+         di `PersistentTrimService`, sehingga `<Class name="...PersistentTrimService"/>` (nama persis) tak cocok. Kini regex
+         yg mencakup kelas dalam (bentuk sama dgn blok v149 lain yg terbukti bekerja). Kelas lain TETAP dilaporkan. -->
     <Match>
         <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
-        <Class name="com.lagfix.fstrim.PersistentTrimService"/>
+        <Class name="~com\.lagfix\.fstrim\.PersistentTrimService(\$.*)?"/>
     </Match>
 </FindBugsFilter>

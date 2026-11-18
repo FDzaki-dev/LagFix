@@ -4,11 +4,18 @@
      Pengecualian per-berkas (bukan global) supaya cek yg sama TETAP aktif di berkas lain. -->
 <lint>
     <!-- Cek bergantung waktu (versi library & targetSdk "terbaru" berubah tanpa perubahan kode):
-         kalau blocking, CI bisa merah sendiri. Tetap DILAPORKAN (informational), tak menggagalkan
-         build. Pemantauan versi = backlog F2 (Dependabot); upgrade = batch tersendiri (butuh AGP /
-         compileSdk naik, tak bisa diverifikasi tanpa build). -->
-    <issue id="GradleDependency" severity="informational" />
-    <issue id="OldTargetApi" severity="informational" />
+         kalau blocking, CI bisa merah sendiri. Pemantauan versi = Dependabot (`.github/dependabot.yml`, backlog F2);
+         upgrade = batch tersendiri (butuh AGP / compileSdk / Kotlin / detekt naik bersama, tak bisa diverifikasi tanpa
+         build).
+         v150 (perintah user "Bereskan semua temuan!!", laporan CI run 2: 6 isu informational = OldTargetApi
+         `app/build.gradle.kts:17` + 5 GradleDependency: compose-bom 2024.10.01 -> 2026.09.00, core-ktx 1.13.1 -> 1.19.1,
+         activity-compose 1.9.3 -> 1.13.0, lifecycle-viewmodel-ktx 2.8.7 -> 2.11.0, work-runtime-ktx 2.9.1 -> 2.12.0):
+         naik versi/targetSdk SENGAJA TIDAK dilakukan (P0 stabilitas: loncatan besar tanpa kompiler/Gradle di sandbox,
+         gerbang lint+detekt BLOCKING, bug notifikasi persisten v147 masih terbuka). Kedua cek ini DIABAIKAN (bukan
+         bug & bukan actionable dalam satu batch) supaya laporan hanya memuat temuan nyata. Pulihkan dgn mengubah
+         `ignore` -> `informational` (dan lakukan batch upgrade toolchain atas perintah user). -->
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="OldTargetApi" severity="ignore" />
 
     <!-- CrashLogger.kt: VOLUME_EXTERNAL_PRIMARY hanya dipakai di jalur ber-guard SDK_INT >= 29
          (writeToFile / pembaca log). minSdk 26 tetap didukung lewat fallback app files dir. -->

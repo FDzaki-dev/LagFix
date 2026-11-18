@@ -117,6 +117,11 @@ tasks.withType<Detekt>().matching { it.name == "detektDebug" }.configureEach {
         rootProject.file("config/detekt/detekt.yml"),
         rootProject.file("config/detekt/detekt-typed.yml"),
     )
+    // v150: pencatatan MENTAH berkas config yang benar-benar dipakai task ini saat dieksekusi (dibaca workflow laporan
+    // sbg `DETEKT_TYPED_DIAG`). Dasar: v149 mematikan `InjectDispatcher` di detekt-typed.yml tetapi laporan CI run 2
+    // masih memuatnya -> bukti apakah berkas typed ikut terbaca. Tidak mengubah aturan/hasil analisis.
+    val typedConfig = config
+    doFirst { println("DETEKT_TYPED_DIAG config=" + typedConfig.files.joinToString(",") { it.name }) }
 }
 
 // v148 (adaptasi Boomly Batch 201): SpotBugs REPORT-ONLY. Skrip HANYA di-apply bila `-Plagfix.spotbugs=true` (workflow

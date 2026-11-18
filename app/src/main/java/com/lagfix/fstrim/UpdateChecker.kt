@@ -96,11 +96,7 @@ object UpdateChecker {
     // lalu exception yg SAMA dilempar ulang (tidak ditelan).
     @Suppress("TooGenericExceptionCaught")
     fun download(context: Context, url: String): File {
-        val dir = File(context.cacheDir, "updates")
-        dir.deleteRecursively()
-        // v149 (SpotBugs RV_RETURN_VALUE_IGNORED_BAD_PRACTICE): hasil mkdirs() dipakai; gagal = galat jelas.
-        if (!dir.mkdirs() && !dir.isDirectory) throw IOException("gagal membuat folder ${dir.name}")
-        val dest = File(dir, "update.apk")
+        val dest = File(prepareUpdateDir(context), "update.apk")
         val conn = URL(url).openConnection() as HttpURLConnection
         try {
             conn.connectTimeout = DOWNLOAD_TIMEOUT_MS
@@ -108,7 +104,7 @@ object UpdateChecker {
             conn.instanceFollowRedirects = true
             conn.setRequestProperty("User-Agent", "LagFix-App")
             conn.requestMethod = "GET"
-            if (conn.responseCode !in HTTP_OK_MIN..HTTP_OK_MAX) throw IOException("HTTP ${conn.responseCode}")
+            ensureHttpOk(conn)
             try {
                 saveStream(conn, dest)
             } catch (e: Exception) {
@@ -121,6 +117,21 @@ object UpdateChecker {
             conn.disconnect()
         }
         return dest
+    }
+
+    // v150 (detekt ThrowsCount, run 123 + laporan CI run 2: `download` punya 3 `throw`, maks 2): diekstrak dari
+    // download(); isi persis sama dan dipanggil di titik yang sama (sebelum koneksi dibuka).
+    private fun prepareUpdateDir(context: Context): File {
+        val dir = File(context.cacheDir, "updates")
+        dir.deleteRecursively()
+        // v149 (SpotBugs RV_RETURN_VALUE_IGNORED_BAD_PRACTICE): hasil mkdirs() dipakai; gagal = galat jelas.
+        if (!dir.mkdirs() && !dir.isDirectory) throw IOException("gagal membuat folder ${dir.name}")
+        return dir
+    }
+
+    // v150 (detekt ThrowsCount): diekstrak dari download(); pesan "HTTP <kode>" identik (dipakai friendlyError).
+    private fun ensureHttpOk(conn: HttpURLConnection) {
+        if (conn.responseCode !in HTTP_OK_MIN..HTTP_OK_MAX) throw IOException("HTTP ${conn.responseCode}")
     }
 
     // v92 (detekt NestedBlockDepth): diekstrak dari download(); isi persis sama.

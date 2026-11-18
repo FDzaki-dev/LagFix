@@ -1,5 +1,12 @@
 # Changelog
 
+## v150
+- Build v149 gagal di gerbang detekt: aturan `ThrowsCount` menolak fungsi `download` di `UpdateChecker` karena v149 menambah satu `throw` sehingga jadi tiga (maksimal dua). Pembuatan folder unduhan dan pengecekan kode HTTP kini dipindah ke dua fungsi privat (`prepareUpdateDir`, `ensureHttpOk`). Urutan langkah, pesan galat, dan perilaku unduhan sama seperti v149.
+- Laporan CI run 2: ArchUnit lulus (0 pelanggaran), tes unit lulus (122 tes), peringatan kompilator Kotlin 0. SpotBugs turun dari 40 ke 1 temuan; sisanya (`PersistentTrimService.kt:116`) lolos dari filter karena letaknya di kelas lambda, bukan di kelas utama; filter kini mencakup kelas dalam. `PersistentTrimService` tidak diubah.
+- Detekt typed: 17 temuan `InjectDispatcher` masih muncul walau dimatikan di `detekt-typed.yml`. Rule itu kini dimatikan juga di `detekt.yml` (berkas yang terbukti terbaca), karena menolak `Dispatchers.IO` yang diwajibkan aturan proyek. `detektDebug` kini mencetak berkas konfigurasi yang dipakainya (`DETEKT_TYPED_DIAG`) untuk membuktikan apakah berkas typed ikut terbaca.
+- Lint: cek `GradleDependency` dan `OldTargetApi` (6 isu informational) kini diabaikan di `lint.xml` dengan alasan tertulis. Naik versi library dan targetSdk tidak dilakukan karena butuh naik AGP, Gradle, Kotlin, detekt, dan compileSdk bersamaan dan tidak bisa diverifikasi tanpa build; itu menjadi batch tersendiri atas perintah user.
+- Tidak ada perubahan tampilan. Belum dijalankan di CI.
+
 ## v149
 - Laporan CI pertama (workflow laporan v148, run 1) ditindaklanjuti sampai tuntas. Tes unit lulus (122 tes), detekt 0 temuan, peringatan kompilator Kotlin 0. Sisanya dibereskan satu per satu.
 - Kode: pembuatan folder unduhan update kini memakai hasil `mkdirs()` (gagal membuat folder = galat jelas) dan penghapusan APK parsial memakai hasil `delete()` (gagal hapus dilampirkan sebagai suppressed, exception asli tetap dilempar ulang). `Prefs`: pembacaan tema tanpa `!!` dan pembacaan log memakai `orEmpty()`. `RecentsExclusion`: safe call yang tidak perlu dihapus. `LogcatSnapshot`: `orEmpty()`. Perilaku normal tidak berubah.

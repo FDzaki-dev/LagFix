@@ -45,3 +45,12 @@ style:
   ForbiddenImport:
     active: true
     imports: ['kotlinx.coroutines.runBlocking', 'kotlinx.coroutines.GlobalScope']
+
+# v150 (laporan CI run 2: 17 temuan `InjectDispatcher` di `detektDebug` MASIH muncul walau `active: false` ada di
+#  `detekt-typed.yml` sejak v149): bukti dari laporan = berkas typed tak berpengaruh di task itu, sedangkan berkas INI
+#  terbaca (tanpa `MagicNumber ignoreAnnotated` laporan akan memuat MagicNumber UI). Rule ini menolak `Dispatchers.IO`
+#  langsung, bertentangan dgn Vital Guard Threading (I/O berat WAJIB `Dispatchers.IO`; PENDING_CONSTITUTION_PLAN §2) ->
+#  dimatikan DI SINI. Task `detekt` (gerbang BLOCKING) tak menjalankan rule type-resolution -> perilaku gerbang tak berubah.
+coroutines:
+  InjectDispatcher:
+    active: false
