@@ -1,5 +1,10 @@
 # Changelog
 
+## v147
+- Perbaikan pembaca riwayat start proses di berkas `process_catch`: baris `timestamps` selalu gagal (`UnsupportedOperationException`) di dua HP uji, karena cara mengurutkan peta stempel waktu dari sistem tidak didukung `ArrayMap` milik Android. Kini peta disalin dulu ke daftar biasa sehingga stempel waktu start terbaca; bila masih gagal, barisnya memuat frame penyebabnya, bukan hanya nama kelas galat.
+- Berkas `process_catch` kini punya dua bagian baru yang tidak butuh Shizuku. `powerState` mencetak status pengecualian optimasi baterai dan bucket standby app. `observations` adalah jurnal keadaan tiap pengamatan (notifikasi persisten tampil atau tidak, importance proses, status dibatasi di latar belakang), tersimpan lintas proses dan dilipat per keadaan (maksimal 12 baris), sehingga terlihat kapan notifikasi hilang walau buffer logcat sudah tertimpa. Sebabnya: pada berkas 18 Nov di Infinix X6855, proses sudah hidup 20 jam dengan servis tanpa notifikasi, tetapi log hanya menyisakan 3 baris dan Shizuku mati.
+- Tidak ada perubahan tampilan. Ditambah 8 tes unit. Belum diuji di perangkat.
+
 ## v146
 - Tambah pengukur kelancaran layar bawaan untuk membuktikan apakah scroll tema Neumorphism masih tersendat. Saat app dipakai (mis. menggulir Pengaturan), app mencatat waktu render tiap frame, lalu menulis ringkasan angkanya (persentil waktu, jumlah frame yang melewati anggaran waktu, rerata tiap tahap render) ke `Documents/LagFix/LagFix_diag_frame_metrics_*.txt` ketika layar app berhenti terlihat, tema diganti, atau layar diputar. Berkas hanya ditulis bila sesi merekam minimal 120 frame dan maksimal 3 berkas per proses, jadi folder tidak penuh. Isi berkas hanya angka mentah. Tidak ada perubahan tampilan, izin, atau dependency; tema Glassmorphism dan Neumorphism tampil sama seperti v145. Belum diuji di perangkat.
 

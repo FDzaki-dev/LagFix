@@ -15,6 +15,10 @@ internal class FakeStartInfo(private val pidValue: Int, private val stamps: Map<
     }
 }
 
+internal class ThrowingStartInfo {
+    fun getStartupTimestamps(): Map<Int, Long> = throw UnsupportedOperationException()
+}
+
 internal object FakeCodes {
     const val REASON_ONE = 1
     const val REASON_TWO = 2
@@ -67,5 +71,17 @@ class ProcessCatcherTest {
     fun timestampsText_sortsByCodeAndNamesFromPlatformConstants() {
         val info = FakeStartInfo(1, mapOf(1 to 100L, 0 to 50L))
         assertEquals("START_TIMESTAMP_LAUNCH=50,START_TIMESTAMP_FORK=100", timestampsText(info))
+    }
+
+    @Test
+    fun timestampsText_unknownCodeIsNamedUnknown_andKeepsRawValue() {
+        assertEquals("UNKNOWN=7", timestampsText(FakeStartInfo(1, mapOf(99 to 7L))))
+    }
+
+    @Test
+    fun timestampsText_failurePrintsExceptionAndTopFrameOfCause() {
+        val text = timestampsText(ThrowingStartInfo())
+        assertTrue(text.startsWith("read exception = "))
+        assertTrue(text.contains(" at com.lagfix.fstrim.ThrowingStartInfo.getStartupTimestamps"))
     }
 }

@@ -41,7 +41,8 @@ private const val CATCH_REASON_WARM_ABSENT = "warmAbsent"
  * pemanggil berjalan — notifikasi aktif (segera & +1500 ms), importance proses, `isBackgroundRestricted`,
  * servis milik app, riwayat start proses (API 35+), riwayat kematian proses (API 30+) & (v127) baris logcat
  * `LIFECYCLE` milik app sendiri (`ownLogcat`) & (v128) logcat sistem via Shizuku (`logcatShizuku`) &
- * (v130) info buffer logcat (`logcatInfo`) + versi APK (`appVersion`).
+ * (v130) info buffer logcat (`logcatInfo`) + versi APK (`appVersion`) & (v147) `powerState` (pengecualian baterai +
+ * bucket standby, tanpa Shizuku) + `observations` (jurnal keadaan tiap pengamatan, tahan mati proses).
  *
  * Selalu 1 baris logcat (tag `ProcessCatcher`, kata kunci `LIFECYCLE`). Berkas `diag_process_catch` hanya ditulis:
  *  - `cold`: proses baru lahir (umur < 10 dtk) DAN pemanggil mengizinkan (`allowCold`), SEKALI per proses;
@@ -71,6 +72,9 @@ internal object ProcessCatcher {
         val shown = isPersistentShown(immediate)
         Log.i(CATCH_TAG, "LIFECYCLE catch source=$source pid=$pid procAge=${procAgeMs}ms shown=$shown")
         val toggleOn = Prefs(app).persistentServiceEnabled
+        val observationKey = readObservationKey(app, pid, shown, toggleOn) // v147: dibaca sinkron, sebelum re-assert
+        val observedAtMs = System.currentTimeMillis()
+        CoroutineScope(Dispatchers.IO).launch { CatchJournal.record(app, observationKey, observedAtMs) } // v147
         val windowStartMs = logcatWindowStartMs(System.currentTimeMillis(), procAgeMs) // v128: awal jendela logcat
         val reason = claimWrite(procAgeMs, allowCold, toggleOn && !shown) ?: run {
             ensureLogBufferEnlarged(app) // v132: tak ada pembacaan logcat utk berkas ini -> aman diperbesar sekarang
@@ -85,6 +89,7 @@ internal object ProcessCatcher {
                 formatActiveNotifications("+${CATCH_DELAYED_READ_MS}ms", delayed),
                 formatCatchSection("myMemoryState", readMemoryState()),
                 formatCatchSection("isBackgroundRestricted", readBackgroundRestricted(am)),
+                formatCatchSection("powerState", readPowerState(app)), // v147
                 formatCatchSection("ownServices", readOwnServices(am)),
                 formatCatchSection("startHistory", readStartHistory(am)),
                 formatCatchSection("exitHistory", readExitHistory(am)),
@@ -92,7 +97,8 @@ internal object ProcessCatcher {
                 formatCatchSection("logcatShizuku", readShizukuLogcat(app, pid, windowStartMs)), // v128
                 formatCatchSection("logcatInfo", readLogcatInfo(app, windowStartMs)), // v130
                 formatCatchSection("appVersion", readAppVersion(app)), // v130
-                formatCatchSection("recentsReadBack", Result.success(listOf(recentsReadBack(app)))) // v134
+                formatCatchSection("recentsReadBack", Result.success(listOf(recentsReadBack(app)))), // v134
+                formatCatchSection("observations", CatchJournal.read(app)) // v147
             )
             val header = formatCatchHeader(source, reason, pid, procAgeMs, toggleOn)
             CrashLogger.logDiagnostic(app, CATCH_DIAG_TAG, (listOf(header) + sections).joinToString("\n"))
@@ -215,13 +221,20 @@ internal fun getterValue(target: Any, getter: String): String =
     runCatching { "${target.javaClass.getMethod(getter).invoke(target)}" }
         .getOrElse { "read exception = $it" }
 
-/** v125: `getStartupTimestamps()` (peta kode -> nilai mentah) jadi `NAMA=nilai,...` urut kode; nama dari platform. */
+/**
+ * v125: `getStartupTimestamps()` (peta kode -> nilai mentah) jadi `NAMA=nilai,...` urut kode; nama dari platform.
+ * v147: di X6850/X6855 `UnsupportedOperationException` pada 5 dari 5 entri `startHistory` (v141 & diag 18 Nov). Sebab:
+ * `sortedBy` pada `map.entries` memanggil `toArray()`, & `entrySet()` milik `android.util.ArrayMap` melempar
+ * `UnsupportedOperationException` utk itu (iterator-nya didukung). Kini entri disalin dulu lewat iterator ke List
+ * biasa, baru diurut. Gagal baca -> exception apa adanya + frame teratas penyebabnya (bukan hanya nama kelas).
+ */
 internal fun timestampsText(info: Any): String = runCatching {
     val map = info.javaClass.getMethod("getStartupTimestamps").invoke(info) as Map<*, *>
-    map.entries.sortedBy { (it.key as? Int) ?: -1 }.joinToString(",") { e ->
-        "${constantName(info.javaClass, "START_TIMESTAMP_", (e.key as? Int) ?: -1)}=${e.value}"
+    val pairs = map.entries.map { ((it.key as? Int) ?: -1) to it.value }
+    pairs.sortedBy { it.first }.joinToString(",") { (code, value) ->
+        "${constantName(info.javaClass, "START_TIMESTAMP_", code)}=$value"
     }
-}.getOrElse { "read exception = $it" }
+}.getOrElse { e -> "read exception = $e at ${(e.cause ?: e).stackTrace.firstOrNull()}" }
 
 /** v123 (prinsip user: log = DATA MENTAH): baris pertama berkas `diag_process_catch`. */
 internal fun formatCatchHeader(source: String, reason: String, pid: Int, procAgeMs: Long, toggleOn: Boolean): String =
