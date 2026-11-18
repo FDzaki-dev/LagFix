@@ -17,7 +17,8 @@ name: Android CI Artifact for Claude
 # `NOT VERIFIED` (alat gagal != lulus) — TIDAK PERNAH "bersih".
 #
 # Catatan desain (dibawa dari v148):
-#  - Gradle: LagFix tak menyimpan `gradlew`; langkah yang SAMA dgn `build.yml` (`gradle/actions/setup-gradle`, Gradle 8.9).
+#  - Gradle: LagFix tak menyimpan `gradlew`; langkah yang SAMA dgn `build.yml` (`gradle/actions/setup-gradle`, Gradle 9.6.0 sejak v152).
+#  - v152: detekt di-apply BERSYARAT lewat `-Plagfix.detekt=true` (hanya dua invocation detekt di bawah).
 #  - Varian DEBUG semua: tanpa keystore/secret.
 #  - SpotBugs lewat `config/spotbugs/spotbugs.gradle.kts` (JavaExec CLI), di-apply hanya dgn `-Plagfix.spotbugs=true`;
 #    `--no-configuration-cache` utk ArchUnit/SpotBugs.
@@ -59,11 +60,11 @@ jobs:
       # v151: setup-gradle v4 = Node.js 20 (anotasi "Node.js 20 actions are deprecated"); v5 = Node 24, tanpa syarat lisensi
       # baru (v6 mewajibkan menerima Terms of Use komponen caching). `continue-on-error`: gagal di sini -> laporan tetap
       # terbentuk dan memuat `NOT VERIFIED` + kutipan log.
-      - name: Set up Gradle 8.9
+      - name: Set up Gradle 9.6.0
         continue-on-error: true
         uses: gradle/actions/setup-gradle@v5
         with:
-          gradle-version: "8.9"
+          gradle-version: "9.6.0"
 
       # 1. Data mentah lingkungan (dibaca perakit laporan). Tak pernah gagal.
       - name: Catat lingkungan runner
@@ -85,9 +86,9 @@ jobs:
         timeout-minutes: 50
         run: |
           set +e
-          gradle detekt lintDebug --continue --no-build-cache --warning-mode all > gradle-static.log 2>&1
+          gradle detekt lintDebug -Plagfix.detekt=true --continue --no-build-cache --warning-mode all > gradle-static.log 2>&1
           echo "STATIC_EXIT=$?" > gradle-exit.txt
-          gradle detektDebug --continue --no-build-cache --warning-mode all > gradle-typed.log 2>&1
+          gradle detektDebug -Plagfix.detekt=true --continue --no-build-cache --warning-mode all > gradle-typed.log 2>&1
           echo "TYPED_EXIT=$?" >> gradle-exit.txt
           gradle testDebugUnitTest --tests "com.lagfix.fstrim.ArchitectureTest" --continue --no-build-cache --no-configuration-cache --warning-mode all > gradle-arch.log 2>&1
           echo "ARCH_EXIT=$?" >> gradle-exit.txt

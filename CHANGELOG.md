@@ -1,5 +1,12 @@
 # Changelog
 
+## v152
+- Migrasi toolchain tahap B (perintah user "Lanjut B"): Android Gradle plugin 8.7.3 menjadi 9.5.0, Gradle 8.9 menjadi 9.6.0 (kedua workflow), Kotlin dan plugin Compose 2.0.21 menjadi 2.4.10. Perilaku build lama dipertahankan: Kotlin bawaan AGP dan DSL baru dimatikan (`android.builtInKotlin=false`, `android.newDsl=false`), dan semua default yang berubah di AGP 9.0 dikembalikan ke nilai lama di `gradle.properties`. Heap Gradle naik ke 3 GB. Library (Compose, core, activity, lifecycle, work), compileSdk 35, dan targetSdk 35 belum berubah, jadi 6 info lint versi usang masih tampil.
+- `android.kotlinOptions {}` diganti `kotlin { compilerOptions { jvmTarget } }` (nilai sama, JVM 17); sejak Kotlin 2.2 cara lama menjadi galat.
+- Plugin detekt 1.23.8 belum resmi mendukung AGP 9, jadi kini dipasang hanya bila `-Plagfix.detekt=true` (dipakai workflow laporan). `build.yml` tidak memuat detekt lagi, sehingga bila detekt bermasalah di toolchain baru, build dan rilis tidak ikut gagal; laporan mencatat `NOT VERIFIED`.
+- Laporan: hitungan "info" lint sebelumnya selalu 0 karena salah baca tingkat keparahan (laporan run4 menunjukkan 6 isu tapi 0 info); sudah diperbaiki, dan awalan path runner dibuang dari baris lint.
+- Tidak ada perubahan kode aplikasi (`app/src`) dan tampilan. Belum dijalankan di CI.
+
 ## v151
 - Lint dan detekt dipindah total dari `build.yml` ke workflow laporan `android-artifact.yml` (perintah user). `build.yml` kini hanya menjalankan tes unit dan build; gerbang lint+detekt yang memblokir build dihapus, begitu juga artifact `LagFix-lint-detekt`. Log kegagalan `build.yml` kini hanya berisi galat tes/build.
 - Artifact laporan kini satu berkas `laporan-untuk-claude.txt` yang lengkap: penanda proyek, data lingkungan runner (JDK, Gradle, platform SDK, versi AGP/Kotlin/SDK), ArchUnit, SpotBugs, detekt, detekt typed, dan lint dengan rincian penuh (bukan lagi kutipan), tes unit beserta stack tes yang gagal, peringatan kompilator Kotlin, pesan deprecated dari Gradle/AGP/plugin, dan hasil `assembleDebug`. Cukup unggah satu berkas ini ke Claude. Perakit laporan dipindah ke `.github/scripts/laporan-untuk-claude.sh` dan sudah diuji lokal dengan berkas tiruan.

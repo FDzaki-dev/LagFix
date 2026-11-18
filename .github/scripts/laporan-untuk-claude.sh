@@ -155,7 +155,7 @@ if [ -f "$LINT_XML" ]; then
   LNT=$(grep -c -E '<issue([[:space:]]|$)' "$LINT_XML" 2>/dev/null)
   LNE=$(grep -c -E 'severity="(Error|Fatal)"' "$LINT_XML" 2>/dev/null)
   LNW=$(grep -c 'severity="Warning"' "$LINT_XML" 2>/dev/null)
-  LNI=$(grep -c 'severity="Informational"' "$LINT_XML" 2>/dev/null)
+  LNI=$(grep -c -E 'severity="Information(al)?"' "$LINT_XML" 2>/dev/null)
   LN_DEP=$(grep -c 'id="GradleDependency"' "$LINT_XML" 2>/dev/null)
   LN_TGT=$(grep -c 'id="OldTargetApi"' "$LINT_XML" 2>/dev/null)
   LNT=${LNT:-0}
@@ -173,10 +173,10 @@ if [ -f "$LINT_XML" ]; then
       grep -o 'id="[A-Za-z0-9_]*"' "$LINT_XML" | sed -E 's/id="([^"]*)"/\1/' | sort | uniq -c | sort -rn | head -n 30
       echo ""
       echo "lintDebug - daftar isu (maks $LINT_HEAD_MAX):"
-      grep -E '^[^[:space:]].*: (Fatal|Error|Warning|Information): ' "$LINT_TXT" 2>/dev/null | cut -c1-260 | head -n "$LINT_HEAD_MAX"
+      grep -E '^[^[:space:]].*: (Fatal|Error|Warning|Information): ' "$LINT_TXT" 2>/dev/null | sed "s#^${WS}/##" | cut -c1-420 | head -n "$LINT_HEAD_MAX"
       echo ""
       echo "lintDebug - rincian lengkap dari lint-results-debug.txt (maks $LINT_FULL_MAX baris):"
-      if [ -f "$LINT_TXT" ]; then cut -c1-260 "$LINT_TXT" | head -n "$LINT_FULL_MAX"; else echo "(lint-results-debug.txt tidak ada)"; fi
+      if [ -f "$LINT_TXT" ]; then sed "s#^${WS}/##" "$LINT_TXT" | cut -c1-420 | head -n "$LINT_FULL_MAX"; else echo "(lint-results-debug.txt tidak ada)"; fi
       echo ""
     } >> report-static.tmp
   fi

@@ -1,10 +1,12 @@
 import io.gitlab.arturbosch.detekt.Detekt
+import io.gitlab.arturbosch.detekt.extensions.DetektExtension
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
-    id("io.gitlab.arturbosch.detekt")
+    // v152: plugin detekt TIDAK lagi di sini; di-apply bersyarat di bawah (`-Plagfix.detekt=true`).
 }
 
 android {
@@ -52,7 +54,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
 
     // v88 (perintah user: lint/detekt diperketat): warning dihitung error. v151: lintDebug TIDAK lagi di build.yml; hanya jalan di
@@ -64,6 +65,11 @@ android {
         // v89: pengecualian beralasan per-berkas + cek bergantung-waktu jadi informational.
         lintConfig = file("lint.xml")
     }
+}
+
+// v152: `android.kotlinOptions {}` = ERROR sejak Kotlin Gradle plugin 2.2 -> `kotlin.compilerOptions` (nilai sama: JVM 17).
+kotlin {
+    compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
 }
 
 dependencies {
@@ -92,37 +98,44 @@ dependencies {
 // menggagalkan build. v58: config custom MINIMUM di
 // config/detekt/detekt.yml (override di atas ruleset default via buildUponDefaultConfig) —
 // hanya FunctionNaming & MagicNumber utk @Composable (false-positive Compose); sisanya default.
-detekt {
-    buildUponDefaultConfig = true
-    allRules = false
-    config.setFrom(rootProject.file("config/detekt/detekt.yml"))
-}
+// v152: detekt 1.23.8 belum resmi mendukung AGP 9 -> di-apply BERSYARAT, HANYA bila `-Plagfix.detekt=true` (dipakai workflow
+// laporan `android-artifact.yml`). `build.yml` (tes + build + rilis) tak memuat detekt sama sekali, jadi jika plugin ini
+// bermasalah di toolchain baru, build/rilis TIDAK ikut gagal; laporan mencatat `NOT VERIFIED`. Isi blok = isi lama (v148-v151).
+if (providers.gradleProperty("lagfix.detekt").orNull == "true") {
+    apply(plugin = "io.gitlab.arturbosch.detekt")
 
-tasks.withType<Detekt>().configureEach {
-    jvmTarget = "17"
-    reports {
-        html.required.set(true)
-        // v148: xml (dibaca workflow `android-artifact.yml` utk ringkasan) & txt (dibaca manusia) dinyalakan eksplisit,
-        // tak bergantung default plugin. Hanya menambah berkas laporan; aturan tak berubah.
-        xml.required.set(true)
-        txt.required.set(true)
+    configure<DetektExtension> {
+        buildUponDefaultConfig = true
+        allRules = false
+        config.setFrom(rootProject.file("config/detekt/detekt.yml"))
     }
-}
 
-// v148 (adaptasi Boomly Batch 164): jaring TAMBAHAN type-resolution HANYA utk task `detektDebug` (dijalankan workflow laporan
-// NON-BLOCKING, bukan gerbang `build.yml`). `config/detekt/detekt-typed.yml` digabung DI ATAS `detekt.yml` (rule lama tetap
-// aktif); task `detekt` polos TIDAK membaca file itu, jadi temuan/salah ketik di sana tak bisa
-// membuat build merah.
-tasks.withType<Detekt>().matching { it.name == "detektDebug" }.configureEach {
-    config.setFrom(
-        rootProject.file("config/detekt/detekt.yml"),
-        rootProject.file("config/detekt/detekt-typed.yml"),
-    )
-    // v150: pencatatan MENTAH berkas config yang benar-benar dipakai task ini saat dieksekusi (dibaca workflow laporan
-    // sbg `DETEKT_TYPED_DIAG`). Dasar: v149 mematikan `InjectDispatcher` di detekt-typed.yml tetapi laporan CI run 2
-    // masih memuatnya -> bukti apakah berkas typed ikut terbaca. Tidak mengubah aturan/hasil analisis.
-    val typedConfig = config
-    doFirst { println("DETEKT_TYPED_DIAG config=" + typedConfig.files.joinToString(",") { it.name }) }
+    tasks.withType<Detekt>().configureEach {
+        jvmTarget = "17"
+        reports {
+            html.required.set(true)
+            // v148: xml (dibaca workflow `android-artifact.yml` utk ringkasan) & txt (dibaca manusia) dinyalakan eksplisit,
+            // tak bergantung default plugin. Hanya menambah berkas laporan; aturan tak berubah.
+            xml.required.set(true)
+            txt.required.set(true)
+        }
+    }
+
+    // v148 (adaptasi Boomly Batch 164): jaring TAMBAHAN type-resolution HANYA utk task `detektDebug` (dijalankan workflow laporan
+    // NON-BLOCKING, bukan gerbang `build.yml`). `config/detekt/detekt-typed.yml` digabung DI ATAS `detekt.yml` (rule lama tetap
+    // aktif); task `detekt` polos TIDAK membaca file itu, jadi temuan/salah ketik di sana tak bisa
+    // membuat build merah.
+    tasks.withType<Detekt>().matching { it.name == "detektDebug" }.configureEach {
+        config.setFrom(
+            rootProject.file("config/detekt/detekt.yml"),
+            rootProject.file("config/detekt/detekt-typed.yml"),
+        )
+        // v150: pencatatan MENTAH berkas config yang benar-benar dipakai task ini saat dieksekusi (dibaca workflow laporan
+        // sbg `DETEKT_TYPED_DIAG`). Dasar: v149 mematikan `InjectDispatcher` di detekt-typed.yml tetapi laporan CI run 2
+        // masih memuatnya -> bukti apakah berkas typed ikut terbaca. Tidak mengubah aturan/hasil analisis.
+        val typedConfig = config
+        doFirst { println("DETEKT_TYPED_DIAG config=" + typedConfig.files.joinToString(",") { it.name }) }
+    }
 }
 
 // v148 (adaptasi Boomly Batch 201): SpotBugs REPORT-ONLY. Skrip HANYA di-apply bila `-Plagfix.spotbugs=true` (workflow
