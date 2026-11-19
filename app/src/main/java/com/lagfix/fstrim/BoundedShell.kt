@@ -18,21 +18,36 @@ internal object BoundedShell {
     private const val JOIN_GRACE_MS = 2_000L
     private const val EXIT_POLL_MS = 50L
 
+    // v167 (audit statis): jalur NORMAL (tak timeout) dulu tak pernah `destroy()` proses & tak menutup `outputStream`/
+    // `errorStream`-nya (hanya `destroy()` saat timeout) -> pegangan pipa & proses jauh Shizuku tertinggal 1 per
+    // pemanggilan (capture ProcessCatcher/OwnLogcat/LogcatSnapshot/KillCatcher/LogBuffer). Kini SELALU dibereskan di
+    // `finally`, SESUDAH kode keluar dibaca; hasil & exception asli tak berubah (galat bersih-bersih ditelan).
     fun run(timeoutMs: Long, start: () -> Process): BoundedResult {
         val p = start()
-        // StringWriter berbasis StringBuffer (thread-safe): aman dibaca walau reader masih berjalan.
-        val sink = StringWriter()
-        val reader = thread(isDaemon = true, name = "lagfix-shell-reader") {
-            runCatching { p.inputStream.bufferedReader().use { it.copyTo(sink) } }
+        try {
+            // StringWriter berbasis StringBuffer (thread-safe): aman dibaca walau reader masih berjalan.
+            val sink = StringWriter()
+            val reader = thread(isDaemon = true, name = "lagfix-shell-reader") {
+                runCatching { p.inputStream.bufferedReader().use { it.copyTo(sink) } }
+            }
+            reader.join(timeoutMs)
+            val timedOut = reader.isAlive
+            if (timedOut) {
+                runCatching { p.destroy() } // menutup pipa -> reader berhenti
+                reader.join(JOIN_GRACE_MS)
+            }
+            val exit = if (timedOut) null else waitExitCode(p)
+            return BoundedResult(exit, sink.toString(), timedOut)
+        } finally {
+            release(p)
         }
-        reader.join(timeoutMs)
-        val timedOut = reader.isAlive
-        if (timedOut) {
-            runCatching { p.destroy() } // menutup pipa -> reader berhenti
-            reader.join(JOIN_GRACE_MS)
-        }
-        val exit = if (timedOut) null else waitExitCode(p)
-        return BoundedResult(exit, sink.toString(), timedOut)
+    }
+
+    /** v167: tutup masukan/galat & hentikan proses; idempoten (aman dipanggil sesudah `destroy()` jalur timeout). */
+    private fun release(p: Process) {
+        runCatching { p.outputStream.close() }
+        runCatching { p.errorStream.close() }
+        runCatching { p.destroy() }
     }
 
     /**
