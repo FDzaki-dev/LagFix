@@ -1,14 +1,17 @@
 package com.lagfix.fstrim
 
+import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import java.io.File
 import java.io.IOException
+import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -120,6 +123,7 @@ object CrashLogger {
     /** Melempar exception eksplisit di tiap titik gagal (bukan diam2 no-op) supaya caller tahu
      * persis kenapa, dan siklus IS_PENDING resmi dipakai supaya file+folder pasti ter-finalize. */
     private fun writeViaMediaStore(ctx: Context, name: String, body: String) {
+        val resolver = ctx.contentResolver
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, name)
             put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
@@ -127,14 +131,25 @@ object CrashLogger {
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
         // v51: `MediaStore.Downloads` hanya utk folder Download -> pakai koleksi Files (API 29+).
-        val uri = ctx.contentResolver.insert(filesCollection(), values)
+        val uri = resolver.insert(filesCollection(), values)
             ?: throw IOException("contentResolver.insert() return null (MediaStore menolak buat row)")
-        val stream = ctx.contentResolver.openOutputStream(uri)
-            ?: throw IOException("openOutputStream() return null untuk uri: $uri")
-        stream.use { it.write(body.toByteArray()) }
-        val clearPending = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
-        ctx.contentResolver.update(uri, clearPending, null, null)
+        val failure = runCatching {
+            openForWrite(resolver, uri).use { it.write(body.toByteArray()) }
+            val clearPending = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
+            resolver.update(uri, clearPending, null, null)
+        }.exceptionOrNull()
+        if (failure != null) {
+            // v163: gagal sesudah insert -> baris IS_PENDING=1 (0 byte) dulu tertinggal yatim; kini dibuang.
+            // Exception ASLI tetap dilempar ulang (diteruskan ke fallback app files dir seperti sebelumnya).
+            runCatching { resolver.delete(uri, null, null) }
+                .onFailure { Log.w(TAG, "Gagal membuang baris pending yatim: $uri", it) }
+            throw failure
+        }
     }
+
+    // v163: dipisah dari writeViaMediaStore (detekt ThrowsCount maks 2); pesan galat identik dgn sebelumnya.
+    private fun openForWrite(resolver: ContentResolver, uri: Uri): OutputStream =
+        resolver.openOutputStream(uri) ?: throw IOException("openOutputStream() return null untuk uri: $uri")
 
     /** Fallback tanpa permission (selalu tersedia): app-specific external dir, atau internal
      * filesDir kalau external tak tersedia sama sekali — supaya tidak pernah diam total. */

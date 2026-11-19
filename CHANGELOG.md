@@ -1,5 +1,16 @@
 # Changelog
 
+## v163
+- Laporan CI run 15 (commit v162): semua alat lulus. detekt typed turun dari 17 ke 0 temuan (target v162 tercapai), detekt polos 0, SpotBugs 0, ArchUnit 7 aturan tanpa pelanggaran, 131 tes lulus, peringatan kompilator dan deprecated 0, APK terbentuk; lint hanya satu hint (compose-bom, disengaja).
+- Atas izin pemilik proyek untuk menyentuh semua berkas (termasuk yang dilindungi) dalam beberapa batch yang wajar, batch ini memperbaiki cacat nyata hasil audit kode latar; tidak ada bukti perangkat baru, jadi bug notifikasi persisten belum disentuh.
+- `TrimWorker.kt`: run manual dari widget saat Shizuku belum siap dulu berakhir dengan `Result.retry()`, sehingga WorkManager mengulangnya tanpa batas (toast dan satu baris Riwayat "dilewati" tiap ulang, bahkan berjam-jam kemudian). Kini run manual cukup satu catatan dan satu toast; rantai interval radikal tetap lanjut ke tik berikutnya dan jadwal periodik tetap `retry` seperti semula.
+- `TrimWorker.kt`: pengecualian tak terduga di dalam worker kini ditangkap di batas `doWork()` (pembatalan WorkManager tetap dilempar ulang), dicatat apa adanya di logcat dan Riwayat, dan rantai interval radikal tetap dijadwalkan; sebelumnya rantai itu bisa berhenti diam-diam.
+- `Scheduler.runOnce`: kerja manual dibuat unik (kebijakan KEEP), jadi ketukan ganda pada widget tidak lagi memulai dua `sm fstrim` paralel.
+- `Prefs.kt`: `record()` dikunci (`synchronized`) karena membaca lalu menulis ulang log riwayat; worker dan ViewModel yang menulis bersamaan bisa menghilangkan satu baris. Format baris, kunci, dan nilai bawaan tidak berubah.
+- `CrashLogger.kt`: bila penulisan lewat MediaStore gagal sesudah baris dibuat, baris `IS_PENDING` 0 byte kini dibuang (dulu tertinggal yatim); exception aslinya tetap dilempar ulang ke jalur cadangan seperti sebelumnya.
+- Tes baru `TrimWorkerPolicyTest` (4 tes) mengunci kebijakan akhir worker saat Shizuku belum siap.
+- Belum dijalankan di CI (kompilasi, tes, detekt, SpotBugs). Target run berikutnya: 135 tes lulus dan semua alat tetap 0 temuan.
+
 ## v162
 - Laporan CI run 14 (commit v161): SpotBugs kembali berjalan (SARIF terbentuk, 0 temuan), jadi perbaikan jalur kelas v161 terbukti. detekt typed turun dari 41 ke 17 temuan persis seperti diperkirakan, tanpa temuan baru; 131 tes lulus, peringatan kompilator dan deprecated 0, APK terbentuk.
 - Atas izin pemilik proyek, 17 temuan sisa ditutup di 8 berkas: `CatchJournal`, `KillCatcher`, `LogBuffer`, `MainActivity`, `RecentsExclusion`, serta tiga berkas yang biasanya dilindungi (`PersistentTrimService`, `FstrimExecutor`, `UpdateChecker`). Pola sama seperti v161: template log yang menyisipkan nilai nullable kini memakai `?: "null"` eksplisit, keluaran identik; rule `NullableToStringCall` tetap aktif.

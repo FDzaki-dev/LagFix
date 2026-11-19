@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.service.quicksettings.TileService
+import android.util.Log
 import android.widget.Toast
 import androidx.work.CoroutineWorker
 import androidx.work.Data
@@ -14,6 +15,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -21,7 +23,23 @@ import rikka.shizuku.Shizuku
 import java.util.concurrent.TimeUnit
 
 class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
-    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+    /** v163: akhir pekerjaan saat Shizuku belum siap (lihat [notReadyAction]). */
+    internal enum class NotReadyAction { NEXT_TICK, STOP, RETRY }
+
+    // v163: batas pelindung. Pengecualian tak terduga yg keluar dari pekerjaan (mis. dari `Scheduler.notifyChanged`)
+    // membuat WorkManager menandai gagal & rantai radikal TIDAK dijadwalkan lagi = interval berhenti diam-diam.
+    // Kini dicatat apa adanya (Riwayat + logcat) & rantai tetap lanjut; pembatalan WorkManager dilempar ulang.
+    // catch Exception DISENGAJA: batas pekerjaan latar (shell/binder/widget), kegagalan apa pun dilaporkan.
+    @Suppress("TooGenericExceptionCaught")
+    override suspend fun doWork(): Result = try {
+        runTrim()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        failUnexpected(e)
+    }
+
+    private suspend fun runTrim(): Result = withContext(Dispatchers.IO) {
         val prefs = Prefs(applicationContext)
         // v123: catcher dibaca SEBELUM `ensureShowing`; cold dari worker TIDAK menulis berkas (cegah banjir).
         ProcessCatcher.capture(applicationContext, ProcessCatcher.SOURCE_WORKER, allowCold = false)
@@ -61,12 +79,15 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             PersistentTrimService.ensureShowing(applicationContext, "worker-end") // v78
             if (manual) toast(applicationContext.getString(R.string.toast_shizuku_not_ready))
             // v118: rantai radikal tak pakai retry/backoff (bisa lebih lama dari interval & dobel jadwal);
-            // cukup jadwalkan tik berikutnya.
-            if (chain) {
-                Scheduler.scheduleNext(applicationContext, prefs)
-                return@withContext Result.success()
+            // cukup jadwalkan tik berikutnya. v163: run manual juga tanpa retry (lihat `notReadyAction`).
+            return@withContext when (notReadyAction(manual, chain)) {
+                NotReadyAction.NEXT_TICK -> {
+                    Scheduler.scheduleNext(applicationContext, prefs)
+                    Result.success()
+                }
+                NotReadyAction.STOP -> Result.success()
+                NotReadyAction.RETRY -> Result.retry()
             }
-            return@withContext Result.retry()
         }
         val r = FstrimExecutor.run()
         prefs.record(r, trigger)
@@ -85,6 +106,21 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
         Result.success()
     }
 
+    // v163: catatan mentah (kelas + pesan exception) ke Riwayat; jadwal rantai radikal dijaga agar tak putus.
+    private fun failUnexpected(e: Exception): Result {
+        Log.e(TAG, "TrimWorker gagal tak terduga", e)
+        val prefs = Prefs(applicationContext)
+        val trigger = if (inputData.getBoolean(KEY_MANUAL, false)) TriggerSource.MANUAL else TriggerSource.AUTO
+        val failure = TrimResult(false, "${e.javaClass.simpleName}: ${e.message ?: "null"}", 0L)
+        runCatching { prefs.record(failure, trigger) }
+            .onFailure { Log.w(TAG, "Catatan kegagalan worker gagal ditulis", it) }
+        if (inputData.getBoolean(KEY_CHAIN, false)) {
+            runCatching { Scheduler.scheduleNext(applicationContext, prefs) }
+                .onFailure { Log.w(TAG, "Jadwal tik berikutnya gagal dibuat", it) }
+        }
+        return Result.failure()
+    }
+
     private suspend fun toast(text: String) = withContext(Dispatchers.Main) {
         Toast.makeText(applicationContext, text, Toast.LENGTH_LONG).show()
     }
@@ -92,6 +128,18 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
     companion object {
         const val KEY_MANUAL = "manual"
         const val KEY_CHAIN = "chain" // v118
+        private const val TAG = "TrimWorker"
+
+        /**
+         * v163 (audit statis): run MANUAL (widget) dulu ikut `Result.retry()` -> WorkManager mengulang TANPA BATAS dgn
+         * backoff (toast + 1 baris Riwayat tiap ulang, bahkan berjam-jam kemudian). Manual cukup 1 catatan + 1 toast.
+         * Rantai radikal: lanjut ke tik berikutnya (v118); periodik: retry seperti semula (v13).
+         */
+        internal fun notReadyAction(manual: Boolean, chain: Boolean): NotReadyAction = when {
+            chain -> NotReadyAction.NEXT_TICK
+            manual -> NotReadyAction.STOP
+            else -> NotReadyAction.RETRY
+        }
 
         // v92 (detekt MagicNumber): nilai identik dgn literal sebelumnya (tunggu Shizuku maks 5 dtk,
         // cek tiap 0,5 dtk; pesan toast gagal dipotong 60 karakter).
@@ -104,6 +152,7 @@ class TrimWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
 object Scheduler {
     private const val NAME = "lagfix_fstrim"
     private const val NAME_RADICAL = "lagfix_fstrim_radical" // v118: rantai OneTime utk interval < 15 menit
+    private const val NAME_MANUAL = "lagfix_fstrim_manual" // v163: 1 run manual pada satu waktu
 
     // v44: batas bawah interval periodik WorkManager (PeriodicWorkRequest.MIN_PERIODIC_INTERVAL_MILLIS
     // = 15 menit). Nilai lebih kecil DIAM-DIAM dinaikkan ke 15 menit oleh WorkManager, jadi UI
@@ -156,11 +205,17 @@ object Scheduler {
         wm.enqueueUniqueWork(NAME_RADICAL, ExistingWorkPolicy.REPLACE, req)
     }
 
-    /** Dipakai widget (LagFixWidgetProvider) & QS tile (LagFixTileService) untuk trigger manual. */
+    /**
+     * Dipakai widget (LagFixWidgetProvider) & QS tile (LagFixTileService) untuk trigger manual.
+     * v163: kerja unik + KEEP -> ketukan ganda saat run manual masih berjalan tak memulai `sm fstrim` paralel.
+     */
     fun runOnce(ctx: Context) {
         val data = Data.Builder().putBoolean(TrimWorker.KEY_MANUAL, true).build()
-        WorkManager.getInstance(ctx.applicationContext)
-            .enqueue(OneTimeWorkRequestBuilder<TrimWorker>().setInputData(data).build())
+        WorkManager.getInstance(ctx.applicationContext).enqueueUniqueWork(
+            NAME_MANUAL,
+            ExistingWorkPolicy.KEEP,
+            OneTimeWorkRequestBuilder<TrimWorker>().setInputData(data).build()
+        )
     }
 
     /**

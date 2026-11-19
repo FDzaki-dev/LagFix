@@ -18,6 +18,10 @@ private const val LEGACY_HOURS_TO_MINUTES = 60L
 private const val LOG_MESSAGE_MAX_CHARS = 120
 private const val LOG_MAX_LINES = 30
 
+// v163: `record()` = baca-ubah-tulis kunci `log`; worker & ViewModel bisa memanggilnya bersamaan (thread IO berbeda)
+// -> satu baris riwayat bisa hilang. Kunci lebar-proses (instance `Prefs` dibuat per pemanggil; prefs-nya tunggal).
+private val recordLock = Any()
+
 class Prefs(context: Context) {
     private val sp = context.applicationContext.getSharedPreferences("lagfix", Context.MODE_PRIVATE)
 
@@ -73,6 +77,10 @@ class Prefs(context: Context) {
     // identik persis. Baris LAMA (tanpa token) tetap terbaca di sisi UI (regex backward-compat,
     // 0 migrasi data).
     fun record(r: TrimResult, trigger: String) {
+        synchronized(recordLock) { recordLocked(r, trigger) }
+    }
+
+    private fun recordLocked(r: TrimResult, trigger: String) {
         val now = System.currentTimeMillis()
         val stamp = SimpleDateFormat("dd/MM HH:mm", Locale.US).format(Date(now))
         val status = if (r.ok) "OK" else "FAIL"
