@@ -1,5 +1,10 @@
 # Changelog
 
+## v158
+- Build run 131 (v157) merah di langkah tes unit: satu galat kompilasi di `RecentsExclusion.kt` baris 48. Dengan compileSdk 37, `ActivityManager.AppTask.getTaskInfo()` ditandai nullable di android.jar, sehingga `it.taskInfo.baseIntent.flags` ditolak. Resolusi dependensi dan pemeriksaan metadata AAR untuk Tahap C lolos.
+- Perbaikan: `recentsReadBack` kini memakai `it.taskInfo?.baseIntent?.flags`. Fungsi `recentsReadBackLine` sudah menangani nilai null ("baseIntent=null"), jadi jalur normal identik dan tes tidak berubah. Tidak ada pemakaian `taskInfo` lain di sumber.
+- Belum dijalankan di CI. Build berhenti di kompilasi Kotlin, jadi kompilasi tes, tes, APK, dan lint belum terlihat; galat atau peringatan baru dari compileSdk 37, Compose 1.12, atau Material 3 1.4.0 masih mungkin muncul.
+
 ## v157
 - Laporan CI run 9 (commit v156): semuanya hijau (122 tes unit lulus, APK debug terbentuk, detekt/detekt typed/ArchUnit/SpotBugs 0 temuan, peringatan kompilator 0). Perbaikan v156 terbukti: tujuh UseKtx di `Prefs.kt` hilang, lint tanpa error dan tanpa warning. Sisa target: tujuh hint lint (enam GradleDependency, satu OldTargetApi) dan tiga pesan deprecated.
 - Tahap C: `app/build.gradle.kts` menaikkan compileSdk dan targetSdk dari 35 ke 37, compose-bom 2024.10.01 ke 2026.09.00, core-ktx 1.13.1 ke 1.19.1, activity-compose 1.9.3 ke 1.13.0, lifecycle-viewmodel-ktx 2.8.7 ke 2.11.0, work-runtime-ktx 2.9.1 ke 2.12.0 (angka sesuai saran lint di laporan). Compose 1.12 mewajibkan compileSdk 37 dan AGP 9.2.0 ke atas; AGP proyek 9.5.0. Kode produksi (`app/src/main`) tidak diubah. Perilaku API 37 hanya aktif di Android 17 ke atas, jadi perangkat Android 16 tidak terpengaruh oleh targetSdk 37; telaah sumber untuk perubahan API 37 tidak menemukan paparan.
