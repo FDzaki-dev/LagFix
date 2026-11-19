@@ -5,6 +5,7 @@ import android.app.ApplicationExitInfo
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import androidx.core.content.edit
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -70,7 +71,7 @@ internal object KillCatcher {
             Log.i(KILL_TAG, "LIFECYCLE kill context dilewati: shizuku=${state.name} newDeaths=${deaths.size}")
             return
         }
-        prefs.edit().putLong(KILL_KEY_LAST_TS, deaths.maxOf { it.timestampMs }).apply()
+        prefs.edit { putLong(KILL_KEY_LAST_TS, deaths.maxOf { it.timestampMs }) }
         val lines = deaths.flatMap { d ->
             runCatching { investigate(d) }.getOrElse {
                 listOf("death timestamp=${d.timestampMs} pid=${d.pid} read exception = $it")

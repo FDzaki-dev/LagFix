@@ -158,8 +158,11 @@ internal object LeaveGuard {
         val app = activity.applicationContext
         val sp = app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val callsKey = KEY_CALLS_PREFIX + source
-        sp.edit().putInt(callsKey, sp.getInt(callsKey, 0) + 1).putString(KEY_LAST_CALL, source)
-            .putLong(KEY_LAST_CALL_MS, System.currentTimeMillis()).apply()
+        sp.edit {
+            putInt(callsKey, sp.getInt(callsKey, 0) + 1)
+            putString(KEY_LAST_CALL, source)
+            putLong(KEY_LAST_CALL_MS, System.currentTimeMillis())
+        }
         runCatching {
             val state = LeaveState(
                 toggleOn = Prefs(app).persistentServiceEnabled,

@@ -40,6 +40,10 @@ val spotbugsSarif = layout.buildDirectory.file("reports/spotbugs/spotbugs.sarif"
 val spotbugsExclude = rootProject.layout.projectDirectory.file("config/spotbugs/exclude.xml")
 val spotbugsSources = layout.projectDirectory.dir("src/main/java")
 
+// v155: dipakai di `CommandLineArgumentProvider` (jalan saat EKSEKUSI). Sebelumnya `project.configurations` di sana = `Task.project`
+// saat eksekusi (laporan run 6/7: deprecated, gagal di Gradle 10). `configurations` di sini = milik proyek skrip, dibaca saat konfigurasi.
+val projectConfigurations = configurations
+
 // android.jar: platform compileSdk dulu; bila belum terpasang, platform bernomor tertinggi yang ada.
 fun findAndroidJar(sdkRoot: String?): File? {
     if (sdkRoot == null) return null
@@ -71,7 +75,7 @@ tasks.register<JavaExec>("spotbugsDebug") {
             val aux = LinkedHashSet<File>()
             findAndroidJar(System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT"))?.let { aux.add(it) }
             runCatching {
-                val compileClasspath = project.configurations.getByName("debugCompileClasspath")
+                val compileClasspath = projectConfigurations.getByName("debugCompileClasspath")
                 for (type in listOf("android-classes-jar", "jar")) {
                     val view = compileClasspath.incoming.artifactView {
                         lenient(true)

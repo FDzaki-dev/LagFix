@@ -1,5 +1,13 @@
 # Changelog
 
+## v155
+- Laporan CI run 7 (commit v154): build hijau (122 tes unit lulus, APK debug terbentuk, detekt/detekt typed/ArchUnit/SpotBugs 0 temuan, peringatan kompilator 0). Perbaikan v154 terbukti: lima flag AGP yang dihapus tak lagi dicetak sebagai deprecated, dan UseKtx turun dari 16 menjadi 10.
+- Tiga UseKtx tersisa di berkas non-terlarang diperbaiki dengan `SharedPreferences.edit { ... }` (apply di akhir, perilaku identik): `CatchJournal.kt`, `KillCatcher.kt`, dan `RecentsExclusion.kt` baris 161 (tiga `put*` dalam satu apply; pembacaan `getInt` terjadi sebelum apply, sama seperti sebelumnya).
+- `config/spotbugs/spotbugs.gradle.kts`: `project.configurations` di dalam `CommandLineArgumentProvider` (dijalankan saat eksekusi, dihitung `Task.project` saat eksekusi, deprecated dan gagal di Gradle 10) diganti dengan `projectConfigurations` yang dibaca saat konfigurasi. Skrip diuji terkompilasi di Gradle 8.14.3.
+- `app/build.gradle.kts`: dependensi tes `mockito-core` 5.23.0 menjadi 5.24.0 dan `archunit` 1.3.0 menjadi 1.5.1 (menghapus dua NewerVersionAvailable; hanya classpath tes).
+- Belum dikerjakan: tujuh UseKtx di `Prefs.kt` (DO-NOT-TOUCH, perlu perintah user), sehingga lint tetap merah dengan 7 error. Sisa deprecated bergantung Tahap D.
+- Belum dijalankan di CI. Perilaku aplikasi tidak berubah.
+
 ## v154
 - Laporan CI run 6 (commit v153): build hijau (122 tes unit lulus, APK debug terbentuk, detekt/detekt typed/ArchUnit/SpotBugs 0 temuan), jadi perbaikan plugin Kotlin v153 berhasil. Temuan baru dari lint AGP 9.5.0: 16 UseKtx dan 2 NewerVersionAvailable (semua dihitung error karena warning dianggap error).
 - Tujuh dari enam belas isu UseKtx (di empat berkas) diperbaiki di sumbernya dengan padanan KTX yang perilakunya identik: `SharedPreferences.edit { ... }` (apply di akhir, sama seperti `.edit()...apply()`) di `Design.kt` dan `RecentsExclusion.kt` (dua tempat), `String.toUri()` di `MainActivity.kt` (dua tempat) dan `MainViewModel.kt`, serta `Int.toDrawable()` di `Design.kt`. Impor yang tak terpakai (`ColorDrawable`, `Uri` di `MainViewModel.kt`) dihapus. `RecentsExclusion.checkBreaker` tetap menulis dua kunci secara atomik dalam satu apply; bila pembacaan kill timestamp melempar galat, tidak ada yang ditulis (sama seperti sebelumnya).

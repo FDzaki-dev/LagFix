@@ -6,6 +6,7 @@ import android.content.Context
 import android.os.Build
 import android.os.PowerManager
 import android.util.Log
+import androidx.core.content.edit
 
 private const val JOURNAL_TAG = "CatchJournal"
 private const val JOURNAL_PREFS = "lagfix_catch_journal"
@@ -33,7 +34,7 @@ internal object CatchJournal {
             val prefs = app.getSharedPreferences(JOURNAL_PREFS, Context.MODE_PRIVATE)
             val rows = splitRows(prefs.getString(JOURNAL_KEY_ROWS, null))
             val folded = foldObservation(rows, key, nowMs, JOURNAL_MAX_ROWS)
-            prefs.edit().putString(JOURNAL_KEY_ROWS, folded.joinToString(JOURNAL_SEPARATOR)).apply()
+            prefs.edit { putString(JOURNAL_KEY_ROWS, folded.joinToString(JOURNAL_SEPARATOR)) }
         }.onFailure { Log.w(JOURNAL_TAG, "Jurnal pengamatan gagal ditulis", it) }
     }
 

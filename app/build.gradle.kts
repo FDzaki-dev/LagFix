@@ -87,10 +87,10 @@ dependencies {
     // v17 (C4 kandidat b): FstrimExecutorTest.kt pindah dari mockStatic ke mock interface biasa
     // (ShizukuGateway) — mockito-core tetap dipakai utk mock() non-static ini.
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.mockito:mockito-core:5.23.0")
+    testImplementation("org.mockito:mockito-core:5.24.0")
     // v148 (adaptasi Boomly Batch 201): ArchUnit utk `ArchitectureTest` (REPORT-ONLY, tak pernah menggagalkan tes; laporan
     // ke app/build/reports/archunit/archunit-report.txt dibaca workflow `android-artifact.yml`). Hanya classpath tes.
-    testImplementation("com.tngtech.archunit:archunit:1.3.0")
+    testImplementation("com.tngtech.archunit:archunit:1.5.1")
 }
 
 // F1 (PENDING_ROADMAP.md, CI hardening): static analysis Kotlin. v88-v150: BLOCKING di build.yml; v151 (perintah user): task
