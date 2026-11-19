@@ -10,7 +10,7 @@
 //
 // Keluaran: `app/build/reports/spotbugs/spotbugs.sarif` (dibaca `jq` di workflow). Filter noise Kotlin:
 // `config/spotbugs/exclude.xml`. NON-BLOCKING: exit code SpotBugs diabaikan.
-// Aux classpath = `android.jar` (compileSdk 35 lebih dulu, lalu platform terbaru yang ada) + dependensi debug bila bisa
+// Aux classpath = `android.jar` (platform compileSdk lebih dulu, lalu platform terbaru yang ada) + dependensi debug bila bisa
 // di-resolve (best effort). Bila tak ada, SpotBugs hanya mencetak peringatan "missing class" dan analisis tetap jalan
 // dengan presisi lebih rendah.
 //
@@ -23,7 +23,9 @@ import org.gradle.api.attributes.Attribute
 import org.gradle.process.CommandLineArgumentProvider
 
 val spotbugsVersion = "4.8.6"
-val compileSdkJar = "android-35"
+// v157: compileSdk 37 -> platform `android-37.0` (nama direktori di runner untuk API 37; lihat SDK_PLATFORMS di laporan CI), lalu
+// `android-37`, lalu `android-35` (platform lama yang masih ada di runner) sebagai cadangan.
+val compileSdkJars = listOf("android-37.0", "android-37", "android-35")
 
 val spotbugsRunner = configurations.create("spotbugsRunner") {
     description = "Classpath CLI SpotBugs (hanya di-resolve oleh task spotbugsDebug)"
@@ -48,8 +50,7 @@ val projectConfigurations = configurations
 fun findAndroidJar(sdkRoot: String?): File? {
     if (sdkRoot == null) return null
     val platforms = File(sdkRoot, "platforms")
-    val preferred = File(platforms, "$compileSdkJar/android.jar")
-    if (preferred.isFile) return preferred
+    compileSdkJars.map { File(platforms, "$it/android.jar") }.firstOrNull { it.isFile }?.let { return it }
     return platforms.listFiles()
         ?.filter { File(it, "android.jar").isFile }
         ?.maxByOrNull { it.name.removePrefix("android-").toIntOrNull() ?: 0 }

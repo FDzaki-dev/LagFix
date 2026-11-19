@@ -1,5 +1,13 @@
 # Changelog
 
+## v157
+- Laporan CI run 9 (commit v156): semuanya hijau (122 tes unit lulus, APK debug terbentuk, detekt/detekt typed/ArchUnit/SpotBugs 0 temuan, peringatan kompilator 0). Perbaikan v156 terbukti: tujuh UseKtx di `Prefs.kt` hilang, lint tanpa error dan tanpa warning. Sisa target: tujuh hint lint (enam GradleDependency, satu OldTargetApi) dan tiga pesan deprecated.
+- Tahap C: `app/build.gradle.kts` menaikkan compileSdk dan targetSdk dari 35 ke 37, compose-bom 2024.10.01 ke 2026.09.00, core-ktx 1.13.1 ke 1.19.1, activity-compose 1.9.3 ke 1.13.0, lifecycle-viewmodel-ktx 2.8.7 ke 2.11.0, work-runtime-ktx 2.9.1 ke 2.12.0 (angka sesuai saran lint di laporan). Compose 1.12 mewajibkan compileSdk 37 dan AGP 9.2.0 ke atas; AGP proyek 9.5.0. Kode produksi (`app/src/main`) tidak diubah. Perilaku API 37 hanya aktif di Android 17 ke atas, jadi perangkat Android 16 tidak terpengaruh oleh targetSdk 37; telaah sumber untuk perubahan API 37 tidak menemukan paparan.
+- `config/spotbugs/spotbugs.gradle.kts`: classpath `android.jar` untuk SpotBugs kini mencoba `android-37.0`, `android-37`, lalu `android-35`, supaya selaras dengan compileSdk baru.
+- `app/lint.xml`: hanya komentar yang diperbarui; aturan tidak berubah (GradleDependency dan OldTargetApi tetap informational).
+- Tes baru `LogLineParserTest` (9 tes): mengunci kontrak baris riwayat antara `Prefs.record()` dan `parseLogLine` (token trigger, token telat, baris lama tanpa trigger, pesan kosong, baris tak terbaca) serta `formatInterval`. Audit statis tidak menemukan cacat pada format tulis dan baca riwayat.
+- Belum dijalankan di CI (kompilasi, resolusi dependensi, lint, tes, SpotBugs belum terverifikasi). Risiko visual: Compose 1.7 ke 1.12 dan Material 3 1.3 ke 1.4.0 dapat menggeser tampilan bawaan; perlu dicek di perangkat. Tahap D (detekt 2.x dan penghapusan opt-out `newDsl`/`builtInKotlin`) belum dikerjakan.
+
 ## v156
 - Laporan CI run 8 (commit v155): build hijau (122 tes unit lulus dengan mockito 5.24.0, APK debug terbentuk, detekt/detekt typed/ArchUnit 1.5.1/SpotBugs 0 temuan). Perbaikan v155 terbukti: deprecated `Task.project` dan dua NewerVersionAvailable hilang. Lint tinggal tujuh error, semuanya UseKtx di `Prefs.kt`.
 - Atas perintah user ("Prefs boleh"), `Prefs.kt` diperbaiki hanya pada baris yang dilaporkan lint: enam setter (`themeMode`, `enabled`, `intervalMinutes`, `radicalInterval`, `scheduleAnchorMs`, `persistentServiceEnabled`) dan `record()` kini memakai `SharedPreferences.edit { ... }`. Perilaku identik (`edit {}` = `edit()` + aksi + `apply()`); kunci, nilai default, urutan penulisan, dan format log tidak berubah.

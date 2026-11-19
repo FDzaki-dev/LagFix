@@ -7,10 +7,10 @@
          v151: lint HANYA jalan di workflow laporan `android-artifact.yml` (non-blocking; gerbang build.yml dihapus atas
          perintah user), jadi kedua cek ini DIPULIHKAN ke `informational` (v150 sempat `ignore`) = tampil jujur di
          `laporan-untuk-claude.txt` sebagai "versi usang", tanpa bisa merahkan build.
-         Isu yg tampil (laporan CI run 2): OldTargetApi `app/build.gradle.kts` + 5 GradleDependency (compose-bom,
-         core-ktx, activity-compose, lifecycle-viewmodel-ktx, work-runtime-ktx). Tak bisa dihapus bertahap: rilis
-         terbaru lifecycle 2.11.0 (artifak Compose) butuh compileSdk 37 + AGP >= 9.2, core 1.18+ butuh compileSdk 36.1
-         (AGP >= 8.13) -> hanya hilang lewat migrasi toolchain AGP 9 (batch tersendiri; lihat PROJECT_STATE). -->
+         Isu yg tampil sampai laporan CI run 9: OldTargetApi + 6 GradleDependency (compileSdk, compose-bom, core-ktx,
+         activity-compose, lifecycle-viewmodel-ktx, work-runtime-ktx). v157 (Tahap C) menaikkan semuanya ke rilis
+         terbaru + compileSdk/targetSdk 37; cek ini tetap informational karena "terbaru" berubah seiring waktu
+         tanpa perubahan kode (muncul lagi saat ada rilis baru). -->
     <issue id="GradleDependency" severity="informational" />
     <issue id="OldTargetApi" severity="informational" />
 
