@@ -129,12 +129,12 @@ internal object ProcessCatcher {
     // v130: versi APK pembuat berkas (header tak memuatnya -> versi terpasang ambigu; versionCode = nomor run CI).
     private fun readAppVersion(app: Context): Result<List<String>> = runCatching {
         val info = app.packageManager.getPackageInfo(app.packageName, 0)
-        listOf("versionName=${info.versionName} versionCode=${PackageInfoCompat.getLongVersionCode(info)}")
+        listOf("versionName=${info.versionName ?: "null"} versionCode=${PackageInfoCompat.getLongVersionCode(info)}")
     }
 
     private fun readBackgroundRestricted(am: ActivityManager?): Result<List<String>> = runCatching {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            listOf("value=${am?.isBackgroundRestricted}")
+            listOf("value=${am?.isBackgroundRestricted ?: "null"}")
         } else {
             listOf(unavailableLine("P"))
         }
@@ -156,7 +156,7 @@ internal object ProcessCatcher {
             am?.getHistoricalProcessExitReasons(null, 0, CATCH_MAX_HISTORY).orEmpty().map { i ->
                 "timestamp=${i.timestamp} pid=${i.pid} " +
                     "reason=${i.reason}(${constantName(i.javaClass, "REASON_", i.reason)}) " +
-                    "status=${i.status} importance=${i.importance} description=${i.description}"
+                    "status=${i.status} importance=${i.importance} description=${i.description ?: "null"}"
             }
         } else {
             listOf(unavailableLine("R"))
@@ -180,7 +180,7 @@ internal object ProcessCatcher {
                     "reason=${i.reason}(${constantName(cls, "START_REASON_", i.reason)}) " +
                     "startType=${i.startType}(${constantName(cls, "START_TYPE_", i.startType)}) " +
                     "startupState=${i.startupState}(${constantName(cls, "STARTUP_STATE_", i.startupState)}) " +
-                    "intent=${i.intent} timestamps={${timestampsText(i)}}"
+                    "intent=${i.intent ?: "null"} timestamps={${timestampsText(i)}}"
             }
         } else {
             listOf(unavailableLine("VANILLA_ICE_CREAM"))
@@ -232,9 +232,9 @@ internal fun timestampsText(info: Any): String = runCatching {
     val map = info.javaClass.getMethod("getStartupTimestamps").invoke(info) as Map<*, *>
     val pairs = map.entries.map { ((it.key as? Int) ?: -1) to it.value }
     pairs.sortedBy { it.first }.joinToString(",") { (code, value) ->
-        "${constantName(info.javaClass, "START_TIMESTAMP_", code)}=$value"
+        "${constantName(info.javaClass, "START_TIMESTAMP_", code)}=${value ?: "null"}"
     }
-}.getOrElse { e -> "read exception = $e at ${(e.cause ?: e).stackTrace.firstOrNull()}" }
+}.getOrElse { e -> "read exception = $e at ${(e.cause ?: e).stackTrace.firstOrNull() ?: "null"}" }
 
 /** v123 (prinsip user: log = DATA MENTAH): baris pertama berkas `diag_process_catch`. */
 internal fun formatCatchHeader(source: String, reason: String, pid: Int, procAgeMs: Long, toggleOn: Boolean): String =
@@ -242,6 +242,6 @@ internal fun formatCatchHeader(source: String, reason: String, pid: Int, procAge
 
 /** v123: 1 seksi berkas: jumlah + 1 baris per item, atau exception pembacaan apa adanya. */
 internal fun formatCatchSection(label: String, read: Result<List<String>>): String {
-    val items = read.getOrNull() ?: return "$label: read exception = ${read.exceptionOrNull()}"
+    val items = read.getOrNull() ?: return "$label: read exception = ${read.exceptionOrNull() ?: "null"}"
     return (listOf("$label: count=${items.size}") + items.map { "  $it" }).joinToString("\n")
 }

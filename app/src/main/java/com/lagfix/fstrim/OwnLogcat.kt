@@ -51,14 +51,14 @@ private fun runOwnLogcat(pidArg: String?): BoundedResult = BoundedShell.run(OWN_
 internal fun ownLogcatItems(scope: String, output: String, exit: Int?, timedOut: Boolean): List<String> {
     val all = output.lines().filter { it.isNotBlank() }
     val kept = all.filter { it.contains(OWN_LOGCAT_KEYWORD) }.takeLast(OWN_LOGCAT_MAX_LINES)
-    val meta = "scope=$scope exit=$exit timedOut=$timedOut totalLines=${all.size} " +
+    val meta = "scope=$scope exit=${exit ?: "null"} timedOut=$timedOut totalLines=${all.size} " +
         "keyword=$OWN_LOGCAT_KEYWORD keptLines=${kept.size}"
     return listOf(meta) + kept.ifEmpty { all.takeLast(OWN_LOGCAT_RAW_TAIL) }
 }
 
 /** v127: 1 baris logcat penanda broadcast widget (komponen pertama sesudah `Application.onCreate` pada proses baru). */
 internal fun widgetLifecycleLine(action: String?, pid: Int, procAgeMs: Long): String =
-    "LIFECYCLE widget onReceive action=$action pid=$pid procAge=${procAgeMs}ms"
+    "LIFECYCLE widget onReceive action=${action ?: "null"} pid=$pid procAge=${procAgeMs}ms"
 
 /**
  * v128 (hasil v127: `ownLogcat` kosong): awal jendela logcat sistem = lahir proses - 1 dtk; proses lama (warm) dibatasi
@@ -93,7 +93,7 @@ internal fun readShizukuLogcat(app: Context, pid: Int, startMs: Long): Result<Li
 internal fun shizukuLogcatItems(output: String, from: String, to: String, exit: Int?, timedOut: Boolean): List<String> {
     val kept = output.lineSequence().filter { inWindow(it, from, to) }.take(SHZ_LOGCAT_MAX_LINES)
         .map { it.take(SHZ_LOGCAT_MAX_CHARS) }.toList()
-    val meta = "shizuku=READY window=$from..$to lines=${kept.size} exit=$exit timedOut=$timedOut"
+    val meta = "shizuku=READY window=$from..$to lines=${kept.size} exit=${exit ?: "null"} timedOut=$timedOut"
     val raw = output.lines().filter { it.isNotBlank() }.takeLast(SHZ_LOGCAT_RAW_TAIL)
         .map { it.take(SHZ_LOGCAT_MAX_CHARS) }
     return listOf(meta) + kept.ifEmpty { raw }
@@ -132,6 +132,6 @@ internal fun readLogcatInfo(app: Context, sinceMs: Long): Result<List<String>> =
 /** v130: baris pertama = angka mentah (exit, timedOut, jumlah baris); sisanya keluaran shell apa adanya (maks 30). */
 internal fun logcatInfoItems(output: String, exit: Int?, timedOut: Boolean): List<String> {
     val lines = output.lines().filter { it.isNotBlank() }
-    val meta = "shizuku=READY exit=$exit timedOut=$timedOut lines=${lines.size}"
+    val meta = "shizuku=READY exit=${exit ?: "null"} timedOut=$timedOut lines=${lines.size}"
     return listOf(meta) + lines.take(SHZ_INFO_MAX_LINES).map { it.take(SHZ_LOGCAT_MAX_CHARS) }
 }

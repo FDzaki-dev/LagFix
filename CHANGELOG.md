@@ -1,5 +1,13 @@
 # Changelog
 
+## v161
+- Laporan CI run 13 (commit v160): Tahap D2 terbukti. Pesan deprecated Gradle/AGP/plugin 0, peringatan kompilator 0, detekt polos 0 temuan, 131 tes lulus, APK terbentuk, lint hanya satu hint (compose-bom, disengaja). Dua hal tersisa: SpotBugs `NOT VERIFIED` dan `detektDebug` (jaring typed) yang kini berjalan dan melaporkan 41 temuan pertama.
+- SpotBugs: dengan Kotlin bawaan AGP 9 kelas hasil kompilasi tidak lagi ada di `build/tmp/kotlin-classes/debug`, sehingga SpotBugs berhenti dengan "No files to analyze could be opened". `config/spotbugs/spotbugs.gradle.kts` kini mengambil direktori kelas dari keluaran task `compileDebugKotlin` (dengan jalur cadangan dan pindai `MainActivity.class`) dan mencatat jalur nyatanya sebagai `SPOTBUGS_DIAG` di log laporan.
+- detekt typed: 39 temuan `NullableToStringCall` adalah template log/diagnostik yang menyisipkan nilai nullable; teks "null" memang keluaran mentah yang diinginkan. Diperbaiki di sumber dengan `?: "null"` eksplisit (keluaran identik) di `OwnLogcat.kt` (4), `ProcessCatcher.kt` (7), `LogcatSnapshot.kt` (10) dan `BootTrimSetting.kt` (2). Rule tidak dimatikan.
+- `BootTrimReading` (`BootTrimSetting.kt`) menjadi `sealed interface` (temuan `AbstractClassCanBeInterface`); pemakaian `is`, `==` dan `when` tidak berubah. Di `LogcatSnapshot.kt` blok catch dump mentah memakai variabel lokal `failure` alih-alih membaca ulang `shellError`.
+- Belum diperbaiki (sengaja): 8 temuan di `CatchJournal`, `KillCatcher`, `LogBuffer`, `MainActivity`, `RecentsExclusion` (batas jumlah berkas per batch) dan 9 temuan di berkas yang dilindungi (`PersistentTrimService`, `UpdateChecker`, `FstrimExecutor`; butuh keputusan pengguna).
+- Belum dijalankan di CI (kompilasi, tes, SpotBugs, detekt typed). Perilaku aplikasi tidak berubah.
+
 ## v160
 - Laporan CI run 12 (commit v159): detekt 2.0.0-alpha.6 berjalan (0 temuan), pesan deprecated `ReportingExtension.file` hilang, 131 tes lulus, APK terbentuk. `detektDebug` gagal validasi config: rule set `standard-library` ada di panduan migrasi "Next" tetapi belum ada di alpha.6. Lint melaporkan dua hint baru karena ada rilis baru (compose-bom 2026.11.01, lifecycle-viewmodel-ktx 2.11.1).
 - `config/detekt/detekt-typed.yml`: tiga rule (`ArrayPrimitive`, `ForEachOnRange`, `MapGetWithNotNullAssertionOperator`) dikembalikan ke rule set aslinya; rename `UnusedImport` dipertahankan karena diterima alpha.6.

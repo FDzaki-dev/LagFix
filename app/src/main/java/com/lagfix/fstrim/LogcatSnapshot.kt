@@ -401,13 +401,15 @@ object LogcatSnapshot {
                         exit = runCatching { p.waitFor() }.getOrNull()
                     }
                 } catch (e: Throwable) {
-                    shellError = "${e.javaClass.simpleName}: ${e.message}".take(ERR_MAX_SHELL)
-                    runCatching { zip.write("\n[ERROR dump: $shellError]\n".toByteArray(Charsets.UTF_8)) }
+                    val failure = "${e.javaClass.simpleName}: ${e.message ?: "null"}".take(ERR_MAX_SHELL)
+                    shellError = failure
+                    runCatching { zip.write("\n[ERROR dump: $failure]\n".toByteArray(Charsets.UTF_8)) }
                 }
                 zip.closeEntry()
                 val meta = "Dump mentah LagFix (v86)\nWaktu: ${stamp(now)} (zona app " +
                     "${formatUtcOffset(TimeZone.getDefault().getOffset(now))})\nPerintah: $RAW_CMD\n" +
-                    "Byte logcat: $logBytes\nTerpotong batas ${RAW_CAP_BYTES} byte: $truncated\nExit: $exit\n" +
+                    "Byte logcat: $logBytes\nTerpotong batas ${RAW_CAP_BYTES} byte: $truncated\n" +
+                    "Exit: ${exit ?: "null"}\n" +
                     "Galat shell: ${shellError ?: "-"}\nFormat baris: logcat -v threadtime (tanpa tahun/zona).\n"
                 zip.putNextEntry(ZipEntry("meta.txt"))
                 zip.write(meta.toByteArray(Charsets.UTF_8))
@@ -415,7 +417,7 @@ object LogcatSnapshot {
             }
             RawOutcome(name, written.where, written.zipBytes, CopyResult(logBytes, truncated), exit, shellError)
         } catch (e: Throwable) {
-            val err = "${e.javaClass.simpleName}: ${e.message}".take(ERR_MAX_SHELL)
+            val err = "${e.javaClass.simpleName}: ${e.message ?: "null"}".take(ERR_MAX_SHELL)
             RawOutcome(name, "-", 0L, CopyResult(logBytes, truncated), exit, err)
         }
     }
@@ -486,7 +488,7 @@ object LogcatSnapshot {
         val dir = ctx.getExternalFilesDir(null) ?: ctx.filesDir
         val file = File(dir, name)
         ZipOutputStream(file.outputStream().buffered()).use(fill)
-        val note = mediaError?.let { " [MediaStore gagal: ${it.message}]" }.orEmpty()
+        val note = mediaError?.let { " [MediaStore gagal: ${it.message ?: "null"}]" }.orEmpty()
         return RawWrite("App files (cadangan): ${file.absolutePath}$note", file.length())
     }
 
@@ -507,8 +509,8 @@ object LogcatSnapshot {
     private fun appSideState(ctx: Context, now: Long): String {
         val lines = mutableListOf<String>()
         fun item(label: String, block: () -> Any?) {
-            lines += "$label: " + runCatching { block().toString() }
-                .getOrElse { "(gagal: ${it.javaClass.simpleName}: ${it.message})".take(ERR_MAX_ITEM) }
+            lines += "$label: " + runCatching { block()?.toString() ?: "null" }
+                .getOrElse { "(gagal: ${it.javaClass.simpleName}: ${it.message ?: "null"})".take(ERR_MAX_ITEM) }
         }
         item("Toggle layanan persisten (Prefs)") { Prefs(ctx).persistentServiceEnabled }
         item("Umur proses app") {
@@ -566,10 +568,10 @@ object LogcatSnapshot {
             val r = BoundedShell.run(minOf(SECTION_TIMEOUT_MS, left)) { shizukuProcess(cmd) }
             val t = r.output.trim()
             val note = if (r.timedOut) "\n[dihentikan: melewati batas waktu]" else ""
-            if (t.isEmpty()) "(kosong, exit=${r.exit}$note)" to 0 else (t + note) to countNonBlankLines(t)
+            if (t.isEmpty()) "(kosong, exit=${r.exit ?: "null"}$note)" to 0 else (t + note) to countNonBlankLines(t)
         }
     } catch (e: Throwable) {
-        "(gagal: ${e.javaClass.simpleName}: ${e.message})".take(ERR_MAX_SECTION) to 0
+        "(gagal: ${e.javaClass.simpleName}: ${e.message ?: "null"})".take(ERR_MAX_SECTION) to 0
     }
 
     // Batas sistem (ActivityManager): galat apa pun dicatat sbg teks, tak membatalkan snapshot (prinsip v86).
@@ -589,7 +591,7 @@ object LogcatSnapshot {
                 } to list.size
             }
         } catch (e: Throwable) {
-            "(gagal: ${e.javaClass.simpleName}: ${e.message})".take(ERR_MAX_SECTION) to 0
+            "(gagal: ${e.javaClass.simpleName}: ${e.message ?: "null"})".take(ERR_MAX_SECTION) to 0
         }
     }
 }

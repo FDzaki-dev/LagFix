@@ -16,6 +16,11 @@
 //
 // Jalankan dgn `--no-configuration-cache` (task ini membaca konfigurasi proyek saat eksekusi).
 //
+// v161: AGP 9 + Kotlin bawaan (v160) tak lagi menulis kelas ke `build/tmp/kotlin-classes/debug` (laporan CI run 13:
+// "No files to analyze could be opened" walau compileDebugKotlin sukses). Direktori kelas kini dibaca dari KELUARAN
+// task `compileDebugKotlin` (+ 2 jalur kandidat; terakhir: pindai `MainActivity.class`) dan dicatat mentah sebagai
+// `SPOTBUGS_DIAG` di gradle-spotbugs.log.
+//
 // NOT VERIFIED: belum pernah dijalankan (sandbox tanpa akses Maven/Gradle). Bukti Boomly: skrip yang sama berjalan di
 // CI Boomly sejak Batch 201 (SARIF terbentuk, 285 temuan pada run pertama).
 
@@ -38,6 +43,9 @@ dependencies {
 }
 
 val spotbugsClassesDir = layout.buildDirectory.dir("tmp/kotlin-classes/debug")
+// v161: dibaca saat EKSEKUSI (bukan `Task.project`; configuration cache dimatikan lewat `--no-configuration-cache`).
+val spotbugsBuildDir = layout.buildDirectory
+val projectTasks = tasks
 val spotbugsSarif = layout.buildDirectory.file("reports/spotbugs/spotbugs.sarif")
 val spotbugsExclude = rootProject.layout.projectDirectory.file("config/spotbugs/exclude.xml")
 val spotbugsSources = layout.projectDirectory.dir("src/main/java")
@@ -55,6 +63,28 @@ fun findAndroidJar(sdkRoot: String?): File? {
         ?.filter { File(it, "android.jar").isFile }
         ?.maxByOrNull { it.name.removePrefix("android-").toIntOrNull() ?: 0 }
         ?.let { File(it, "android.jar") }
+}
+
+fun hasClassFiles(dir: File): Boolean =
+    dir.isDirectory && dir.walkTopDown().any { it.isFile && it.extension == "class" }
+
+// v161: direktori kelas Kotlin hasil kompilasi debug. Urutan: keluaran task `compileDebugKotlin` -> jalur AGP 9
+// (Kotlin bawaan) -> jalur lama; bila semuanya kosong, pindai `build/` mencari `MainActivity.class` (akar paket = 4
+// tingkat di atasnya). Mengembalikan (direktori, cara menemukan) supaya `SPOTBUGS_DIAG` mencatat bukti mentahnya.
+fun findKotlinClassDirs(): Pair<List<File>, String> {
+    val build = spotbugsBuildDir.get().asFile
+    val fromTask = runCatching { projectTasks.getByName("compileDebugKotlin").outputs.files.files.toList() }
+        .getOrDefault(emptyList())
+    val candidates = fromTask + listOf(
+        File(build, "intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes"),
+        File(build, "tmp/kotlin-classes/debug")
+    )
+    val found = candidates.distinct().filter { hasClassFiles(it) }
+    if (found.isNotEmpty()) return found to "task+kandidat"
+    val scanned = build.walkTopDown().filter { it.isFile && it.name == "MainActivity.class" }
+        .mapNotNull { it.parentFile?.parentFile?.parentFile?.parentFile }
+        .distinct().sortedBy { it.path }.toList()
+    return scanned.take(1) to "pindai(${scanned.size})"
 }
 
 tasks.register<JavaExec>("spotbugsDebug") {
@@ -98,7 +128,14 @@ tasks.register<JavaExec>("spotbugsDebug") {
                 args.add("-auxclasspath")
                 args.add(aux.joinToString(File.pathSeparator))
             }
-            args.add(spotbugsClassesDir.get().asFile.absolutePath)
+            val (classDirs, how) = findKotlinClassDirs()
+            val shown = classDirs.joinToString(",") { it.absolutePath }.ifEmpty { "NONE" }
+            println("SPOTBUGS_DIAG classesDirs=$shown via=$how")
+            if (classDirs.isEmpty()) {
+                args.add(spotbugsClassesDir.get().asFile.absolutePath)
+            } else {
+                classDirs.forEach { args.add(it.absolutePath) }
+            }
             args
         }
     )

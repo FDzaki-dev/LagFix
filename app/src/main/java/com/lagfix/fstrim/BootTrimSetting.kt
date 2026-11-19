@@ -1,15 +1,15 @@
 package com.lagfix.fstrim
 
 /** Hasil baca `settings get global fstrim_mandatory_interval`. */
-sealed class BootTrimReading {
+sealed interface BootTrimReading {
     /** Kunci belum diatur -> Android memakai nilai bawaannya sendiri. */
-    data object Unset : BootTrimReading()
+    data object Unset : BootTrimReading
 
     /** Kunci terisi [ms] milisekon. */
-    data class Value(val ms: Long) : BootTrimReading()
+    data class Value(val ms: Long) : BootTrimReading
 
     /** Perintah gagal / keluaran tak bisa dibaca (tidak diklaim sebagai Unset). */
-    data class Unreadable(val detail: String) : BootTrimReading()
+    data class Unreadable(val detail: String) : BootTrimReading
 }
 
 /** Hasil menulis/reset: [ok] hanya true bila baca-ulang membuktikan nilainya berubah. */
@@ -74,7 +74,7 @@ object BootTrimSetting {
             BootTrimReading.Unreadable("exit=$code ${out.trim().take(DETAIL_MAX_CHARS)}".trim())
         }
     } catch (e: Throwable) {
-        BootTrimReading.Unreadable("${e.javaClass.simpleName}: ${e.message}".take(DETAIL_MAX_CHARS))
+        BootTrimReading.Unreadable("${e.javaClass.simpleName}: ${e.message ?: "null"}".take(DETAIL_MAX_CHARS))
     }
 
     fun enableEveryReboot(): BootTrimOutcome = write(
@@ -95,7 +95,7 @@ object BootTrimSetting {
         val res = try {
             FstrimExecutor.sh(cmd)
         } catch (e: Throwable) {
-            val failMessage = "Gagal: ${e.javaClass.simpleName}: ${e.message}".take(MESSAGE_MAX_CHARS)
+            val failMessage = "Gagal: ${e.javaClass.simpleName}: ${e.message ?: "null"}".take(MESSAGE_MAX_CHARS)
             return BootTrimOutcome(false, read(), failMessage)
         }
         val after = read()
