@@ -4,7 +4,6 @@ import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
@@ -13,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.FileProvider
 import androidx.core.content.pm.PackageInfoCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -226,7 +226,7 @@ private fun isBackgroundRestricted(app: Application): Boolean =
  * custom — sistem yg tampilkan dialog konfirmasi bawaan). Dipanggil dari SettingsTab. */
 internal fun batteryOptimizationIntent(ctx: Context): Intent = Intent(
     Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-    Uri.parse("package:${ctx.packageName}")
+    "package:${ctx.packageName}".toUri()
 )
 
 /** Minta izin Shizuku (hanya bila binder hidup & bukan pre-v11). Dipanggil dari kartu status Shizuku. */

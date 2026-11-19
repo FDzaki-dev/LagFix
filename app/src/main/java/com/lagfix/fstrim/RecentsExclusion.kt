@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
+import androidx.core.content.edit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
@@ -175,7 +176,7 @@ internal object LeaveGuard {
             record(sp, decision)
             if (decision == LEAVE_REMOVE) activity.finishAndRemoveTask()
         }.onFailure {
-            sp.edit().putString(KEY_LAST_ERROR, it.toString()).apply()
+            sp.edit { putString(KEY_LAST_ERROR, it.toString()) }
             Log.w(RECENTS_TAG, "Hapus task saat meninggalkan app gagal", it)
         }
     }
@@ -187,9 +188,10 @@ internal object LeaveGuard {
             val removalMs = sp.getLong(KEY_LAST_REMOVAL_MS, 0L)
             val now = System.currentTimeMillis()
             if (breakerDue(removalMs, sp.getLong(KEY_CHECKED_REMOVAL_MS, 0L), now)) {
-                val edit = sp.edit().putLong(KEY_CHECKED_REMOVAL_MS, removalMs)
-                if (breakerTrips(removalMs, readKillTimestamps(ctx))) edit.putLong(KEY_TRIPPED_AT_MS, now)
-                edit.apply()
+                sp.edit {
+                    putLong(KEY_CHECKED_REMOVAL_MS, removalMs)
+                    if (breakerTrips(removalMs, readKillTimestamps(ctx))) putLong(KEY_TRIPPED_AT_MS, now)
+                }
             }
         }.onFailure { Log.w(RECENTS_TAG, "Cek pemutus hapus-task gagal", it) }
     }

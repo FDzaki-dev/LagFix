@@ -4,7 +4,6 @@ package com.lagfix.fstrim
 
 import android.app.Activity
 import android.content.Context
-import android.graphics.drawable.ColorDrawable
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -56,6 +55,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.edit
+import androidx.core.graphics.drawable.toDrawable
 
 // v142: tema ke-2 "Neo Burgundy" (Neumorphism) ada di NeoTheme.kt; berkas ini = pilihan tema (AppTheme, disimpan di
 // prefs SENDIRI `lagfix_theme`, Prefs DO-NOT-TOUCH), pembungkus komponen yg berganti rupa per tema (LagButton dst.),
@@ -342,7 +343,7 @@ internal fun readAppTheme(ctx: Context): AppTheme =
     parseAppTheme(ctx.getSharedPreferences(THEME_PREFS, Context.MODE_PRIVATE).getString(THEME_KEY, null))
 
 internal fun writeAppTheme(ctx: Context, theme: AppTheme) {
-    ctx.getSharedPreferences(THEME_PREFS, Context.MODE_PRIVATE).edit().putString(THEME_KEY, theme.name).apply()
+    ctx.getSharedPreferences(THEME_PREFS, Context.MODE_PRIVATE).edit { putString(THEME_KEY, theme.name) }
 }
 
 /**
@@ -355,7 +356,7 @@ internal fun applyWindowBackground(activity: Activity, theme: AppTheme = readApp
     } else {
         activity.getColor(R.color.lag_window_background)
     }
-    activity.window.setBackgroundDrawable(ColorDrawable(color))
+    activity.window.setBackgroundDrawable(color.toDrawable())
 }
 
 internal val LocalAppTheme = staticCompositionLocalOf { AppTheme.GLASS }

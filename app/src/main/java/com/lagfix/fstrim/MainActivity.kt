@@ -102,6 +102,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -1007,7 +1008,7 @@ private fun LinkRow(label: String, onClick: () -> Unit) {
 }
 
 private fun openUrl(ctx: Context, url: String) {
-    runCatching { ctx.startExternal(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+    runCatching { ctx.startExternal(Intent(Intent.ACTION_VIEW, url.toUri())) }
 }
 
 // v9 (E2): beda dari LinkRow ("↗" = buka browser) — "›" krn ini buka dialog in-app, bukan tautan.
@@ -1478,7 +1479,7 @@ private fun Modifier.decorative(): Modifier = clearAndSetSemantics { }
 
 private fun openShizuku(ctx: Context, state: ShizukuState) {
     val intent = if (state == ShizukuState.NOT_INSTALLED) {
-        Intent(Intent.ACTION_VIEW, Uri.parse("https://shizuku.rikka.app/download/"))
+        Intent(Intent.ACTION_VIEW, "https://shizuku.rikka.app/download/".toUri())
     } else {
         ctx.packageManager.getLaunchIntentForPackage(FstrimExecutor.SHIZUKU_PKG)
     }
