@@ -41,11 +41,16 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -54,9 +59,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import androidx.core.graphics.drawable.toDrawable
+import kotlin.math.roundToInt
 
 // v142: tema ke-2 "Neo Burgundy" (Neumorphism) ada di NeoTheme.kt; berkas ini = pilihan tema (AppTheme, disimpan di
 // prefs SENDIRI `lagfix_theme`, Prefs DO-NOT-TOUCH), pembungkus komponen yg berganti rupa per tema (LagButton dst.),
@@ -185,12 +192,20 @@ private val lagTypography = baseTypography.copy(
 // --- Backdrop berglow (latar seluruh layar) ------------------------------------------------------
 // Gradien vertikal midnight + 3 glow radial statis (biru kiri-atas, cyan kanan-tengah, violet
 // kiri-bawah). Glow = sumber "cahaya" di belakang kaca; tanpanya kartu translusen terlihat datar.
+// v164: digambar SEKALI ke bitmap kecil (1/8 resolusi; gradien mulus, aman di-upscale; pola sama dgn
+// `neoBackdrop` v145) lalu 1 draw bitmap per frame, menggantikan 4 pass gradien layar-penuh yang
+// diulang tiap frame saat scroll/animasi. Bukti latar: diag_frame_metrics Glass 18 & 20 Nov 2026
+// (p50 ~23 ms, over1x = frames, cmd+swap ~6-7 ms). Cache dibangun ulang bila ukuran berubah.
+private const val GLASS_BACKDROP_DOWNSCALE = 8
 private val backdropBase = Brush.verticalGradient(listOf(MidnightDeep, Midnight, MidnightLow))
 
-private fun Modifier.glassBackdrop(): Modifier = this
-    .background(backdropBase)
-    .drawBehind {
+private fun Modifier.glassBackdrop(): Modifier = this.drawWithCache {
+    val bw = (size.width / GLASS_BACKDROP_DOWNSCALE).roundToInt().coerceAtLeast(1)
+    val bh = (size.height / GLASS_BACKDROP_DOWNSCALE).roundToInt().coerceAtLeast(1)
+    val bitmap = ImageBitmap(bw, bh)
+    CanvasDrawScope().draw(this, layoutDirection, Canvas(bitmap), Size(bw.toFloat(), bh.toFloat())) {
         val reach = size.maxDimension
+        drawRect(backdropBase)
         drawRect(
             brush = Brush.radialGradient(
                 colors = listOf(GlowBlue.copy(alpha = 0.22f), GlowBlue.copy(alpha = 0f)),
@@ -213,6 +228,9 @@ private fun Modifier.glassBackdrop(): Modifier = this
             )
         )
     }
+    val target = IntSize(size.width.roundToInt(), size.height.roundToInt())
+    onDrawBehind { drawImage(bitmap, dstSize = target) }
+}
 
 // --- Kartu kaca ----------------------------------------------------------------------------------
 // Pengganti `Card(Modifier.fillMaxWidth())` di MainActivity.kt (signature & isi ColumnScope identik).

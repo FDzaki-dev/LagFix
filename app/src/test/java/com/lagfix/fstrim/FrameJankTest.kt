@@ -26,27 +26,43 @@ class FrameJankTest {
     }
 
     @Test
+    fun report_over60hzCountsAgainstFixed16667usBudget() {
+        val data = rows(1L to 9_000_000L, 1L to 16_666_667L, 1L to 16_666_668L, 1L to 30_000_000L)
+        val report = formatFrameReport(data, 4, budgetNs, "H")
+        assertTrue(report, report.contains("over1x=3 over2x=1 over4x=0 over60hz=2"))
+    }
+
+    @Test
     fun report_percentilesUseNearestRankInMicroseconds() {
         val frames = (1..10).map { 1L to it * 1_000_000L }.toTypedArray()
         val report = formatFrameReport(rows(*frames), 10, budgetNs, "H")
-        assertTrue(report, report.contains("totalUs p50=5000 p90=9000 p95=10000 p99=10000 max=10000"))
+        assertTrue(report, report.contains("totalUs p50=5000 p90=9000 p95=10000 p99=10000 max=10000 avg=5500"))
     }
 
     @Test
     fun stageAverages_overBudgetOnly_excludeFastFrames() {
         val data = rows(1_000_000L to 4_000_000L, 3_000_000L to 12_000_000L, 5_000_000L to 25_000_000L)
-        val all = "unknown=3000 input=3000 anim=3000 layout=3000 draw=3000 sync=3000 cmd=3000 swap=3000"
-        val slow = "unknown=4000 input=4000 anim=4000 layout=4000 draw=4000 sync=4000 cmd=4000 swap=4000"
+        val all = "unknown=3000 input=3000 anim=3000 layout=3000 draw=3000 sync=3000 cmd=3000 swap=3000 gpu=3000"
+        val slow = "unknown=4000 input=4000 anim=4000 layout=4000 draw=4000 sync=4000 cmd=4000 swap=4000 gpu=4000"
         assertEquals(all, stageAverages(data, 3, -1L))
         assertEquals(slow, stageAverages(data, 3, budgetNs))
+    }
+
+    @Test
+    fun stageAverages_gpuIsLastStage() {
+        val data = LongArray(FJ_STRIDE)
+        data[FJ_STAGES - 1] = 7_000_000L
+        data[FJ_STAGES] = 20_000_000L
+        val avg = stageAverages(data, 1, budgetNs)
+        assertTrue(avg, avg.endsWith("swap=0 gpu=7000"))
     }
 
     @Test
     fun report_withoutFrames_printsZerosAndKeepsHeaderFirst() {
         val report = formatFrameReport(LongArray(0), 0, budgetNs, "HEADER")
         assertTrue(report, report.startsWith("HEADER\n"))
-        assertTrue(report, report.contains("totalUs p50=0 p90=0 p95=0 p99=0 max=0"))
-        assertTrue(report, report.contains("over1x=0 over2x=0 over4x=0"))
+        assertTrue(report, report.contains("totalUs p50=0 p90=0 p95=0 p99=0 max=0 avg=0"))
+        assertTrue(report, report.contains("over1x=0 over2x=0 over4x=0 over60hz=0"))
         assertTrue(report, report.contains("avgUs[over1x] unknown=0 input=0"))
     }
 }

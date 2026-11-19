@@ -1,5 +1,13 @@
 # Changelog
 
+## v164
+- Laporan CI run 16 (commit v163): semua alat lulus. 135 tes lulus (target v163 tercapai), detekt polos dan typed 0 temuan, SpotBugs 0, ArchUnit 7 aturan tanpa pelanggaran, peringatan kompilator 0, deprecated 0, lint hanya 1 hint compose-bom (disengaja).
+- Diag frame metrics 20 Nov 2026 (INFINIX X6855, tema Glass, 944 frame): semua frame melewati anggaran 8,3 ms pada 120 Hz; p50 total 23,2 ms, p99 60,8 ms; rerata tahap menggambar 3,0 ms, perintah GPU 3,4 ms, swap buffer 4,0 ms. Pola yang sama muncul pada sesi 18 Nov 2026 (704 frame, p50 23,1 ms).
+- `Design.kt`: latar tema Glass sebelumnya menggambar empat lapis gradien layar penuh (satu vertikal, tiga radial) pada setiap frame saat layar bergerak. Kini digambar sekali ke bitmap kecil (1/8 resolusi, parameter gradien sama persis) lalu satu kali menggambar bitmap per frame, dengan pola yang sama seperti latar Neo sejak v145. Tampilan dimaksudkan identik; periksa dengan mata apakah ada pita warna atau pergeseran cahaya.
+- `FrameJank.kt`: berkas diag frame metrics kini juga mencatat durasi GPU per frame (tahap `gpu`, Android 12 ke atas), rerata total (`avg`), dan jumlah frame di atas 16,667 ms (`over60hz`, tidak bergantung pada refresh rate yang terbaca). Dengan itu dugaan beban GPU bisa dibuktikan atau dibantah dari angka mentah di HP.
+- `FrameJankTest.kt`: dua tes baru (`over60hz`, `gpu` sebagai tahap terakhir) dan tiga asersi disesuaikan dengan format baru.
+- Belum dijalankan di CI (kompilasi, tes, detekt, SpotBugs, lint). Target run berikutnya: 137 tes lulus dan semua alat tetap 0 temuan. Efek pada kelancaran baru terbukti setelah APK dipasang dan diag frame metrics baru dikirim.
+
 ## v163
 - Laporan CI run 15 (commit v162): semua alat lulus. detekt typed turun dari 17 ke 0 temuan (target v162 tercapai), detekt polos 0, SpotBugs 0, ArchUnit 7 aturan tanpa pelanggaran, 131 tes lulus, peringatan kompilator dan deprecated 0, APK terbentuk; lint hanya satu hint (compose-bom, disengaja).
 - Atas izin pemilik proyek untuk menyentuh semua berkas (termasuk yang dilindungi) dalam beberapa batch yang wajar, batch ini memperbaiki cacat nyata hasil audit kode latar; tidak ada bukti perangkat baru, jadi bug notifikasi persisten belum disentuh.

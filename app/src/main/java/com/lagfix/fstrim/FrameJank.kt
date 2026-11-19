@@ -1,6 +1,7 @@
 package com.lagfix.fstrim
 
 import android.app.Activity
+import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
@@ -31,6 +32,7 @@ private const val FJ_NS_PER_US = 1_000L
 private const val FJ_ALL_FRAMES = -1L
 private const val FJ_X2 = 2L
 private const val FJ_X4 = 4L
+private const val FJ_BUDGET_60HZ_NS = 16_666_667L
 private const val FJ_PERCENT = 100
 private const val FJ_P50 = 50
 private const val FJ_P90 = 90
@@ -38,11 +40,15 @@ private const val FJ_P95 = 95
 private const val FJ_P99 = 99
 private const val FJ_FIRST_DRAW = 1L
 
-/** Tahap per frame (urutan sama dgn [FJ_STAGE_IDS]); satu baris data = [FJ_STAGES] tahap + total. */
-internal const val FJ_STAGES = 8
+/**
+ * Tahap per frame (8 pertama = urutan [FJ_STAGE_IDS], terakhir `gpu`); satu baris data = [FJ_STAGES] tahap + total.
+ * v164: `gpu` = `FrameMetrics.GPU_DURATION` (API 31+; 0 di bawahnya) -> membuktikan/membantah frame terikat GPU.
+ */
+internal const val FJ_STAGES = 9
 internal const val FJ_STRIDE = FJ_STAGES + 1
+private const val FJ_GPU_STAGE = FJ_STAGES - 1
 
-private val FJ_STAGE_NAMES = listOf("unknown", "input", "anim", "layout", "draw", "sync", "cmd", "swap")
+private val FJ_STAGE_NAMES = listOf("unknown", "input", "anim", "layout", "draw", "sync", "cmd", "swap", "gpu")
 private val FJ_STAGE_IDS = intArrayOf(
     FrameMetrics.UNKNOWN_DELAY_DURATION,
     FrameMetrics.INPUT_HANDLING_DURATION,
@@ -74,12 +80,16 @@ internal object FrameJank {
             } else if (count < FJ_CAPACITY) {
                 if (data.isEmpty()) data = LongArray(FJ_CAPACITY * FJ_STRIDE)
                 val base = count * FJ_STRIDE
-                for (s in 0 until FJ_STAGES) data[base + s] = metrics.getMetric(FJ_STAGE_IDS[s])
+                for (s in FJ_STAGE_IDS.indices) data[base + s] = metrics.getMetric(FJ_STAGE_IDS[s])
+                data[base + FJ_GPU_STAGE] = gpuDurationNs(metrics)
                 data[base + FJ_STAGES] = metrics.getMetric(FrameMetrics.TOTAL_DURATION)
                 count++
             }
         }
     }
+
+    private fun gpuDurationNs(metrics: FrameMetrics): Long =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) metrics.getMetric(FrameMetrics.GPU_DURATION) else 0L
 
     /** Ambil lalu KOSONGKAN penampung; null bila frame < [FJ_MIN_FRAMES] atau jatah berkas habis. */
     fun take(): FrameSnapshot? = synchronized(lock) {
@@ -151,19 +161,24 @@ internal fun FrameJankRecorder(theme: AppTheme) {
     }
 }
 
-/** Teks berkas: `header`, persentil total (us), jumlah frame di atas 1x/2x/4x anggaran, rerata tahap (us). */
+/**
+ * Teks berkas: `header`, persentil + rerata total (us), jumlah frame di atas 1x/2x/4x anggaran layar
+ * (+ `over60hz` = di atas 16,667 ms, tak bergantung refresh rate yg terbaca), rerata tahap (us).
+ */
 internal fun formatFrameReport(data: LongArray, count: Int, budgetNs: Long, header: String): String {
     val totals = LongArray(count) { data[it * FJ_STRIDE + FJ_STAGES] }
     val sorted = totals.sortedArray()
     val over1 = totals.count { it > budgetNs }
     val over2 = totals.count { it > budgetNs * FJ_X2 }
     val over4 = totals.count { it > budgetNs * FJ_X4 }
+    val over60 = totals.count { it > FJ_BUDGET_60HZ_NS }
+    val avgUs = if (count == 0) 0L else totals.sum() / count / FJ_NS_PER_US
     return listOf(
         header,
         "totalUs p50=${percentileUs(sorted, FJ_P50)} p90=${percentileUs(sorted, FJ_P90)} " +
             "p95=${percentileUs(sorted, FJ_P95)} p99=${percentileUs(sorted, FJ_P99)} " +
-            "max=${(sorted.lastOrNull() ?: 0L) / FJ_NS_PER_US}",
-        "over1x=$over1 over2x=$over2 over4x=$over4",
+            "max=${(sorted.lastOrNull() ?: 0L) / FJ_NS_PER_US} avg=$avgUs",
+        "over1x=$over1 over2x=$over2 over4x=$over4 over60hz=$over60",
         "avgUs[all] ${stageAverages(data, count, FJ_ALL_FRAMES)}",
         "avgUs[over1x] ${stageAverages(data, count, budgetNs)}"
     ).joinToString("\n")
