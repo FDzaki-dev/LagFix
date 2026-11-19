@@ -43,8 +43,11 @@ internal object BoundedShell {
         }
     }
 
-    /** v167: tutup masukan/galat & hentikan proses; idempoten (aman dipanggil sesudah `destroy()` jalur timeout). */
-    private fun release(p: Process) {
+    /**
+     * v167: tutup masukan/galat & hentikan proses; idempoten (aman dipanggil sesudah `destroy()` jalur timeout).
+     * v170: `internal` agar `LogcatSnapshot.captureRaw` (dump mentah ke zip, tak lewat [run]) ikut memanggilnya.
+     */
+    internal fun release(p: Process) {
         runCatching { p.outputStream.close() }
         runCatching { p.errorStream.close() }
         runCatching { p.destroy() }

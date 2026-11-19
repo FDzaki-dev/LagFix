@@ -11,7 +11,10 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.util.concurrent.CountDownLatch
 
-/** v167: `BoundedShell.run` SELALU membereskan proses (stdin/stderr ditutup + destroy), juga saat timeout/galat. */
+/**
+ * v167: `BoundedShell.run` SELALU membereskan proses (stdin/stderr ditutup + destroy), juga saat timeout/galat.
+ * v170: `release` dipanggil langsung oleh `LogcatSnapshot.captureRaw` (dump mentah, tak lewat `run`).
+ */
 class BoundedShellReleaseTest {
     /** Baca macet sampai ditutup (meniru pipa proses yg tak kunjung EOF); `close()` = pipa putus -> EOF. */
     private class BlockingInput : InputStream() {
@@ -107,6 +110,25 @@ class BoundedShellReleaseTest {
         } catch (e: IllegalStateException) {
             assertEquals("start gagal", e.message)
         }
+    }
+
+    @Test
+    fun release_closesBothStreamsAndDestroys() {
+        val p = FakeProcess(streamOf("ok"))
+        BoundedShell.release(p)
+        assertTrue("destroy", p.destroyed)
+        assertTrue("stdin ditutup", p.stdinClosed)
+        assertTrue("stderr ditutup", p.stderrClosed)
+    }
+
+    @Test
+    fun release_destroyThrows_isSwallowedAndRepeatable() {
+        val p = FakeProcess(streamOf("ok"), destroyFails = true)
+        BoundedShell.release(p)
+        BoundedShell.release(p)
+        assertTrue("destroy dicoba", p.destroyed)
+        assertTrue("stdin ditutup", p.stdinClosed)
+        assertTrue("stderr ditutup", p.stderrClosed)
     }
 
     private companion object {

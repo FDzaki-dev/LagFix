@@ -390,8 +390,10 @@ object LogcatSnapshot {
                 exit = null
                 shellError = null
                 zip.putNextEntry(ZipEntry("logcat_all.txt"))
+                var proc: Process? = null // v170: SELALU dibereskan di `finally` (normal, terpotong, galat zip)
                 try {
                     val p = shizukuProcess(RAW_CMD)
+                    proc = p
                     val r = p.inputStream.use { copyCapped(it, zip, RAW_CAP_BYTES) }
                     logBytes = r.bytes
                     truncated = r.truncated
@@ -404,6 +406,8 @@ object LogcatSnapshot {
                     val failure = "${e.javaClass.simpleName}: ${e.message ?: "null"}".take(ERR_MAX_SHELL)
                     shellError = failure
                     runCatching { zip.write("\n[ERROR dump: $failure]\n".toByteArray(Charsets.UTF_8)) }
+                } finally {
+                    proc?.let { BoundedShell.release(it) } // sesudah kode keluar dibaca (urutan penting, v135)
                 }
                 zip.closeEntry()
                 val meta = "Dump mentah LagFix (v86)\nWaktu: ${stamp(now)} (zona app " +
