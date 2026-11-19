@@ -76,7 +76,21 @@ object FstrimExecutor {
         )
         m.isAccessible = true
         val p = m.invoke(null, arrayOf("sh", "-c", "$cmd 2>&1"), null, null) as Process
-        val out = p.inputStream.bufferedReader().use { it.readText() }
-        return p.waitFor() to out
+        return collect(p)
+    }
+
+    // v165 (audit statis): sebelumnya proses Shizuku TAK PERNAH di-`destroy()` & `outputStream`/`errorStream`-nya tak
+    // ditutup (hanya `inputStream`), baik di jalur normal maupun saat `readText()`/`waitFor()` melempar (binder putus,
+    // thread dihentikan) -> shell tertinggal & pegangan pipa menumpuk 1 per `sm fstrim` (mode radikal: tiap menit).
+    // Kini selalu dibereskan di `finally`; hasil & exception ASLI tak berubah (galat saat bersih-bersih ditelan).
+    internal fun collect(p: Process): Pair<Int, String> {
+        try {
+            val out = p.inputStream.bufferedReader().use { it.readText() }
+            return p.waitFor() to out
+        } finally {
+            runCatching { p.outputStream.close() }
+            runCatching { p.errorStream.close() }
+            runCatching { p.destroy() }
+        }
     }
 }

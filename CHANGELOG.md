@@ -1,5 +1,12 @@
 # Changelog
 
+## v165
+- Laporan CI run 17 (commit v164): semua alat lulus. 137 tes lulus (target v164 tercapai), detekt polos dan typed 0 temuan, SpotBugs 0, ArchUnit 7 aturan tanpa pelanggaran, peringatan kompilator 0, deprecated 0, lint hanya 1 hint compose-bom (disengaja). Efek perbaikan latar Glass v164 pada kelancaran belum terukur karena belum ada berkas diag frame metrics dari APK v164.
+- Audit kode (tanpa bukti perangkat baru): `FstrimExecutor.sh` membaca keluaran lalu menunggu proses selesai, tetapi proses Shizuku tidak pernah dihentikan dan aliran masukan/galatnya tidak ditutup, baik pada jalur normal maupun saat pembacaan gagal di tengah (pipa putus, thread dihentikan). Akibatnya shell bisa tertinggal dan pegangan pipa menumpuk satu per `sm fstrim` (pada mode radikal: tiap menit).
+- `FstrimExecutor.kt`: pembacaan dipindah ke fungsi `collect(Process)` yang selalu menutup masukan/galat dan memanggil `destroy()` di `finally`. Hasil (kode keluar dan teks) serta exception aslinya tidak berubah; galat saat bersih-bersih ditelan. Bacaan tanpa batas waktu sengaja tidak diubah (tidak dipindah ke `BoundedShell`, karena kode keluar proses Shizuku hilang di v135).
+- Tes baru `FstrimExecutorCollectTest` (4 tes, proses tiruan tanpa Shizuku): hasil dan kode keluar, kode keluar non-nol, exception asli tetap dilempar dan proses tetap dibereskan, serta `destroy()` yang gagal tidak menutupi hasil.
+- Belum dijalankan di CI (kompilasi, tes, detekt, SpotBugs, lint). Target run berikutnya: 141 tes lulus dan semua alat tetap 0 temuan.
+
 ## v164
 - Laporan CI run 16 (commit v163): semua alat lulus. 135 tes lulus (target v163 tercapai), detekt polos dan typed 0 temuan, SpotBugs 0, ArchUnit 7 aturan tanpa pelanggaran, peringatan kompilator 0, deprecated 0, lint hanya 1 hint compose-bom (disengaja).
 - Diag frame metrics 20 Nov 2026 (INFINIX X6855, tema Glass, 944 frame): semua frame melewati anggaran 8,3 ms pada 120 Hz; p50 total 23,2 ms, p99 60,8 ms; rerata tahap menggambar 3,0 ms, perintah GPU 3,4 ms, swap buffer 4,0 ms. Pola yang sama muncul pada sesi 18 Nov 2026 (704 frame, p50 23,1 ms).
