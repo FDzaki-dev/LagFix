@@ -1,5 +1,12 @@
 # Changelog
 
+## v159
+- Laporan CI run 11 (commit v158): semuanya hijau dan Tahap C terbukti: compileSdk dan targetSdk 37, lint tanpa isu (tujuh hint hilang), 131 tes unit lulus, peringatan kompilator 0, APK debug terbentuk, detekt/detekt typed/ArchUnit/SpotBugs 0 temuan. Sisa target: tiga pesan deprecated (`android.newDsl=false`, `android.builtInKotlin=false`, `ReportingExtension.file`).
+- Tahap D1: detekt dimigrasikan dari 1.23.8 ke 2.0.0-alpha.6 (plugin `dev.detekt`; sejak alpha.3 mendukung built-in Kotlin AGP 9, dan alpha.4 dibangun dengan Kotlin 2.4). `build.gradle.kts` dan `app/build.gradle.kts` memakai impor, ekstensi lazy, dan laporan `checkstyle` baru (laporan txt dihapus di detekt 2). Plugin tetap hanya dipasang saat `-Plagfix.detekt=true`, jadi build dan rilis tidak bergantung padanya.
+- `config/detekt/detekt.yml`: `ForbiddenImport` memakai kunci `forbiddenImports`. `config/detekt/detekt-typed.yml`: `UnusedImports` menjadi `UnusedImport`; tiga rule stdlib (`ArrayPrimitive`, `ForEachOnRange`, `MapGetWithNotNullAssertionOperator`) pindah ke rule set `standard-library`. Aturan tidak dilonggarkan.
+- `.github/scripts/laporan-untuk-claude.sh`: versi detekt dibaca dari id plugin baru.
+- Belum dijalankan di CI (resolusi plugin, konfigurasi detekt 2, dan validasi config belum terverifikasi). Aplikasi tidak berubah. Pecahan Tahap D berikutnya (D2): hapus opt-out `newDsl`/`builtInKotlin` dan plugin `kotlin.android`.
+
 ## v158
 - Build run 131 (v157) merah di langkah tes unit: satu galat kompilasi di `RecentsExclusion.kt` baris 48. Dengan compileSdk 37, `ActivityManager.AppTask.getTaskInfo()` ditandai nullable di android.jar, sehingga `it.taskInfo.baseIntent.flags` ditolak. Resolusi dependensi dan pemeriksaan metadata AAR untuk Tahap C lolos.
 - Perbaikan: `recentsReadBack` kini memakai `it.taskInfo?.baseIntent?.flags`. Fungsi `recentsReadBackLine` sudah menangani nilai null ("baseIntent=null"), jadi jalur normal identik dan tes tidak berubah. Tidak ada pemakaian `taskInfo` lain di sumber.

@@ -300,7 +300,7 @@ GRADLE_ROOT=$(grep -m1 'rootProject.name' settings.gradle.kts 2>/dev/null | sed 
 BATCH_PS=$(grep -o -m1 'RESUME POINT: v[0-9]*' PROJECT_STATE.md 2>/dev/null | grep -o '[0-9]*$')
 AGP_V=$(grep -m1 'com.android.application' build.gradle.kts 2>/dev/null | sed -E 's/.*version "([^"]+)".*/\1/')
 KOTLIN_V=$(grep -m1 'org.jetbrains.kotlin.android' build.gradle.kts 2>/dev/null | sed -E 's/.*version "([^"]+)".*/\1/')
-DETEKT_V=$(grep -m1 'io.gitlab.arturbosch.detekt' build.gradle.kts 2>/dev/null | sed -E 's/.*version "([^"]+)".*/\1/')
+DETEKT_V=$(grep -m1 'dev.detekt' build.gradle.kts 2>/dev/null | sed -E 's/.*version "([^"]+)".*/\1/')
 COMPILE_SDK=$(grep -m1 'compileSdk' app/build.gradle.kts 2>/dev/null | sed -E 's/.*= *([0-9.]+).*/\1/')
 TARGET_SDK=$(grep -m1 'targetSdk' app/build.gradle.kts 2>/dev/null | sed -E 's/.*= *([0-9.]+).*/\1/')
 ENV_LINES=$(cat gradle-env.txt 2>/dev/null)

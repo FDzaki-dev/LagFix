@@ -44,8 +44,6 @@ potential-bugs:
     active: true
   ExitOutsideMain:
     active: true
-  MapGetWithNotNullAssertionOperator:
-    active: true
   MissingPackageDeclaration:
     active: true
   UnconditionalJumpStatementInLoop:
@@ -75,21 +73,28 @@ exceptions:
   ThrowingExceptionInMain:
     active: true
 
-# Guard Compose/Battery: boxing array primitif, forEach pada range, objek sementara mubazir ([TR] semua).
+# Guard Compose/Battery: objek sementara mubazir ([TR]).
 performance:
+  active: true
+  UnnecessaryTemporaryInstantiation:
+    active: true
+
+# v159 (detekt 2): rule yang memakai stdlib pindah ke rule set baru `standard-library` (ID rule tetap): boxing array primitif,
+# forEach pada range, `map[k]!!`.
+standard-library:
   active: true
   ArrayPrimitive:
     active: true
   ForEachOnRange:
     active: true
-  UnnecessaryTemporaryInstantiation:
+  MapGetWithNotNullAssertionOperator:
     active: true
 
 style:
   active: true
   # Import mati (kotlinc tidak memperingatkan). Operator delegasi `getValue`/`setValue` diabaikan rule ini;
-  # kalau malah ter-flag = false positive rule -> cabut UnusedImports di sini, JANGAN hapus import-nya.
-  UnusedImports:
+  # kalau malah ter-flag = false positive rule -> cabut UnusedImport di sini, JANGAN hapus import-nya.
+  UnusedImport:
     active: true
   # Sisa penanda TODO:/FIXME:/STOPSHIP: di source (backlog = PROJECT_STATE.md, bukan komentar kode).
   ForbiddenComment:

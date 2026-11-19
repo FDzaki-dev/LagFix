@@ -1,5 +1,5 @@
-import io.gitlab.arturbosch.detekt.Detekt
-import io.gitlab.arturbosch.detekt.extensions.DetektExtension
+import dev.detekt.gradle.Detekt
+import dev.detekt.gradle.extensions.DetektExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -101,26 +101,24 @@ dependencies {
 // menggagalkan build. v58: config custom MINIMUM di
 // config/detekt/detekt.yml (override di atas ruleset default via buildUponDefaultConfig) —
 // hanya FunctionNaming & MagicNumber utk @Composable (false-positive Compose); sisanya default.
-// v152: detekt 1.23.8 belum resmi mendukung AGP 9 -> di-apply BERSYARAT, HANYA bila `-Plagfix.detekt=true` (dipakai workflow
+// v152: detekt 1.x belum resmi mendukung AGP 9 -> di-apply BERSYARAT (v159: detekt 2.0.0-alpha.6), HANYA bila `-Plagfix.detekt=true` (dipakai workflow
 // laporan `android-artifact.yml`). `build.yml` (tes + build + rilis) tak memuat detekt sama sekali, jadi jika plugin ini
 // bermasalah di toolchain baru, build/rilis TIDAK ikut gagal; laporan mencatat `NOT VERIFIED`. Isi blok = isi lama (v148-v151).
 if (providers.gradleProperty("lagfix.detekt").orNull == "true") {
-    apply(plugin = "io.gitlab.arturbosch.detekt")
+    apply(plugin = "dev.detekt")
 
     configure<DetektExtension> {
-        buildUponDefaultConfig = true
-        allRules = false
+        buildUponDefaultConfig.set(true)
+        allRules.set(false)
         config.setFrom(rootProject.file("config/detekt/detekt.yml"))
     }
 
     tasks.withType<Detekt>().configureEach {
-        jvmTarget = "17"
+        // v159 (detekt 2.x): `jvmTarget` & classpath diisi plugin per kompilasi (tak perlu manual); laporan `xml` = `checkstyle`
+        // (dibaca workflow `android-artifact.yml` utk ringkasan); `txt` DIHAPUS di detekt 2 (skrip laporan hanya membaca XML).
         reports {
             html.required.set(true)
-            // v148: xml (dibaca workflow `android-artifact.yml` utk ringkasan) & txt (dibaca manusia) dinyalakan eksplisit,
-            // tak bergantung default plugin. Hanya menambah berkas laporan; aturan tak berubah.
-            xml.required.set(true)
-            txt.required.set(true)
+            checkstyle.required.set(true)
         }
     }
 

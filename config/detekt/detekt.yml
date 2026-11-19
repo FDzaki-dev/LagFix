@@ -44,7 +44,8 @@ style:
     ignoreAnnotated: ['Composable']
   ForbiddenImport:
     active: true
-    imports: ['kotlinx.coroutines.runBlocking', 'kotlinx.coroutines.GlobalScope']
+    # v159 (detekt 2): kunci `imports` -> `forbiddenImports` (glob utk nama lengkap; nama persis tetap cocok).
+    forbiddenImports: ['kotlinx.coroutines.runBlocking', 'kotlinx.coroutines.GlobalScope']
 
 # v150 (laporan CI run 2: 17 temuan `InjectDispatcher` di `detektDebug` MASIH muncul walau `active: false` ada di
 #  `detekt-typed.yml` sejak v149): bukti dari laporan = berkas typed tak berpengaruh di task itu, sedangkan berkas INI
