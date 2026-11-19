@@ -934,7 +934,7 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
         )
         when {
             loadError != null -> Text(
-                "Error: $loadError",
+                "Error: ${loadError.orEmpty()}",
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall
             )
@@ -948,7 +948,7 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
             TextButton(
                 onClick = {
                     scope.launch(Dispatchers.IO) {
-                        val text = runCatching { log.readText() }.getOrElse { "(gagal baca: ${it.message})" }
+                        val text = runCatching { log.readText() }.getOrElse { "(gagal baca: ${it.message ?: "null"})" }
                         withContext(Dispatchers.Main) {
                             selectedName = log.displayName
                             selectedContent = text

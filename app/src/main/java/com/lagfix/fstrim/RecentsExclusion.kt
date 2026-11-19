@@ -48,7 +48,7 @@ internal fun recentsReadBack(ctx: Context): String = runCatching {
     // v158: compileSdk 37 menandai `AppTask.getTaskInfo()` @Nullable (build 131 merah di sini);
     // null -> "baseIntent=null" di `recentsReadBackLine`.
     recentsReadBackLine(tasks.map { it.taskInfo?.baseIntent?.flags }) + "; " + LeaveGuard.diagLine(ctx) // v140
-}.getOrElse { "gagal: ${it.javaClass.simpleName}: ${it.message}" }
+}.getOrElse { "gagal: ${it.javaClass.simpleName}: ${it.message ?: "null"}" }
 
 /** v134: angka mentah per task — flag `baseIntent` (heks) & bit EXCLUDE_FROM_RECENTS; null bila `baseIntent` kosong. */
 internal fun recentsReadBackLine(baseIntentFlags: List<Int?>): String {

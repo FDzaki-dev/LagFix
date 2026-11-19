@@ -98,7 +98,7 @@ class PersistentTrimService : Service() {
             TAG,
             "LIFECYCLE onStartCommand pid=${Process.myPid()} procAge=${procAgeMs()}ms " +
                 "startId=$startId flags=$flags intentNull=${intent == null} " +
-                "startForeground.exception=${result.exceptionOrNull()}"
+                "startForeground.exception=${result.exceptionOrNull() ?: "null"}"
         )
 
         // v29 (0 berubah dari sisi DATA yang direkam, cuma dibaca SESUDAH startForeground() skrg):
@@ -119,7 +119,7 @@ class PersistentTrimService : Service() {
         val notifMgrCompat = NotificationManagerCompat.from(this)
         val preCheck = "areNotificationsEnabled() = ${notifMgrCompat.areNotificationsEnabled()}\n" +
             "channel importance (getNotificationChannelCompat) = " +
-            "${notifMgrCompat.getNotificationChannelCompat(CHANNEL_ID)?.importance}"
+            "${notifMgrCompat.getNotificationChannelCompat(CHANNEL_ID)?.importance ?: "null"}"
         // v40: tulis log ke MediaStore di Dispatchers.IO, BUKAN di Main thread — servis kini juga
         // bisa distart tiap cold start proses (`startIfEnabled()`), jadi IO ini tak boleh menahan
         // Main thread di jendela sempit sebelum OS sempat membunuh proses lagi.
@@ -131,7 +131,7 @@ class PersistentTrimService : Service() {
             val delayed = recheckShown(appCtx, failure)
             val body = listOf(
                 preCheck,
-                "startForeground exception = $failure",
+                "startForeground exception = ${failure ?: "null"}",
                 formatActiveNotifications("immediate", immediate),
                 formatActiveNotifications("+${SHOWN_RECHECK_DELAY_MS}ms", delayed)
             ).joinToString("\n")
@@ -269,7 +269,7 @@ class PersistentTrimService : Service() {
             delay(SHOWN_RECHECK_DELAY_MS)
             val read = readActiveNotifications(ctx)
             val dump = formatActiveNotifications("+${SHOWN_RECHECK_DELAY_MS}ms", read).replace("\n", " | ")
-            Log.i(TAG, "LIFECYCLE $dump startForeground.exception=$startFailure")
+            Log.i(TAG, "LIFECYCLE $dump startForeground.exception=${startFailure ?: "null"}")
             return read
         }
 
@@ -314,9 +314,10 @@ internal data class NotifSnapshot(
  * notifikasi (flags heksadesimal), atau exception pembacaan apa adanya. Tanpa kalimat penjelasan/kesimpulan.
  */
 internal fun formatActiveNotifications(label: String, read: Result<List<NotifSnapshot>>): String {
-    val items = read.getOrNull() ?: return "activeNotifications[$label]: read exception = ${read.exceptionOrNull()}"
+    val items = read.getOrNull()
+        ?: return "activeNotifications[$label]: read exception = ${read.exceptionOrNull() ?: "null"}"
     val lines = items.map {
-        "  id=${it.id} tag=${it.tag} channel=${it.channelId} " +
+        "  id=${it.id} tag=${it.tag ?: "null"} channel=${it.channelId ?: "null"} " +
             "flags=0x${it.flags.toString(HEX_RADIX)} postTime=${it.postTime}"
     }
     return (listOf("activeNotifications[$label]: count=${items.size}") + lines).joinToString("\n")

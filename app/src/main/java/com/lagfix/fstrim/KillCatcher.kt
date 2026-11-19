@@ -102,7 +102,7 @@ internal object KillCatcher {
         val matched = r.output.lineSequence().filter { inWindow(it, from, to) }.toList()
         val kept = selectNearDeath(matched, logStamp(d.timestampMs))
         val head = "death timestamp=${d.timestampMs} pid=${d.pid} window=$from..$to " +
-            "lines=${kept.size} matched=${matched.size} exit=${r.exit} timedOut=${r.timedOut}"
+            "lines=${kept.size} matched=${matched.size} exit=${r.exit ?: "null"} timedOut=${r.timedOut}"
         return listOf(head) + kept.map { "  ${it.take(KILL_MAX_LINE_CHARS)}" }
     }
 }

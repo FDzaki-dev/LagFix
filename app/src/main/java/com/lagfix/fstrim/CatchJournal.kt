@@ -54,7 +54,7 @@ internal fun observationKey(
     importance: Int,
     toggleOn: Boolean,
     restricted: Boolean?
-): String = "pid=$pid shown=$shown importance=$importance toggleOn=$toggleOn bgRestricted=$restricted"
+): String = "pid=$pid shown=$shown importance=$importance toggleOn=$toggleOn bgRestricted=${restricted ?: "null"}"
 
 /**
  * v147: lipat 1 pengamatan ke [rows] (tertua dulu). Kunci SAMA dgn baris terakhir -> baris itu diperbarui (`first`
@@ -104,5 +104,5 @@ internal fun readPowerState(app: Context): Result<List<String>> = runCatching {
     } else {
         null
     }
-    listOf("ignoringBatteryOptimizations=$ignoring", "standbyBucket=$bucket")
+    listOf("ignoringBatteryOptimizations=${ignoring ?: "null"}", "standbyBucket=${bucket ?: "null"}")
 }

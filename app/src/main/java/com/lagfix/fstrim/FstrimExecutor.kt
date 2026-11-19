@@ -61,7 +61,7 @@ object FstrimExecutor {
             val message = "exit=${res.first} ${res.second.trim()}".trim()
             TrimResult(res.first == 0, message, SystemClock.elapsedRealtime() - t0)
         } catch (e: Throwable) {
-            TrimResult(false, "${e.javaClass.simpleName}: ${e.message}", SystemClock.elapsedRealtime() - t0)
+            TrimResult(false, "${e.javaClass.simpleName}: ${e.message ?: "null"}", SystemClock.elapsedRealtime() - t0)
         }
     }
 

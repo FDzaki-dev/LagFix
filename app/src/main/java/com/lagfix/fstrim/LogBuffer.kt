@@ -47,7 +47,7 @@ private fun enlargeLogBuffer(app: Context): Boolean {
 /** v132: angka mentah (exit, timedOut) + keluaran shell apa adanya (baris digabung ` | `, maks 300 karakter). */
 internal fun logBufferResultLine(output: String, exit: Int?, timedOut: Boolean): String {
     val raw = output.lines().filter { it.isNotBlank() }.joinToString(" | ").take(LOG_BUFFER_MAX_CHARS)
-    return "LIFECYCLE logBuffer resize exit=$exit timedOut=$timedOut output=$raw"
+    return "LIFECYCLE logBuffer resize exit=${exit ?: "null"} timedOut=$timedOut output=$raw"
 }
 
 /** v132: Shizuku belum READY -> perintah tak dijalankan; hanya nama status mentah. */

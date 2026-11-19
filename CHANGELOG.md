@@ -1,5 +1,12 @@
 # Changelog
 
+## v162
+- Laporan CI run 14 (commit v161): SpotBugs kembali berjalan (SARIF terbentuk, 0 temuan), jadi perbaikan jalur kelas v161 terbukti. detekt typed turun dari 41 ke 17 temuan persis seperti diperkirakan, tanpa temuan baru; 131 tes lulus, peringatan kompilator dan deprecated 0, APK terbentuk.
+- Atas izin pemilik proyek, 17 temuan sisa ditutup di 8 berkas: `CatchJournal`, `KillCatcher`, `LogBuffer`, `MainActivity`, `RecentsExclusion`, serta tiga berkas yang biasanya dilindungi (`PersistentTrimService`, `FstrimExecutor`, `UpdateChecker`). Pola sama seperti v161: template log yang menyisipkan nilai nullable kini memakai `?: "null"` eksplisit, keluaran identik; rule `NullableToStringCall` tetap aktif.
+- `PersistentTrimService` hanya berubah pada string log setelah `startForeground()`; alur, channel, dan keputusan servis tidak disentuh. `UpdateResult` (`UpdateChecker.kt`) menjadi `sealed interface`; pemakaian `is` dan `when` tidak berubah.
+- `MainActivity.kt`: teks error daftar log memakai `loadError.orEmpty()` karena properti delegasi tidak bisa di-smart-cast; cabang itu hanya dimasuki saat nilainya tidak null, jadi tampilan sama.
+- Belum dijalankan di CI (kompilasi, tes, detekt typed). Target run berikutnya: detekt typed 0 temuan. Perilaku aplikasi tidak berubah.
+
 ## v161
 - Laporan CI run 13 (commit v160): Tahap D2 terbukti. Pesan deprecated Gradle/AGP/plugin 0, peringatan kompilator 0, detekt polos 0 temuan, 131 tes lulus, APK terbentuk, lint hanya satu hint (compose-bom, disengaja). Dua hal tersisa: SpotBugs `NOT VERIFIED` dan `detektDebug` (jaring typed) yang kini berjalan dan melaporkan 41 temuan pertama.
 - SpotBugs: dengan Kotlin bawaan AGP 9 kelas hasil kompilasi tidak lagi ada di `build/tmp/kotlin-classes/debug`, sehingga SpotBugs berhenti dengan "No files to analyze could be opened". `config/spotbugs/spotbugs.gradle.kts` kini mengambil direktori kelas dari keluaran task `compileDebugKotlin` (dengan jalur cadangan dan pindai `MainActivity.class`) dan mencatat jalur nyatanya sebagai `SPOTBUGS_DIAG` di log laporan.

@@ -19,10 +19,10 @@ data class UpdateInfo(
     val changelog: String
 )
 
-sealed class UpdateResult {
-    data class UpToDate(val installedBuild: Int) : UpdateResult()
-    data class Available(val installedBuild: Int, val info: UpdateInfo) : UpdateResult()
-    data class Error(val message: String) : UpdateResult()
+sealed interface UpdateResult {
+    data class UpToDate(val installedBuild: Int) : UpdateResult
+    data class Available(val installedBuild: Int, val info: UpdateInfo) : UpdateResult
+    data class Error(val message: String) : UpdateResult
 }
 
 /**
