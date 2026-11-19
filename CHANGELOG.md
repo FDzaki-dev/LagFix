@@ -1,5 +1,11 @@
 # Changelog
 
+## v156
+- Laporan CI run 8 (commit v155): build hijau (122 tes unit lulus dengan mockito 5.24.0, APK debug terbentuk, detekt/detekt typed/ArchUnit 1.5.1/SpotBugs 0 temuan). Perbaikan v155 terbukti: deprecated `Task.project` dan dua NewerVersionAvailable hilang. Lint tinggal tujuh error, semuanya UseKtx di `Prefs.kt`.
+- Atas perintah user ("Prefs boleh"), `Prefs.kt` diperbaiki hanya pada baris yang dilaporkan lint: enam setter (`themeMode`, `enabled`, `intervalMinutes`, `radicalInterval`, `scheduleAnchorMs`, `persistentServiceEnabled`) dan `record()` kini memakai `SharedPreferences.edit { ... }`. Perilaku identik (`edit {}` = `edit()` + aksi + `apply()`); kunci, nilai default, urutan penulisan, dan format log tidak berubah.
+- Peringatan kompilator `Project.android(...)` deprecated di `app/build.gradle.kts` bersifat intermiten (run 6 dan 8 ada, run 7 tidak) dan berakar pada `android.newDsl=false`; hilang di Tahap D.
+- Belum dijalankan di CI. Perilaku aplikasi tidak berubah.
+
 ## v155
 - Laporan CI run 7 (commit v154): build hijau (122 tes unit lulus, APK debug terbentuk, detekt/detekt typed/ArchUnit/SpotBugs 0 temuan, peringatan kompilator 0). Perbaikan v154 terbukti: lima flag AGP yang dihapus tak lagi dicetak sebagai deprecated, dan UseKtx turun dari 16 menjadi 10.
 - Tiga UseKtx tersisa di berkas non-terlarang diperbaiki dengan `SharedPreferences.edit { ... }` (apply di akhir, perilaku identik): `CatchJournal.kt`, `KillCatcher.kt`, dan `RecentsExclusion.kt` baris 161 (tiga `put*` dalam satu apply; pembacaan `getInt` terjadi sebelum apply, sama seperti sebelumnya).

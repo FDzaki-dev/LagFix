@@ -1,6 +1,7 @@
 package com.lagfix.fstrim
 
 import android.content.Context
+import androidx.core.content.edit
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -24,11 +25,11 @@ class Prefs(context: Context) {
         get() = runCatching {
             ThemeMode.valueOf(sp.getString("themeMode", null) ?: ThemeMode.SYSTEM.name) // v149: tanpa `!!`
         }.getOrDefault(ThemeMode.SYSTEM)
-        set(v) { sp.edit().putString("themeMode", v.name).apply() }
+        set(v) { sp.edit { putString("themeMode", v.name) } }
 
     var enabled: Boolean
         get() = sp.getBoolean("enabled", false)
-        set(v) { sp.edit().putBoolean("enabled", v).apply() }
+        set(v) { sp.edit { putBoolean("enabled", v) } }
 
     // v44: interval kini dalam MENIT (mendukung nilai kustom dari user). Kunci lama "interval"
     // (jam, dipakai v1-v43) TETAP dibaca sbg fallback -> user existing tak kehilangan pilihannya,
@@ -38,26 +39,26 @@ class Prefs(context: Context) {
             "intervalMin",
             sp.getLong("interval", LEGACY_INTERVAL_DEFAULT_HOURS) * LEGACY_HOURS_TO_MINUTES
         )
-        set(v) { sp.edit().putLong("intervalMin", v).apply() }
+        set(v) { sp.edit { putLong("intervalMin", v) } }
 
     // v118 (permintaan user): mode interval radikal (< 15 menit). Toggle bebas on/off kapan saja, tanpa
     // batasan. Default false = perilaku lama (interval minimal 15 menit, periodik WorkManager).
     var radicalInterval: Boolean
         get() = sp.getBoolean("radicalInterval", false)
-        set(v) { sp.edit().putBoolean("radicalInterval", v).apply() }
+        set(v) { sp.edit { putBoolean("radicalInterval", v) } }
 
     // v120: waktu (ms) jadwal terakhir diterapkan (Scheduler.apply) = acuan keterlambatan run Otomatis
     // pertama setelahnya. 0 = belum pernah (user lama) -> tak ada penanda utk run pertama itu.
     var scheduleAnchorMs: Long
         get() = sp.getLong("anchor", 0L)
-        set(v) { sp.edit().putLong("anchor", v).apply() }
+        set(v) { sp.edit { putLong("anchor", v) } }
 
     // v27 (fitur opsional, pilihan eksplisit user — lihat SettingsTab): toggle foreground service
     // "keep-alive" (PersistentTrimService). Default false, non-breaking utk user existing yg belum
     // pernah lihat/pilih opsi ini.
     var persistentServiceEnabled: Boolean
         get() = sp.getBoolean("persistentService", false)
-        set(v) { sp.edit().putBoolean("persistentService", v).apply() }
+        set(v) { sp.edit { putBoolean("persistentService", v) } }
 
     val lastRunMs: Long get() = sp.getLong("lastRun", 0L)
     val lastOk: Boolean get() = sp.getBoolean("lastOk", false)
@@ -83,12 +84,12 @@ class Prefs(context: Context) {
         val late = if (isAuto) lateMinutes(now, ref, intervalMinutes) else 0L
         val lateTag = if (late > 0L) " telat=${late}m" else ""
         val lines = (listOf("$stamp $status [$trigger] ${r.durationMs}ms $msg$lateTag") + log).take(LOG_MAX_LINES)
-        val editor = sp.edit()
-            .putLong("lastRun", now)
-            .putBoolean("lastOk", r.ok)
-            .putString("log", lines.joinToString("\n"))
-        if (isAuto) editor.putLong("lastAuto", now)
-        editor.apply()
+        sp.edit {
+            putLong("lastRun", now)
+            putBoolean("lastOk", r.ok)
+            putString("log", lines.joinToString("\n"))
+            if (isAuto) putLong("lastAuto", now)
+        }
     }
 }
 
