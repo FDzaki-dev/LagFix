@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -15,6 +16,7 @@ import androidx.core.content.pm.PackageInfoCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import rikka.shizuku.Shizuku
@@ -22,6 +24,7 @@ import rikka.shizuku.Shizuku
 // v93 (detekt MagicNumber): nilai identik dgn literal sebelumnya.
 private const val DEFAULT_INTERVAL_MINUTES = 24L * 60L
 private const val SHIZUKU_PERMISSION_REQUEST_CODE = 1001
+private const val VM_TAG = "MainViewModel" // v166
 
 data class UiState(
     val shizuku: ShizukuState = ShizukuState.NOT_RUNNING,
@@ -57,13 +60,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Shizuku.addRequestPermissionResultListener(onPerm)
     }
 
+    // v166 (audit statis): dulu `ui.running` dibaca SEBELUM `readUiState` (binder/PackageManager, lambat) lalu ditulis
+    // balik SESUDAHNYA. `runNow()` yg selesai di jendela itu (coroutine IO) menulis running=false, lalu `refresh()`
+    // (mis. `onResume`) menimpanya dgn running=true basi -> tombol macet di status berjalan & `runNow()` ditolak terus.
+    // Kini bacaan lambat dikerjakan DULU, field milik aksi berjalan diambil dari `ui` SAAT TULIS (`mergeUiState`).
     fun refresh() {
-        ui = readUiState(getApplication<Application>(), prefs, ui.running).copy(
-            updateChecking = ui.updateChecking,
-            updateResult = ui.updateResult,
-            downloading = ui.downloading,
-            downloadError = ui.downloadError
-        )
+        ui = mergeUiState(readUiState(getApplication<Application>(), prefs), ui)
     }
 
     // v93 (detekt TooManyFunctions 16 -> 10): `reschedule()` (2 pemanggil) di-inline; `setThemeMode()`
@@ -123,21 +125,30 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // v166 (audit statis): pengecualian tak terduga di coroutine IO ini (mis. dari `Scheduler.notifyChanged`) dulu TAK
+    // tertangkap -> app jatuh. Kini dicatat apa adanya (logcat + 1 baris Riwayat `<Kelas>: <pesan>`, format sama dgn
+    // `TrimWorker`) & `running` SELALU dikembalikan ke false di `finally`; pembatalan dilempar ulang.
+    // catch Exception DISENGAJA: batas pekerjaan latar (shell/binder/widget), kegagalan apa pun dilaporkan.
+    @Suppress("TooGenericExceptionCaught")
     fun runNow() {
         if (ui.running) return
         ui = ui.copy(running = true)
         viewModelScope.launch(Dispatchers.IO) {
             val app = getApplication<Application>()
-            val r = if (FstrimExecutor.state(app) == ShizukuState.READY) FstrimExecutor.run()
-            else TrimResult(false, "Shizuku belum siap", 0L)
-            prefs.record(r, TriggerSource.MANUAL) // v38: runNow() = tombol di app = selalu manual
-            Scheduler.notifyChanged(app)
-            ui = readUiState(app, prefs).copy(
-                updateChecking = ui.updateChecking,
-                updateResult = ui.updateResult,
-                downloading = ui.downloading,
-                downloadError = ui.downloadError
-            )
+            try {
+                val r = if (FstrimExecutor.state(app) == ShizukuState.READY) FstrimExecutor.run()
+                else TrimResult(false, "Shizuku belum siap", 0L)
+                prefs.record(r, TriggerSource.MANUAL) // v38: runNow() = tombol di app = selalu manual
+                Scheduler.notifyChanged(app)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(VM_TAG, "runNow gagal tak terduga", e)
+                val failure = TrimResult(false, "${e.javaClass.simpleName}: ${e.message ?: "null"}", 0L)
+                runCatching { prefs.record(failure, TriggerSource.MANUAL) }
+            } finally {
+                ui = mergeUiState(runCatching { readUiState(app, prefs) }.getOrNull(), ui, running = false)
+            }
         }
     }
 
@@ -202,6 +213,21 @@ private fun readUiState(app: Application, prefs: Prefs, running: Boolean = false
     backgroundRestricted = isBackgroundRestricted(app),
     persistentServiceEnabled = prefs.persistentServiceEnabled
 )
+
+/**
+ * v166: gabungkan hasil baca [fresh] (Prefs/Shizuku/baterai) dgn state UI SAAT INI [current]. Field milik aksi yg
+ * sedang berjalan (`running`, cek update, unduh) TIDAK boleh berasal dari bacaan lambat yg dimulai lebih dulu: diambil
+ * dari [current] pada saat TULIS; [running] default = `current.running`, `runNow()` memaksa false. [fresh] null (baca
+ * gagal) -> hanya `running` yg diubah.
+ */
+internal fun mergeUiState(fresh: UiState?, current: UiState, running: Boolean = current.running): UiState =
+    fresh?.copy(
+        running = running,
+        updateChecking = current.updateChecking,
+        updateResult = current.updateResult,
+        downloading = current.downloading,
+        downloadError = current.downloadError
+    ) ?: current.copy(running = running)
 
 // v21: root cause laporan user "jadwal otomatis tak tercatat" — confirmed toggle sudah ON dari
 // awal + device Infinix XOS, salah satu ROM yg dikenal agresif membunuh background job WorkManager
