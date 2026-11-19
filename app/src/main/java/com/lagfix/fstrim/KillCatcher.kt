@@ -100,7 +100,7 @@ internal object KillCatcher {
         val cmd = buildKillCommand(startMs, d.pid)
         val r = BoundedShell.run(KILL_CMD_TIMEOUT_MS) { LogcatSnapshot.shizukuProcess(cmd) }
         val matched = r.output.lineSequence().filter { inWindow(it, from, to) }.toList()
-        val kept = selectNearDeath(matched, logStamp(d.timestampMs))
+        val kept = selectNearDeath(matched, logStamp(d.timestampMs), from)
         val head = "death timestamp=${d.timestampMs} pid=${d.pid} window=$from..$to " +
             "lines=${kept.size} matched=${matched.size} exit=${r.exit ?: "null"} timedOut=${r.timedOut}"
         return listOf(head) + kept.map { "  ${it.take(KILL_MAX_LINE_CHARS)}" }
@@ -120,14 +120,25 @@ internal fun selectNewDeaths(all: List<KillDeath>, lastTs: Long, nowMs: Long): L
  * v129: [matched] = baris dlm jendela, urut waktu. Simpan baris TERDEKAT dgn waktu kematian ([deathStamp]):
  * 100 terakhir s/d waktu kematian + 50 pertama sesudahnya (isi baris tak diubah). Sebelumnya 150 baris PERTAMA
  * jendela -> pada 2 dari 3 kematian di berkas 06 Okt baris sebelum kematian habis duluan & kill tak tercatat.
+ * v169: + [from] (awal jendela) agar jendela yg melintasi 31 Des -> 1 Jan tetap terurut (lihat [compareStamps]).
  */
-internal fun selectNearDeath(matched: List<String>, deathStamp: String): List<String> {
-    val (before, after) = matched.partition { it.take(KILL_STAMP_LEN) <= deathStamp }
+internal fun selectNearDeath(matched: List<String>, deathStamp: String, from: String): List<String> {
+    val (before, after) = matched.partition { compareStamps(it.take(KILL_STAMP_LEN), deathStamp, from) <= 0 }
     return before.takeLast(KILL_MAX_BEFORE_LINES) + after.take(KILL_MAX_AFTER_LINES)
 }
 
 /** v124: stempel logcat `MM-dd HH:mm:ss.SSS` zona perangkat (sama dgn kolom waktu `logcat -v threadtime`). */
 internal fun logStamp(ms: Long): String = SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US).format(Date(ms))
+
+/**
+ * v169: urutan stempel logcat `MM-dd HH:mm:ss.SSS` (tanpa tahun) sadar lilitan tahun, relatif ke awal jendela [from].
+ * Jendela < 1 hari: stempel < [from] (teks) pasti SESUDAH lilitan 31 Des -> 1 Jan, jadi dihitung lebih akhir.
+ * Sebelumnya perbandingan teks polos: jendela yg melintasi lilitan (`from` > `to`) tak mencocokkan satu baris pun.
+ */
+internal fun compareStamps(a: String, b: String, from: String): Int {
+    val wrapped = (a < from).compareTo(b < from)
+    return if (wrapped != 0) wrapped else a.compareTo(b)
+}
 
 /**
  * v124: perintah shell (konstanta + 2 angka, 0 input user): logcat sejak [startMs] (format epoch `-t sss.mmm`),
@@ -141,10 +152,10 @@ internal fun buildKillCommand(startMs: Long, pid: Int): String {
         "grep -Ei '$pattern' | head -n $KILL_SHELL_MAX_LINES"
 }
 
-/** v124: baris logcat berstempel `MM-dd HH:mm:ss.SSS` yg jatuh di [from]..[to] (perbandingan string, lebar tetap). */
+/** v124: baris logcat berstempel `MM-dd HH:mm:ss.SSS` yg jatuh di [from]..[to]; v169: sadar lilitan tahun. */
 internal fun inWindow(line: String, from: String, to: String): Boolean {
     val ts = line.take(KILL_STAMP_LEN)
-    return KILL_STAMP_REGEX.matches(ts) && ts >= from && ts <= to
+    return KILL_STAMP_REGEX.matches(ts) && compareStamps(ts, to, from) <= 0
 }
 
 /** v124 (prinsip user: log = DATA MENTAH): isi berkas `diag_kill_context`. */
