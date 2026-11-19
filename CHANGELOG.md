@@ -1,5 +1,12 @@
 # Changelog
 
+## v160
+- Laporan CI run 12 (commit v159): detekt 2.0.0-alpha.6 berjalan (0 temuan), pesan deprecated `ReportingExtension.file` hilang, 131 tes lulus, APK terbentuk. `detektDebug` gagal validasi config: rule set `standard-library` ada di panduan migrasi "Next" tetapi belum ada di alpha.6. Lint melaporkan dua hint baru karena ada rilis baru (compose-bom 2026.11.01, lifecycle-viewmodel-ktx 2.11.1).
+- `config/detekt/detekt-typed.yml`: tiga rule (`ArrayPrimitive`, `ForEachOnRange`, `MapGetWithNotNullAssertionOperator`) dikembalikan ke rule set aslinya; rename `UnusedImport` dipertahankan karena diterima alpha.6.
+- Tahap D2: `gradle.properties` tidak lagi mematikan Kotlin bawaan AGP dan DSL baru (`android.builtInKotlin=false`, `android.newDsl=false` dihapus). Plugin `org.jetbrains.kotlin.android` dilepas dari `build.gradle.kts` akar dan `app/build.gradle.kts`; versi Kotlin dipatok lewat classpath `kotlin-gradle-plugin:2.4.10`. Skrip laporan membaca versi Kotlin dari plugin compose.
+- `lifecycle-viewmodel-ktx` naik ke 2.11.1. compose-bom sengaja tetap 2026.09.00: 2026.11.01 membawa Compose 1.13 dan Material 3 1.5, perlu keputusan dan cek visual tersendiri.
+- Belum dijalankan di CI. Build utama kini memuat perubahan toolchain, jadi hasil run berikutnya menentukan. Aplikasi tidak berubah selain patch lifecycle.
+
 ## v159
 - Laporan CI run 11 (commit v158): semuanya hijau dan Tahap C terbukti: compileSdk dan targetSdk 37, lint tanpa isu (tujuh hint hilang), 131 tes unit lulus, peringatan kompilator 0, APK debug terbentuk, detekt/detekt typed/ArchUnit/SpotBugs 0 temuan. Sisa target: tiga pesan deprecated (`android.newDsl=false`, `android.builtInKotlin=false`, `ReportingExtension.file`).
 - Tahap D1: detekt dimigrasikan dari 1.23.8 ke 2.0.0-alpha.6 (plugin `dev.detekt`; sejak alpha.3 mendukung built-in Kotlin AGP 9, dan alpha.4 dibangun dengan Kotlin 2.4). `build.gradle.kts` dan `app/build.gradle.kts` memakai impor, ekstensi lazy, dan laporan `checkstyle` baru (laporan txt dihapus di detekt 2). Plugin tetap hanya dipasang saat `-Plagfix.detekt=true`, jadi build dan rilis tidak bergantung padanya.

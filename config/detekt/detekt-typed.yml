@@ -44,6 +44,8 @@ potential-bugs:
     active: true
   ExitOutsideMain:
     active: true
+  MapGetWithNotNullAssertionOperator:
+    active: true
   MissingPackageDeclaration:
     active: true
   UnconditionalJumpStatementInLoop:
@@ -73,21 +75,16 @@ exceptions:
   ThrowingExceptionInMain:
     active: true
 
-# Guard Compose/Battery: objek sementara mubazir ([TR]).
+# Guard Compose/Battery: boxing array primitif, forEach pada range, objek sementara mubazir ([TR] semua).
+# v160: rule set `standard-library` (panduan migrasi detekt "Next") BELUM ada di 2.0.0-alpha.6 (laporan CI run 12: "Property
+# 'standard-library' is misspelled or does not exist") -> rule-rule ini tetap di rule set aslinya.
 performance:
-  active: true
-  UnnecessaryTemporaryInstantiation:
-    active: true
-
-# v159 (detekt 2): rule yang memakai stdlib pindah ke rule set baru `standard-library` (ID rule tetap): boxing array primitif,
-# forEach pada range, `map[k]!!`.
-standard-library:
   active: true
   ArrayPrimitive:
     active: true
   ForEachOnRange:
     active: true
-  MapGetWithNotNullAssertionOperator:
+  UnnecessaryTemporaryInstantiation:
     active: true
 
 style:

@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    // v160 (Tahap D2): tanpa plugin Kotlin-Android (Kotlin bawaan AGP 9); compiler Compose tetap lewat plugin di bawah.
     id("org.jetbrains.kotlin.plugin.compose")
     // v152: plugin detekt TIDAK lagi di sini; di-apply bersyarat di bawah (`-Plagfix.detekt=true`).
 }
@@ -81,7 +81,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.core:core-ktx:1.19.1")
     implementation("androidx.activity:activity-compose:1.13.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.1")
     implementation("androidx.work:work-runtime-ktx:2.12.0")
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
