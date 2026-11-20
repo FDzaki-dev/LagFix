@@ -1,5 +1,14 @@
 # Changelog
 
+## v179
+- Perintah user: "Adaptasi maksimal ke Lagfix!!" dengan berkas `update/` dari SONIX (`GitHubReleaseChecker`, `UpdateDownloader`, `UpdateManager`).
+- Diadopsi: pasang senyap lewat Shizuku. Bila Shizuku siap dan APK memang paket aplikasi ini, "Update sekarang" memasang APK dengan `pm install -r` di proses Shizuku, tanpa dialog installer; APK dialirkan lewat stdin secara buffered. Bila Shizuku belum siap atau pemasangan gagal, dipakai installer sistem seperti sebelumnya, dan keluaran mentah kegagalan dicatat ke log (tag `SilentInstaller`).
+- Diadopsi: keadaan "Memasang" di UI. Bilah di kartu Pembaruan berganti judul menjadi "Memasang pembaruan…" dengan bilah tak tentu selama pemasangan senyap berjalan.
+- `SilentInstaller.kt` (baru), `MainViewModel.kt` (properti `installing`, `installUpdate` mencoba pasang senyap dulu), `UpdateProgressBar.kt`, `MainActivity.kt` (parameter `installing`), `SilentInstallerTest` (3 tes baru).
+- Tidak diadopsi: OkHttp/Okio (dependensi baru, tak bisa diverifikasi di sini), catatan rilis dari field `body` (workflow rilis LagFix tidak mengisinya), singleton `UpdateManager` (keadaan update sudah di `MainViewModel`), token GitHub (jalur web cadangan v178 sudah menangani rate limit).
+- Batas yang diketahui: pemasangan sukses membuat sistem mematikan proses aplikasi, sehingga aplikasi tertutup tanpa dialog "Buka" dan perlu dibuka ulang manual (dugaan dari log SONIX, belum terbukti di LagFix).
+- Belum dijalankan di CI (kompilasi, tes, detekt, SpotBugs, lint); laporan CI v178 juga belum dikirim. Target run berikutnya: 183 tes lulus dan semua alat tetap 0 temuan. Setelah memasang: uji "Update sekarang" dengan Shizuku aktif, lalu kirim Log diagnostik.
+
 ## v178
 - Laporan user (tangkapan layar tanpa teks, terpasang v1.0.149): kartu Pembaruan menampilkan "Gagal memeriksa pembaruan: Terlalu banyak permintaan ke GitHub (rate limit), coba lagi nanti." Laporan CI run 29 (commit v177): semua alat lulus, 175 tes lulus, detekt polos dan typed 0 temuan, SpotBugs 0, ArchUnit 7 aturan tanpa pelanggaran, lint hanya 1 petunjuk (compose-bom, disengaja).
 - Akar: pengecekan hanya memakai API GitHub tanpa token (60 permintaan per jam per alamat IP; IP seluler dipakai bersama), sehingga mudah mendapat HTTP 403.

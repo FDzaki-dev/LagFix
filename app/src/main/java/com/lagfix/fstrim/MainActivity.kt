@@ -305,6 +305,7 @@ private fun HomeScreen(vm: MainViewModel) {
                                     ctx = ctx,
                                     versionName = versionName,
                                     downloadProgress = { vm.downloadProgress }, // v171: dibaca di bilah progres saja
+                                    installing = { vm.installing }, // v179
                                     onRunNow = { showRunConfirm = true }, // v11: minta konfirmasi dulu
                                     onGrant = ::requestShizukuPermission,
                                     onCheckUpdate = vm::checkUpdate,
@@ -383,6 +384,7 @@ private fun MainTab(
     ctx: Context,
     versionName: String?,
     downloadProgress: () -> DownloadProgress?,
+    installing: () -> Boolean,
     onRunNow: () -> Unit,
     onGrant: () -> Unit,
     onCheckUpdate: () -> Unit,
@@ -461,6 +463,7 @@ private fun MainTab(
         result = ui.updateResult,
         downloading = ui.downloading,
         downloadProgress = downloadProgress,
+        installing = installing,
         downloadError = ui.downloadError,
         onCheck = onCheckUpdate,
         onInstall = onInstallUpdate
@@ -1471,6 +1474,7 @@ private fun UpdateCard(
     result: UpdateResult?,
     downloading: Boolean,
     downloadProgress: () -> DownloadProgress?,
+    installing: () -> Boolean,
     downloadError: String?,
     onCheck: () -> Unit,
     onInstall: (String) -> Unit
@@ -1531,7 +1535,7 @@ private fun UpdateCard(
                     }
                     SectionDivider() // v175: sekat antara status versi dan bagian unduhan/aksi
                     // v171 (laporan user: unduhan tak punya bilah progres): bilah + persen + "x MB dari y MB".
-                    if (downloading) DownloadProgressBar(downloadProgress)
+                    if (downloading) DownloadProgressBar(downloadProgress, installing = installing)
                     // v65: aksi disusun simetris — semua tombol selebar kartu & setinggi sama (sebelumnya
                     // TextButton + Button berdampingan: teks Update membungkus 2 baris, tinggi tak sama,
                     // TextButton menjorok ke dalam). Hierarki: Update = primer (filled), changelog = tonal.

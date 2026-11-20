@@ -156,6 +156,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // UI membacanya lewat lambda di bilah progres saja -> seluruh layar tak direkomposisi tiap laporan. null = belum
     // ada laporan (menghubungkan) atau tak sedang mengunduh. Properti, bukan fungsi: `MainViewModel` tetap 10 fungsi.
     var downloadProgress by mutableStateOf<DownloadProgress?>(null)
+
+    // v179 (adaptasi SONIX Batch 694): true selama APK dipasang senyap via Shizuku (bilah: "Memasang pembaruan…").
+    var installing by mutableStateOf(false)
         private set
 
     fun checkUpdate() {
@@ -196,12 +199,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val apk = UpdateChecker.download(app, url) { done, total ->
                     downloadProgress = DownloadProgress(done, total)
                 }
-                val uri = FileProvider.getUriForFile(app, "${app.packageName}.fileprovider", apk)
-                val intent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(uri, "application/vnd.android.package-archive")
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                // v179: Shizuku siap -> pasang SENYAP (tanpa dialog); tak siap/gagal -> installer sistem seperti dulu.
+                installing = true
+                val silent = try {
+                    SilentInstaller.install(app, apk)
+                } finally {
+                    installing = false
                 }
-                app.startExternal(intent)
+                if (!silent.success) {
+                    val uri = FileProvider.getUriForFile(app, "${app.packageName}.fileprovider", apk)
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(uri, "application/vnd.android.package-archive")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    app.startExternal(intent)
+                }
                 ui = ui.copy(downloading = false)
             } catch (e: Exception) {
                 Log.w(VM_TAG, "installUpdate gagal", e) // v174: pengecualian mentah (UI hanya pesan terpetakan)

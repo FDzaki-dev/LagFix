@@ -25,8 +25,13 @@ import androidx.compose.ui.Modifier
  * direkomposisi, bukan seluruh layar.
  */
 @Composable
-internal fun DownloadProgressBar(progress: () -> DownloadProgress?, modifier: Modifier = Modifier) {
+internal fun DownloadProgressBar(
+    progress: () -> DownloadProgress?,
+    modifier: Modifier = Modifier,
+    installing: () -> Boolean = { false }
+) {
     val current = progress()
+    val isInstalling = installing() // v179: pasang senyap via Shizuku sedang berjalan (unduhan sudah selesai)
     val fraction = current?.fraction
     val percent = current?.percent
     val animated by animateFloatAsState(
@@ -40,16 +45,19 @@ internal fun DownloadProgressBar(progress: () -> DownloadProgress?, modifier: Mo
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Mengunduh pembaruan…", style = MaterialTheme.typography.labelLarge)
-            if (percent != null) Text("$percent%", style = MaterialTheme.typography.labelLarge)
+            Text(
+                if (isInstalling) "Memasang pembaruan…" else "Mengunduh pembaruan…",
+                style = MaterialTheme.typography.labelLarge
+            )
+            if (percent != null && !isInstalling) Text("$percent%", style = MaterialTheme.typography.labelLarge)
         }
-        if (fraction != null) {
+        if (fraction != null && !isInstalling) {
             LinearProgressIndicator(progress = { animated }, modifier = Modifier.fillMaxWidth())
         } else {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
         Text(
-            downloadStatusLine(current),
+            if (isInstalling) "Pasang senyap lewat Shizuku, tanpa dialog installer." else downloadStatusLine(current),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
