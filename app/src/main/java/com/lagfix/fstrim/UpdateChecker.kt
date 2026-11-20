@@ -158,7 +158,7 @@ object UpdateChecker {
         ReleaseRef(tag, json.optString("name", tag).ifBlank { tag }, findApkUrl(json, htmlUrl))
     } catch (e: IOException) {
         if (e.message !in RATE_LIMITED_CODES) throw e
-        Log.w(TAG, "API GitHub menolak (${e.message}); pakai jalur web tanpa API", e)
+        Log.w(TAG, "API GitHub menolak (${e.message ?: "null"}); pakai jalur web tanpa API", e)
         UpdateWebFallback.fetchLatest(OWNER, REPO)
     }
 

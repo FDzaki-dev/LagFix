@@ -33,22 +33,25 @@ internal object SilentInstaller {
     internal fun isInstallSuccess(exit: Int?, output: String): Boolean =
         exit == 0 && output.contains("Success", ignoreCase = true)
 
+    /** Alasan menolak bila paket APK bukan [ownPackage] (null = tak terbaca juga ditolak); cocok -> null. Murni. */
+    internal fun packageMismatch(archivePackage: String?, ownPackage: String): String? =
+        if (archivePackage == ownPackage) null else "Paket APK (${archivePackage ?: "null"}) bukan $ownPackage"
+
     // v93-style: catch Exception DISENGAJA — batas I/O-shell Shizuku (reflection, binder, proses, disk): kegagalan
     // apa pun harus jatuh ke installer sistem, bukan menggagalkan update.
     @Suppress("TooGenericExceptionCaught")
     fun install(context: Context, apk: File): SilentInstallResult {
-        if (FstrimExecutor.state(context) != ShizukuState.READY) {
-            return SilentInstallResult(false, "Shizuku belum siap")
+        // Pengaman: Shizuku harus siap DAN hanya APK paket aplikasi ini yang boleh dipasang tanpa dialog konfirmasi.
+        val refusal = if (FstrimExecutor.state(context) != ShizukuState.READY) {
+            "Shizuku belum siap"
+        } else {
+            packageMismatch(archivePackage(context, apk), context.packageName)
         }
-        // Pengaman: hanya APK paket aplikasi ini yang boleh dipasang tanpa dialog konfirmasi.
-        val archivePackage = archivePackage(context, apk)
-        if (archivePackage != context.packageName) {
-            return SilentInstallResult(false, "Paket APK ($archivePackage) bukan ${context.packageName}")
-        }
+        if (refusal != null) return SilentInstallResult(false, refusal)
         Log.w(TAG, "Pasang senyap via Shizuku dimulai: ${apk.name} ${apk.length()} byte")
         return try {
             val r = BoundedShell.run(INSTALL_TIMEOUT_MS) { spawnAndFeed(apk) }
-            val detail = "exit=${r.exit} timedOut=${r.timedOut}\n${r.output}"
+            val detail = "exit=${r.exit ?: "null"} timedOut=${r.timedOut}\n${r.output}"
             val ok = isInstallSuccess(r.exit, r.output)
             if (ok) {
                 Log.w(TAG, "Pasang senyap via Shizuku selesai: $detail")
@@ -58,7 +61,7 @@ internal object SilentInstaller {
             SilentInstallResult(ok, detail)
         } catch (e: Exception) {
             Log.e(TAG, "Pasang senyap via Shizuku melempar (jatuh ke installer sistem)", e)
-            SilentInstallResult(false, "${e.javaClass.simpleName}: ${e.message}")
+            SilentInstallResult(false, "${e.javaClass.simpleName}: ${e.message ?: "null"}")
         }
     }
 

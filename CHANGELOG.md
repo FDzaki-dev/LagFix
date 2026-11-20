@@ -1,5 +1,13 @@
 # Changelog
 
+## v181
+- Unggahan user: `LagFix_v180.zip` + `LagFix_laporan-untuk-claude_run32.zip` (tanpa teks). Laporan run 32: build debug v180 terkompilasi (`assembleDebug` exit 0), 190 tes lulus, ArchUnit 7 aturan 0 pelanggaran, SpotBugs 0; sisanya gagal di detekt (1 temuan), detekt typed (5 temuan), dan lint (1 error).
+- `SilentInstaller.kt`: `install` kini punya 2 `return` (batas detekt 2; sebelumnya 3). Dua pengaman awal digabung: Shizuku harus siap, lalu paket APK harus sama dengan paket aplikasi; pemeriksaan paket dipindah ke fungsi murni baru `packageMismatch` (urutan tetap: paket APK hanya dibaca bila Shizuku siap).
+- Typed `NullableToStringCall` x4 (`SilentInstaller.kt` 3 tempat, `UpdateChecker.kt:161`): nilai nullable di templat string kini diberi `?: "null"` eksplisit. Teks log dan teks detail hasil sama persis dengan sebelumnya (templat nullable mencetak "null"); yang berubah hanya penanganannya jadi eksplisit.
+- Lint `NewerVersionAvailable`: `com.squareup.okio:okio` 3.18.1 -> 3.18.2 di `app/build.gradle.kts` (versi dari pesan lint CI). Hint `compose-bom` 2026.09.00 -> 2026.11.01 tidak disentuh (disengaja; BOM baru hanya setelah cek visual).
+- Tes: `SilentInstallerTest` +3 tes murni untuk `packageMismatch` (paket sama, paket lain, paket tak terbaca). Target run berikutnya: 193 tes lulus, detekt 0, detekt typed 0, lint hanya hint compose-bom.
+- Belum dijalankan di CI (kompilasi, tes, detekt, SpotBugs, lint). Perilaku runtime tidak berubah; BUG_TARGET v147 (notifikasi persisten) tetap terbuka dan tak disentuh.
+
 ## v180
 - Perintah user: "Perbaiki dan terapkan OkHttp+Okio" (unggahan: `LagFix_v179.zip`, `LagFix-fail-log-152.zip`, `LagFix_diag_process_catch_20261121_062959.txt`).
 - Bukti (log build gagal run 152): `:app:compileDebugKotlin` gagal di `UpdateWebFallback.kt:38:72` ("Missing '}'"), `:78:1` ("Unclosed comment"), dan 3 "Unresolved reference" (`latestTag`, `apkHref`, `pageText`) yang hanya akibat. Akar: KDoc `apkHref` (v178) memuat pola berkas APK yang berisi garis miring lalu bintang; Kotlin mendukung komentar bersarang, jadi urutan itu membuka komentar baru yang tak pernah tertutup dan sisa berkas ikut menjadi komentar. Build v178 dan v179 tidak pernah terkompilasi di CI (run 29 = v177 adalah yang terakhir hijau).

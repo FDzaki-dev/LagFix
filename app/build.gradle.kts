@@ -89,8 +89,9 @@ dependencies {
     // cadangan, unduh APK) lewat OkHttp (rilis stabil terbaru 5.5.1, 22 Okt 2026); tubuh respons dialirkan lewat
     // Okio. Okio dideklarasikan eksplisit karena paket okio diimpor langsung; versinya = yang ditarik OkHttp 5.5.x
     // (Okio 3.18.1). Tanpa aturan R8: `isMinifyEnabled = false`.
+    // v181 (laporan CI run 32, lint NewerVersionAvailable): okio 3.18.1 -> 3.18.2 (patch terbaru; nilai dari lint).
     implementation("com.squareup.okhttp3:okhttp:5.5.1")
-    implementation("com.squareup.okio:okio:3.18.1")
+    implementation("com.squareup.okio:okio:3.18.2")
 
     // v7: unit test murni (JVM, tanpa device) — Prefs.record() + FstrimExecutor.state()
     // v17 (C4 kandidat b): FstrimExecutorTest.kt pindah dari mockStatic ke mock interface biasa
