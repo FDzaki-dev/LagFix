@@ -22,6 +22,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
@@ -237,8 +238,10 @@ private fun Modifier.glassBackdrop(): Modifier = this.drawWithCache {
 // Isi: fill gradien translusen + glow sudut kiri-atas + border gradien 1dp (terang di sudut atas,
 // memudar ke bawah) = tepi kaca yang memantulkan cahaya.
 private val glassFill = Brush.linearGradient(listOf(Color(0x1AA9BCFF), Color(0x08FFFFFF)))
+// v175 (laporan user: "masih nyaru"): tepi tengah/bawah dulu alpha 12%/5% (nyaris tak tampak -> bagian bawah kartu
+// menyatu dgn latar); kini 20%/14%. Tepi atas tetap 40%.
 private val glassBorder = Brush.linearGradient(
-    listOf(Color(0x66FFFFFF), Color(0x1F6F8CFF), Color(0x0DFFFFFF))
+    listOf(Color(0x66FFFFFF), Color(0x336F8CFF), Color(0x24FFFFFF))
 )
 
 // --- Motion (v71, M4) ----------------------------------------------------------------------------
@@ -423,6 +426,23 @@ internal fun Modifier.lagTopEdge(theme: AppTheme): Modifier =
 // Lencana status hero: Glass = lingkaran tint 16%; Neo = sumur cekung.
 internal fun Modifier.lagBadge(tint: Color, neo: Boolean): Modifier =
     if (neo) this.neoInset(36.dp) else this.background(tint.copy(alpha = 0.16f), CircleShape)
+
+// --- Sekat & penanda baris (v175) ----------------------------------------------------------------
+// Laporan user: "masih nyaru dan kurang sekat pemisah" (Pengaturan: baris Baterai, peringatan, tautan, sakelar, dan
+// daftar tautan menyatu dalam satu kartu). Garis 1dp warna isi (onSurface) alpha 18%; jarak atas/bawah = spacedBy
+// kolom kartu (8dp), jadi garis cukup jadi satu anak Column. Berlaku utk kedua tema (warna dari skema).
+private const val DIVIDER_ALPHA = 0.18f
+private const val FOLD_BAR_ALPHA = 0.08f
+
+@Composable
+internal fun SectionDivider() {
+    HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = DIVIDER_ALPHA))
+}
+
+/** v175: latar pil tipis utk baris lipat (header) supaya terbaca sbg kepala bagian, bukan teks biasa. */
+@Composable
+internal fun Modifier.foldBar(): Modifier =
+    this.background(MaterialTheme.colorScheme.onSurface.copy(alpha = FOLD_BAR_ALPHA), CircleShape)
 
 @Composable
 internal fun LagButton(

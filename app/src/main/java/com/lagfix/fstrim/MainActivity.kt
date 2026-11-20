@@ -514,6 +514,7 @@ private fun SettingsTab(
                 vm.setEnabled(it)
                 onFeedback(if (it) "Jadwal otomatis diaktifkan." else "Jadwal otomatis dinonaktifkan.")
             }
+            SectionDivider() // v175: sekat antara sakelar jadwal dan bagian interval
             Text("Interval", style = MaterialTheme.typography.titleSmall)
             // v44 (permintaan user: interval kustom diisi sendiri, biar tak kelamaan nunggu saat
             // uji): chip preset TETAP (nilai jam x 60 -> menit), ditambah kolom angka menit.
@@ -589,6 +590,7 @@ private fun SettingsTab(
                     modifier = Modifier.padding(top = 8.dp)
                 ) { Text("Terapkan") }
             }
+            SectionDivider() // v175: sekat antara interval dan mode radikal
             // v118 (permintaan user): mode interval radikal (< 15 menit), bebas dinyalakan/dimatikan kapan saja
             // tanpa batasan/konfirmasi. Mati -> interval < 15 menit otomatis dinaikkan ke 15 (lihat setInterval).
             ToggleRow(
@@ -669,6 +671,7 @@ private fun SettingsTab(
             // v111 (kandidat (ii)): baris di atas hanya mengecek optimasi baterai; pembatasan latar belakang
             // (`isBackgroundRestricted`) dicek & ditampilkan terpisah supaya ✓ di atas tak jadi sinyal aman palsu.
             if (ui.backgroundRestricted) BackgroundRestrictedNotice(ctx)
+            SectionDivider() // v175: sekat antara status baterai/peringatan dan panduan
             // v79 (M5): kartu "Agar jadwal tetap jalan" (v49) digabung ke sini sbg panduan yang bisa dilipat.
             FoldHeader("Panduan agar jadwal tetap jalan", guideOpen) { guideOpen = !guideOpen }
             if (guideOpen) {
@@ -725,6 +728,7 @@ private fun SettingsTab(
                     Text("↗", Modifier.decorative())
                 }
             }
+            SectionDivider() // v175: sekat antara panduan dan sakelar layanan persisten
             val notifPermissionLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission()
             ) {
@@ -832,6 +836,7 @@ private fun SettingsTab(
                     style = MaterialTheme.typography.bodySmall
                 )
             }
+            SectionDivider() // v175: sekat antara penjelasan dan nilai sistem + aksinya
             val reading = bootTrim.reading
             Text(
                 when {
@@ -872,11 +877,16 @@ private fun SettingsTab(
     GlassCard(Modifier.fillMaxWidth(), animateSize = true) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.xs)) {
             CardTitle("Info & diagnostik", "Log, tautan, dan tentang aplikasi")
+            SectionDivider() // v175: tiap baris daftar (log, tautan, tentang) dipisah garis
             FoldHeader("Log diagnostik", logOpen) { logOpen = !logOpen }
             if (logOpen) LogReaderCard(ctx = ctx, onFeedback = onFeedback)
+            SectionDivider()
             LinkRow("Unduh rilis terbaru") { openUrl(ctx, AppLinks.releases) }
+            SectionDivider()
             LinkRow("Lihat kode sumber") { openUrl(ctx, AppLinks.source) }
+            SectionDivider()
             LinkRow("Laporkan masalah") { openUrl(ctx, AppLinks.newIssue) }
+            SectionDivider()
             AboutRow("Tentang aplikasi") { onAboutClick() } // v9 (E2): konsolidasi info app
         }
     }
@@ -1483,6 +1493,7 @@ private fun UpdateCard(
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
+                    SectionDivider() // v175: sekat antara status versi dan bagian unduhan/aksi
                     // v171 (laporan user: unduhan tak punya bilah progres): bilah + persen + "x MB dari y MB".
                     if (downloading) DownloadProgressBar(downloadProgress)
                     // v65: aksi disusun simetris — semua tombol selebar kartu & setinggi sama (sebelumnya
@@ -1589,7 +1600,10 @@ private fun CardTitle(text: String, subtitle: String? = null) {
 private fun FoldHeader(label: String, expanded: Boolean, onToggle: () -> Unit) {
     TextButton(
         onClick = onToggle,
-        modifier = Modifier.fillMaxWidth().semantics { stateDescription = if (expanded) "Terbuka" else "Tertutup" }
+        modifier = Modifier
+            .fillMaxWidth()
+            .foldBar() // v175: header lipat tampak sbg bilah, bukan teks biasa
+            .semantics { stateDescription = if (expanded) "Terbuka" else "Tertutup" }
     ) {
         Text(label, Modifier.weight(1f))
         Text(if (expanded) "▴" else "▾", Modifier.decorative())

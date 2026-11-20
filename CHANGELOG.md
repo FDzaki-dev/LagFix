@@ -1,5 +1,13 @@
 # Changelog
 
+## v175
+- Laporan user: "Masih nyaru dan kurang sekat pemisah!!" (rekaman layar Pengaturan, diag frame, laporan CI run 27). Laporan CI run 27 (commit v174): semua alat lulus. 175 tes lulus (target v174 tercapai: 169 + 6), detekt polos dan typed 0 temuan, SpotBugs 0, ArchUnit 7 aturan tanpa pelanggaran, peringatan kompilator 0, deprecated 0, lint hanya 1 petunjuk (compose-bom, disengaja).
+- Bukti rekaman: di Pengaturan, baris Baterai, peringatan merah, tombol tautan, header lipat beserta isinya, sakelar, dan daftar tautan Info & diagnostik menyatu dalam satu kartu tanpa garis pemisah. Header lipat berupa teks biru tanpa latar. Tepi bawah kartu kaca nyaris tak tampak (border alpha 5%).
+- `Design.kt`: `SectionDivider` baru (garis 1 dp, warna isi alpha 18%, ikut kedua tema) dan `Modifier.foldBar` (latar pil tipis alpha 8%). Border kartu kaca bagian tengah/bawah dinaikkan dari 12%/5% ke 20%/14%; tepi atas tetap.
+- `MainActivity.kt`: 11 garis pemisah: kartu Jadwal (sebelum Interval, sebelum mode radikal), Keandalan latar belakang (sebelum panduan, sebelum sakelar layanan persisten), Paksa trim saat reboot (sebelum nilai sistem + aksi), Info & diagnostik (di bawah judul dan di antara tiap baris), Pembaruan (di antara status versi dan bagian unduhan/aksi). `FoldHeader` memakai `foldBar` sehingga header lipat tampak sebagai bilah.
+- Metrik frame tema Glass (120 Hz): p99 26,9 ms (sebelumnya 49,6 ms), median 14,9 ms, rata-rata GPU 8,78 ms per frame; hambatan GPU masih ada dan belum ditangani.
+- Belum dijalankan di CI (kompilasi, tes, detekt, SpotBugs, lint). Target run berikutnya: 175 tes lulus dan semua alat tetap 0 temuan.
+
 ## v174
 - Laporan user: "Periksa pembaruan aja lama banget. Hierarki, penanda juga masih kurang jelas!!" (rekaman layar, diag frame, laporan CI run 26). Laporan CI run 26 (commit v173): semua alat lulus. 169 tes lulus, detekt polos dan typed 0 temuan, SpotBugs 0, ArchUnit 7 aturan tanpa pelanggaran, peringatan kompilator 0, deprecated 0, lint hanya 1 petunjuk (compose-bom, disengaja).
 - Bukti rekaman: spinner "Memeriksa pembaruan…" berputar minimal 41 detik; "Menghubungkan ke GitHub…" sekitar 10 detik per percobaan; dua kali muncul "Tidak ada koneksi internet" padahal Wi-Fi aktif, percobaan ketiga berhasil. Metrik frame tema Glass (120 Hz): 1110 dari 1114 frame melewati anggaran 8,33 ms, rata-rata GPU 8,66 ms per frame (hambatan GPU, belum ditangani).
