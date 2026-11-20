@@ -1484,10 +1484,20 @@ private fun UpdateCard(
             when (result) {
                 null -> Text(if (checking) "Memeriksa pembaruan…" else "Ketuk untuk memeriksa versi terbaru di GitHub.")
                 is UpdateResult.UpToDate -> Text("Sudah versi terbaru (build ${result.installedBuild}).")
-                is UpdateResult.Error -> Text(
-                    "Gagal memeriksa pembaruan: ${result.message}",
-                    color = MaterialTheme.colorScheme.error
-                )
+                is UpdateResult.Error -> {
+                    // v178 (tangkapan layar user): satu kalimat error panjang bergaya isi biasa tampak lebih besar
+                    // dan berat dari judul kartu. Kini 2 tingkat: ringkasan (titleSmall) + sebab (bodySmall).
+                    Text(
+                        "Gagal memeriksa pembaruan",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Text(
+                        result.message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
                 is UpdateResult.Available -> {
                     // v171: versi tersedia = baris utama, versi terpasang = keterangan (dulu 2 baris teks sama berat).
                     // v174: nama rilis hanya tampil bila memuat info lain; "LagFix build 147" mengulang "build 147"

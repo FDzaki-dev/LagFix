@@ -1,5 +1,14 @@
 # Changelog
 
+## v178
+- Laporan user (tangkapan layar tanpa teks, terpasang v1.0.149): kartu Pembaruan menampilkan "Gagal memeriksa pembaruan: Terlalu banyak permintaan ke GitHub (rate limit), coba lagi nanti." Laporan CI run 29 (commit v177): semua alat lulus, 175 tes lulus, detekt polos dan typed 0 temuan, SpotBugs 0, ArchUnit 7 aturan tanpa pelanggaran, lint hanya 1 petunjuk (compose-bom, disengaja).
+- Akar: pengecekan hanya memakai API GitHub tanpa token (60 permintaan per jam per alamat IP; IP seluler dipakai bersama), sehingga mudah mendapat HTTP 403.
+- `UpdateWebFallback.kt` (baru): jalur cadangan tanpa API. `github.com/FDzaki-dev/LagFix/releases/latest` dialihkan ke `/releases/tag/<tag>`, lalu halaman daftar aset rilis dibaca untuk menemukan tautan APK.
+- `UpdateChecker.kt`: API tetap jalur utama; hanya bila API menjawab HTTP 403 atau 429, pengecekan jatuh ke jalur cadangan. Galat 429 kini juga dipetakan ke pesan rate limit.
+- `MainActivity.kt`: error di kartu Pembaruan jadi dua tingkat: "Gagal memeriksa pembaruan" (judul kecil) dan sebabnya (teks kecil), keduanya berwarna error; dulu satu kalimat panjang yang tampak lebih besar dari judul kartu.
+- `UpdateWebFallbackTest`: 5 tes baru (urai tag dari Location, urai tautan APK, pemetaan 403/429).
+- Belum dijalankan di CI (kompilasi, tes, detekt, SpotBugs, lint). Target run berikutnya: 180 tes lulus dan semua alat tetap 0 temuan. Asumsi belum terbukti di perangkat: format halaman daftar aset GitHub.
+
 ## v177
 - Laporan user: "Ripple effect yang bertumpuk-tumpuk dengan desain pil tidak lu fix?!!" (merujuk rekaman layar Pengaturan yang disertai "Kurang finishing!!"; v176 tidak menyentuh ripple).
 - Akar (dari kode, belum terbukti di perangkat): pil header lipat v175 digambar lewat latar di luar tombol, sehingga ada dua lapis pil dengan tinggi berbeda (latar luar setinggi area sentuh minimum, permukaan tombol beserta ripple di dalamnya).

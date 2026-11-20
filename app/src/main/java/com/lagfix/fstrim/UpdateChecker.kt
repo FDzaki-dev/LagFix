@@ -122,6 +122,9 @@ object UpdateChecker {
     private const val HTTP_OK_MIN = 200
     private const val HTTP_OK_MAX = 299
 
+    // v178: jawaban API yg berarti kuota tanpa-token habis (403 = batas utama, 429 = batas sekunder).
+    private val RATE_LIMITED_CODES = setOf("HTTP 403", "HTTP 429")
+
     // Batas jaringan+parse: JSONException/IOException/runtime lain semuanya dipetakan ke
     // UpdateResult.Error (cek update tak boleh bikin app crash) -> catch generik DISENGAJA.
     // v174 (laporan user: "Periksa pembaruan" lama, rekaman layar >= 41 dtk): changelog TIDAK lagi diambil di sini
@@ -131,23 +134,35 @@ object UpdateChecker {
     fun check(installedBuild: Int): UpdateResult {
         val start = SystemClock.elapsedRealtime()
         return try {
-            val json = JSONObject(get(RELEASE_API))
-            val tag = json.optString("tag_name", "")
-            val name = json.optString("name", tag).ifBlank { tag }
-            val htmlUrl = json.optString("html_url", "https://github.com/$OWNER/$REPO/releases/latest")
-            val latestBuild = Regex("""(\d+)""").find(tag)?.value?.toIntOrNull() ?: -1
-            Log.i(TAG, "check: api ${SystemClock.elapsedRealtime() - start}ms tag=$tag terpasang=$installedBuild")
+            val release = latestRelease()
+            val latestBuild = Regex("""(\d+)""").find(release.tag)?.value?.toIntOrNull() ?: -1
+            Log.i(TAG, "check: ${SystemClock.elapsedRealtime() - start}ms tag=${release.tag} terpasang=$installedBuild")
 
             if (latestBuild <= installedBuild) {
                 UpdateResult.UpToDate(installedBuild)
             } else {
-                val apkUrl = findApkUrl(json, htmlUrl)
-                UpdateResult.Available(installedBuild, UpdateInfo(tag, name, latestBuild, apkUrl, CHANGELOG_LOADING))
+                val info = UpdateInfo(release.tag, release.name, latestBuild, release.apkUrl, CHANGELOG_LOADING)
+                UpdateResult.Available(installedBuild, info)
             }
         } catch (e: Exception) {
             Log.w(TAG, "check gagal setelah ${SystemClock.elapsedRealtime() - start}ms", e)
             UpdateResult.Error(friendlyError(e))
         }
+    }
+
+    /**
+     * v178: rilis terbaru lewat API GitHub; bila API menolak karena kuota tanpa-token habis (HTTP 403/429), jatuh ke
+     * [UpdateWebFallback] (tanpa API). Galat lain (tanpa jaringan, batas waktu, JSON rusak) tetap dilempar apa adanya.
+     */
+    private fun latestRelease(): ReleaseRef = try {
+        val json = JSONObject(get(RELEASE_API))
+        val tag = json.optString("tag_name", "")
+        val htmlUrl = json.optString("html_url", "https://github.com/$OWNER/$REPO/releases/latest")
+        ReleaseRef(tag, json.optString("name", tag).ifBlank { tag }, findApkUrl(json, htmlUrl))
+    } catch (e: IOException) {
+        if (e.message !in RATE_LIMITED_CODES) throw e
+        Log.w(TAG, "API GitHub menolak (${e.message}); pakai jalur web tanpa API", e)
+        UpdateWebFallback.fetchLatest(OWNER, REPO)
     }
 
     /**
@@ -174,7 +189,7 @@ object UpdateChecker {
         e is UnknownHostException -> "Tidak ada koneksi internet."
         e is SocketTimeoutException -> "GitHub tidak merespons (waktu habis), coba lagi."
         e is ConnectException -> "Tidak bisa terhubung ke GitHub, coba lagi."
-        e.message == "HTTP 403" -> "Terlalu banyak permintaan ke GitHub (rate limit), coba lagi nanti."
+        e.message in RATE_LIMITED_CODES -> "Terlalu banyak permintaan ke GitHub (rate limit), coba lagi nanti."
         else -> e.message ?: "Tidak diketahui"
     }
 
