@@ -170,6 +170,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }.getOrDefault(1)
             val result = UpdateChecker.check(installedBuild)
             ui = ui.copy(updateChecking = false, updateResult = result)
+            // v174: changelog diambil SETELAH hasil cek tampil (dulu bagian dari cek -> spinner menunggu permintaan
+            // kedua). Hasil hanya dipasang bila `updateResult` masih objek yg sama: "Cek ulang" di sela waktu
+            // mengosongkan/menggantinya, dan changelog basi tak boleh menimpa.
+            if (result is UpdateResult.Available) {
+                val changelog = UpdateChecker.fetchChangelog()
+                if (ui.updateResult === result) {
+                    ui = ui.copy(updateResult = result.copy(info = result.info.copy(changelog = changelog)))
+                }
+            }
         }
     }
 
@@ -195,6 +204,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 app.startExternal(intent)
                 ui = ui.copy(downloading = false)
             } catch (e: Exception) {
+                Log.w(VM_TAG, "installUpdate gagal", e) // v174: pengecualian mentah (UI hanya pesan terpetakan)
                 ui = ui.copy(downloading = false, downloadError = UpdateChecker.friendlyError(e))
             } finally {
                 downloadProgress = null // v171

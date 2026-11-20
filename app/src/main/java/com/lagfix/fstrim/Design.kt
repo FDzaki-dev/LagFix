@@ -487,7 +487,8 @@ internal fun ThemePickerCard() {
                 LagChip(
                     selected = option == current,
                     onClick = { setTheme(option) },
-                    label = { Text(option.label) },
+                    // v174: penanda pilihan = centang di label (dulu hanya warna isian; Pengaturan lain memakai ✓)
+                    label = { Text(if (option == current) "✓ ${option.label}" else option.label) },
                     modifier = Modifier.fillMaxWidth()
                 )
             }

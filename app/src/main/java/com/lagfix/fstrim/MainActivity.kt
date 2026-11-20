@@ -1408,19 +1408,22 @@ private fun StatsLegend(
     if (hasOk) items.add(statusColors.success to "Berhasil")
     if (hasSkipped) items.add(statusColors.warning to "Dilewati")
     if (hasFail) items.add(errorColor to "Gagal")
+    // v174: spasi DI DALAM satu butir legenda = NBSP, jadi baris hanya putus ANTAR butir. Dulu "•" jatuh di ujung
+    // baris dan "titik = dipicu manual" di baris berikutnya (penanda terpisah dari keterangannya).
+    val gap = "\u00A0"
     val text = buildAnnotatedString {
         items.forEachIndexed { i, (color, label) ->
             if (i > 0) append("   ")
             withStyle(SpanStyle(color = color)) { append("●") }
-            append(" $label")
+            append("$gap$label")
         }
         if (hasAvg) {
             if (items.isNotEmpty()) append("   ")
-            append("- - - Rata-rata")
+            append("-$gap-$gap-${gap}Rata-rata")
         }
         if (hasManual) {
             if (items.isNotEmpty() || hasAvg) append("   ")
-            append("• titik = dipicu manual")
+            append("•${gap}titik${gap}=${gap}dipicu${gap}manual")
         }
     }
     Text(text, style = MaterialTheme.typography.bodySmall)
@@ -1451,15 +1454,35 @@ private fun UpdateCard(
                 )
                 is UpdateResult.Available -> {
                     // v171: versi tersedia = baris utama, versi terpasang = keterangan (dulu 2 baris teks sama berat).
+                    // v174: nama rilis hanya tampil bila memuat info lain; "LagFix build 147" mengulang "build 147"
+                    // (dulu "Pembaruan tersedia: build 147 (LagFix build 147)").
+                    val releaseName = result.info.latestName
+                        .takeUnless { it.contains("build ${result.info.latestBuild}", ignoreCase = true) }
                     Text(
-                        "Pembaruan tersedia: build ${result.info.latestBuild} (${result.info.latestName})",
+                        "Pembaruan tersedia: build ${result.info.latestBuild}",
                         style = MaterialTheme.typography.titleSmall
                     )
+                    if (releaseName != null) {
+                        Text(
+                            releaseName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     Text(
                         "Terpasang: build ${result.installedBuild}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    // v174: galat unduhan kini tepat di bawah status versi (dulu terselip ANTARA tombol Lihat
+                    // changelog dan Cek ulang, terbaca sbg milik tombol). Label netral: bisa juga galat pemasangan.
+                    if (downloadError != null) {
+                        Text(
+                            "Gagal memperbarui: $downloadError",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                     // v171 (laporan user: unduhan tak punya bilah progres): bilah + persen + "x MB dari y MB".
                     if (downloading) DownloadProgressBar(downloadProgress)
                     // v65: aksi disusun simetris — semua tombol selebar kartu & setinggi sama (sebelumnya
@@ -1474,13 +1497,6 @@ private fun UpdateCard(
                         onClick = { showChangelog = true },
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("Lihat changelog") }
-                    if (downloadError != null) {
-                        Text(
-                            "Gagal memasang: $downloadError",
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
                 }
             }
 
@@ -1490,8 +1506,14 @@ private fun UpdateCard(
                 // v171: cek pembaruan = aksi sekunder (tonal) di semua keadaan; dulu terisi (primer) saat belum ada
                 // update, sehingga bersaing dgn "Jalankan fstrim sekarang" sbg aksi primer layar. Nonaktif saat
                 // mengunduh: cek ulang mengosongkan hasil & menyembunyikan bilah progres.
-                FilledTonalButton(onClick = onCheck, enabled = !downloading, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (result == null) "Cek pembaruan" else "Cek ulang")
+                // v174: bila hasil sudah ada, "Cek ulang" jadi aksi tersier (teks) -> 3 tingkat jelas: Update (terisi),
+                // Lihat changelog (tonal), Cek ulang (teks); dulu 2 tombol tonal bertumpuk tampak setara.
+                if (result == null) {
+                    FilledTonalButton(onClick = onCheck, modifier = Modifier.fillMaxWidth()) { Text("Cek pembaruan") }
+                } else {
+                    TextButton(onClick = onCheck, enabled = !downloading, modifier = Modifier.fillMaxWidth()) {
+                        Text("Cek ulang")
+                    }
                 }
             }
         }

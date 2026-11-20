@@ -1,12 +1,15 @@
 package com.lagfix.fstrim
 
 import android.content.Context
+import android.os.SystemClock
+import android.util.Log
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.net.ConnectException
 import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
 import java.net.URL
@@ -32,6 +35,13 @@ private const val PROGRESS_STEPS = 100L // v171: maks ~100 laporan per unduhan (
 private const val UNKNOWN_TOTAL_STEP_BYTES = 262_144L // v171: total tak diketahui -> laporan tiap 256 KiB
 private const val BYTES_PER_MB = 1_000_000L // v171: MB desimal, sama dgn Formatter.formatFileSize Android 8+
 private const val TENTHS_PER_UNIT = 10L
+private const val TAG = "UpdateChecker" // v174
+
+/** v174: isi sementara `UpdateInfo.changelog` selama changelog diambil terpisah (setelah hasil cek tampil). */
+internal const val CHANGELOG_LOADING = "Memuat changelog…"
+
+/** v174: isi `UpdateInfo.changelog` bila changelog gagal diambil. Teks sama dgn versi sebelum v174. */
+internal const val CHANGELOG_UNAVAILABLE = "Changelog tidak tersedia (gagal diambil dari repo)."
 
 /**
  * v171: kemajuan unduhan APK. [total] = -1 bila server tak memberi Content-Length (bilah tak tentu).
@@ -104,30 +114,52 @@ object UpdateChecker {
 
     // v92 (detekt MagicNumber): nilai identik dgn literal sebelumnya.
     private const val DOWNLOAD_TIMEOUT_MS = 15_000
-    private const val API_TIMEOUT_MS = 10_000
+
+    // v174: tadinya 10 dtk utk sambung DAN 10 dtk utk baca (per alamat IP: HttpURLConnection mencoba tiap alamat
+    // host dgn batas sambung penuh). Kini 6 + 8 dtk; changelog tak lagi menunggu di jalur cek.
+    private const val API_CONNECT_TIMEOUT_MS = 6_000
+    private const val API_READ_TIMEOUT_MS = 8_000
     private const val HTTP_OK_MIN = 200
     private const val HTTP_OK_MAX = 299
 
     // Batas jaringan+parse: JSONException/IOException/runtime lain semuanya dipetakan ke
     // UpdateResult.Error (cek update tak boleh bikin app crash) -> catch generik DISENGAJA.
+    // v174 (laporan user: "Periksa pembaruan" lama, rekaman layar >= 41 dtk): changelog TIDAK lagi diambil di sini
+    // (dulu permintaan kedua berurutan, sampai 10+10 dtk tambahan) -> lihat [fetchChangelog]; durasi tiap tahap dan
+    // pengecualian mentah dicatat ke logcat (tag UpdateChecker) utk membuktikan tahap mana yg lambat di perangkat.
     @Suppress("TooGenericExceptionCaught")
-    fun check(installedBuild: Int): UpdateResult = try {
-        val json = JSONObject(get(RELEASE_API))
-        val tag = json.optString("tag_name", "")
-        val name = json.optString("name", tag).ifBlank { tag }
-        val htmlUrl = json.optString("html_url", "https://github.com/$OWNER/$REPO/releases/latest")
-        val latestBuild = Regex("""(\d+)""").find(tag)?.value?.toIntOrNull() ?: -1
+    fun check(installedBuild: Int): UpdateResult {
+        val start = SystemClock.elapsedRealtime()
+        return try {
+            val json = JSONObject(get(RELEASE_API))
+            val tag = json.optString("tag_name", "")
+            val name = json.optString("name", tag).ifBlank { tag }
+            val htmlUrl = json.optString("html_url", "https://github.com/$OWNER/$REPO/releases/latest")
+            val latestBuild = Regex("""(\d+)""").find(tag)?.value?.toIntOrNull() ?: -1
+            Log.i(TAG, "check: api ${SystemClock.elapsedRealtime() - start}ms tag=$tag terpasang=$installedBuild")
 
-        if (latestBuild <= installedBuild) {
-            UpdateResult.UpToDate(installedBuild)
-        } else {
-            val apkUrl = findApkUrl(json, htmlUrl)
-            val changelog = runCatching { get(CHANGELOG_RAW) }
-                .getOrDefault("Changelog tidak tersedia (gagal diambil dari repo).")
-            UpdateResult.Available(installedBuild, UpdateInfo(tag, name, latestBuild, apkUrl, changelog))
+            if (latestBuild <= installedBuild) {
+                UpdateResult.UpToDate(installedBuild)
+            } else {
+                val apkUrl = findApkUrl(json, htmlUrl)
+                UpdateResult.Available(installedBuild, UpdateInfo(tag, name, latestBuild, apkUrl, CHANGELOG_LOADING))
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "check gagal setelah ${SystemClock.elapsedRealtime() - start}ms", e)
+            UpdateResult.Error(friendlyError(e))
         }
-    } catch (e: Exception) {
-        UpdateResult.Error(friendlyError(e))
+    }
+
+    /**
+     * v174: CHANGELOG.md mentah dari branch main, dipanggil SETELAH hasil cek tampil di UI. Gagal apa pun ->
+     * [CHANGELOG_UNAVAILABLE] (pengecualian mentah dicatat). Blocking (network) — WAJIB dari Dispatchers.IO.
+     */
+    fun fetchChangelog(): String {
+        val start = SystemClock.elapsedRealtime()
+        return runCatching { get(CHANGELOG_RAW) }
+            .onSuccess { Log.i(TAG, "changelog: ${SystemClock.elapsedRealtime() - start}ms ${it.length} karakter") }
+            .onFailure { Log.w(TAG, "changelog gagal setelah ${SystemClock.elapsedRealtime() - start}ms", it) }
+            .getOrDefault(CHANGELOG_UNAVAILABLE)
     }
 
     // v13 (B2): sebelumnya UpdateResult.Error/downloadError tampilkan e.message mentah (mis.
@@ -135,8 +167,13 @@ object UpdateChecker {
     // Indonesia yg jelas utk 2 kasus yg disebut eksplisit di roadmap (tanpa koneksi, rate-limit
     // GitHub) — kasus lain tetap fallback ke e.message apa adanya (tidak coba tangani semua jenis
     // exception, sesuai "logic minimum"). Dipakai jg oleh MainViewModel.installUpdate().
+    // v174: batas waktu (SocketTimeoutException) dulu ikut dipetakan ke "Tidak ada koneksi internet." padahal Wi-Fi
+    // aktif (rekaman layar: 2x "Gagal memasang: Tidak ada koneksi internet." lalu unduhan berhasil di percobaan
+    // ke-3). Kini hanya UnknownHostException (DNS/tanpa jaringan) yg memakai pesan itu.
     fun friendlyError(e: Exception): String = when {
-        e is UnknownHostException || e is SocketTimeoutException -> "Tidak ada koneksi internet."
+        e is UnknownHostException -> "Tidak ada koneksi internet."
+        e is SocketTimeoutException -> "GitHub tidak merespons (waktu habis), coba lagi."
+        e is ConnectException -> "Tidak bisa terhubung ke GitHub, coba lagi."
         e.message == "HTTP 403" -> "Terlalu banyak permintaan ke GitHub (rate limit), coba lagi nanti."
         else -> e.message ?: "Tidak diketahui"
     }
@@ -165,6 +202,7 @@ object UpdateChecker {
     @Suppress("TooGenericExceptionCaught")
     fun download(context: Context, url: String, onProgress: (done: Long, total: Long) -> Unit = { _, _ -> }): File {
         val dest = File(prepareUpdateDir(context), "update.apk")
+        val start = SystemClock.elapsedRealtime()
         val conn = URL(url).openConnection() as HttpURLConnection
         try {
             conn.connectTimeout = DOWNLOAD_TIMEOUT_MS
@@ -175,8 +213,11 @@ object UpdateChecker {
             conn.setRequestProperty("Accept-Encoding", "identity")
             conn.requestMethod = "GET"
             ensureHttpOk(conn)
+            // v174: waktu sampai header diterima = fase "Menghubungkan ke GitHub…" di UI (termasuk redirect).
+            Log.i(TAG, "download: terhubung ${SystemClock.elapsedRealtime() - start}ms total=${conn.contentLengthLong}")
             try {
                 saveStream(conn, dest, onProgress)
+                Log.i(TAG, "download: selesai ${SystemClock.elapsedRealtime() - start}ms")
             } catch (e: Exception) {
                 // v13 (B3): koneksi putus di tengah unduhan -> jangan tinggalkan APK parsial.
                 // v149: hasil delete() dipakai; gagal hapus = suppressed, exception ASLI tetap dilempar ulang.
@@ -216,8 +257,8 @@ object UpdateChecker {
     private fun get(url: String): String {
         val conn = URL(url).openConnection() as HttpURLConnection
         return try {
-            conn.connectTimeout = API_TIMEOUT_MS
-            conn.readTimeout = API_TIMEOUT_MS
+            conn.connectTimeout = API_CONNECT_TIMEOUT_MS
+            conn.readTimeout = API_READ_TIMEOUT_MS
             conn.requestMethod = "GET"
             conn.setRequestProperty("Accept", "application/vnd.github+json")
             conn.setRequestProperty("User-Agent", "LagFix-App")

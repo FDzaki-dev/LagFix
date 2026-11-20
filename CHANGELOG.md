@@ -1,5 +1,15 @@
 # Changelog
 
+## v174
+- Laporan user: "Periksa pembaruan aja lama banget. Hierarki, penanda juga masih kurang jelas!!" (rekaman layar, diag frame, laporan CI run 26). Laporan CI run 26 (commit v173): semua alat lulus. 169 tes lulus, detekt polos dan typed 0 temuan, SpotBugs 0, ArchUnit 7 aturan tanpa pelanggaran, peringatan kompilator 0, deprecated 0, lint hanya 1 petunjuk (compose-bom, disengaja).
+- Bukti rekaman: spinner "Memeriksa pembaruan…" berputar minimal 41 detik; "Menghubungkan ke GitHub…" sekitar 10 detik per percobaan; dua kali muncul "Tidak ada koneksi internet" padahal Wi-Fi aktif, percobaan ketiga berhasil. Metrik frame tema Glass (120 Hz): 1110 dari 1114 frame melewati anggaran 8,33 ms, rata-rata GPU 8,66 ms per frame (hambatan GPU, belum ditangani).
+- `UpdateChecker.kt`: changelog tidak lagi diambil di dalam `check` (dulu permintaan kedua berurutan sebelum hasil tampil); fungsi baru `fetchChangelog`. Batas sambung/baca API 10/10 dtk jadi 6/8 dtk. `friendlyError`: batas waktu kini "GitHub tidak merespons (waktu habis), coba lagi." dan gagal tersambung "Tidak bisa terhubung ke GitHub, coba lagi."; "Tidak ada koneksi internet." hanya untuk host tak terjangkau. Durasi tiap tahap (cek, changelog, sambung/selesai unduh) dan pengecualian mentah dicatat ke logcat dengan tag `UpdateChecker`.
+- `MainViewModel.kt`: `checkUpdate` menampilkan hasil dulu, lalu changelog menyusul dan hanya dipasang bila hasil masih objek yang sama. `installUpdate` mencatat pengecualian mentah.
+- `MainActivity.kt`: kartu Pembaruan: nama rilis tidak diulang ("build 147 (LagFix build 147)" jadi "build 147"); galat unduhan tepat di bawah status versi dengan label "Gagal memperbarui" (dulu terselip di antara tombol); "Cek ulang" jadi tombol teks saat hasil ada, jadi tiga tingkat jelas (Update terisi, Lihat changelog tonal, Cek ulang teks). Legenda grafik: spasi di dalam satu butir diganti NBSP sehingga "•" tidak lagi terpisah dari "titik = dipicu manual" saat baris turun.
+- `Design.kt`: pilihan tema di Pengaturan > Tampilan diberi centang ✓ pada tema terpilih.
+- `UpdateCheckerErrorTest`: 6 tes baru (pemetaan galat jaringan, rate limit, galat tanpa pesan, kontrak salinan changelog).
+- Belum dijalankan di CI (kompilasi, tes, detekt, SpotBugs, lint). Target run berikutnya: 175 tes lulus dan semua alat tetap 0 temuan. Setelah memasang: tekan "Cek pembaruan", lalu kirim Log diagnostik (baris tag `UpdateChecker`) untuk membuktikan tahap yang lambat.
+
 ## v173
 - Laporan CI run 25 (commit v172): semua alat lulus. 169 tes lulus, detekt polos dan typed 0 temuan, SpotBugs 0, ArchUnit 7 aturan tanpa pelanggaran, peringatan kompilator 0, deprecated 0, lint hanya 1 petunjuk (compose-bom 2026.09.00 ke 2026.11.01, disengaja). Pelipatan penjelasan kartu Info & diagnostik (v172) lolos kompilasi, tes, detekt, SpotBugs, dan lint; tampilannya di perangkat belum dinilai.
 - Hierarki kartu Statistik: baris ringkasan hasil ("Dari N proses terakhir: ... berhasil · ... gagal") kini gaya `titleSmall` sebagai baris utama kartu; dulu `bodySmall` sama kecil dengan catatan rata-rata di bawahnya. Teks dan logika tidak berubah.
