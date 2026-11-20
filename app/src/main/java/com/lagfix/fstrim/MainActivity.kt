@@ -1245,10 +1245,11 @@ private fun StatsCard(log: List<String>) {
     GlassCard(Modifier.fillMaxWidth(), animateSize = true) { // v71 (M4): tinggi kartu halus saat isi berubah
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             CardTitle("Statistik", "Ringkasan dan grafik dari riwayat proses")
+            // v173: ringkasan hasil = baris utama kartu (titleSmall; dulu bodySmall, sama kecil dgn catatan lain).
             Text(
                 "Dari ${stats.size} proses terakhir: $okCount berhasil · $skippedCount dilewati · $failCount gagal" +
                     if (withTrigger.isNotEmpty()) " ($autoCount otomatis · $manualCount manual)" else "",
-                style = MaterialTheme.typography.bodySmall
+                style = MaterialTheme.typography.titleSmall
             )
             if (okDurations.isNotEmpty()) {
                 Text(

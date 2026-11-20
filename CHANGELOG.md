@@ -1,5 +1,9 @@
 # Changelog
 
+## v173
+- Laporan CI run 25 (commit v172): semua alat lulus. 169 tes lulus, detekt polos dan typed 0 temuan, SpotBugs 0, ArchUnit 7 aturan tanpa pelanggaran, peringatan kompilator 0, deprecated 0, lint hanya 1 petunjuk (compose-bom 2026.09.00 ke 2026.11.01, disengaja). Pelipatan penjelasan kartu Info & diagnostik (v172) lolos kompilasi, tes, detekt, SpotBugs, dan lint; tampilannya di perangkat belum dinilai.
+- Hierarki kartu Statistik: baris ringkasan hasil ("Dari N proses terakhir: ... berhasil · ... gagal") kini gaya `titleSmall` sebagai baris utama kartu; dulu `bodySmall` sama kecil dengan catatan rata-rata di bawahnya. Teks dan logika tidak berubah.
+
 ## v172
 - Laporan CI run 24 (commit v171): semua alat lulus. 169 tes lulus (target v171 tercapai: 160 + 9), detekt polos dan typed 0 temuan, SpotBugs 0, ArchUnit 7 aturan tanpa pelanggaran, peringatan kompilator 0, deprecated 0, lint hanya 1 petunjuk (compose-bom 2026.09.00 ke 2026.11.01, disengaja). Bilah progres unduhan dan penataan hierarki v171 lolos kompilasi, tes, detekt, SpotBugs, dan lint; tampilannya di perangkat belum dinilai.
 - Hierarki kartu Info & diagnostik (lanjutan keluhan UI/UX v171): pembaca log dulu menyelipkan 3 paragraf penjelasan di antara tombol (tombol, paragraf, tombol, paragraf). Kini tombol Muat ulang, Tes tulis log, dan Ambil logcat sistem berkumpul di atas, dan ketiga paragraf dilipat di bawah "Penjelasan tombol" (kalimatnya tidak diubah). Logika dan callback tidak berubah.
