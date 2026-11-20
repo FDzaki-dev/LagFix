@@ -1,5 +1,21 @@
 # Changelog
 
+## v177
+- Laporan user: "Ripple effect yang bertumpuk-tumpuk dengan desain pil tidak lu fix?!!" (merujuk rekaman layar Pengaturan yang disertai "Kurang finishing!!"; v176 tidak menyentuh ripple).
+- Akar (dari kode, belum terbukti di perangkat): pil header lipat v175 digambar lewat latar di luar tombol, sehingga ada dua lapis pil dengan tinggi berbeda (latar luar setinggi area sentuh minimum, permukaan tombol beserta ripple di dalamnya).
+- `Design.kt`: `foldBar()` dihapus, diganti `foldBarColors()` yang memberi tombol warna wadah (onSurface alpha 8%) sehingga latar pil adalah wadah tombol itu sendiri.
+- `MainActivity.kt`: `FoldHeader` memakai `foldBarColors()` tanpa latar luar; keterangan status Terbuka/Tertutup dan aksi tidak berubah. Elemen lain (sakelar, baris tautan, bilah navigasi) tidak disentuh.
+- Belum dijalankan di CI (kompilasi, tes, detekt, SpotBugs, lint); laporan CI v175 dan v176 juga belum dikirim. Target run berikutnya: 175 tes lulus dan semua alat tetap 0 temuan.
+
+## v176
+- Laporan user: "Kurang finishing!!" (rekaman layar Pengaturan dan diag frame; tanpa laporan CI baru, jadi v175 belum terbukti di CI).
+- Bukti rekaman: lima chip interval ditaruh satu baris yang bisa digeser, sehingga "3 hari" terpotong di tepi kartu dan "7 hari" tidak terlihat. Keterangan kolom Kustom ("Interval aktif: 15 menit") dan judul sakelar ("Interval radikal (< 15 menit)") membungkus dengan kata "menit" sendirian di baris kedua. Nama berkas log terputus di tengah angka. Teks baris tautan menjorok sekitar 12 dp dari judul kartu dan garis sekat.
+- `MainActivity.kt`: chip interval jadi baris berisi 3 chip berlebar sama (baris terakhir diisi pengisi), semua preset terlihat tanpa menggeser; aksi chip tidak berubah. Keterangan kolom Kustom jadi "Aktif: ...". Label sakelar jadi "Interval radikal" (rentang 1-14 menit sudah ada di keterangannya).
+- `MainActivity.kt`: teks baris tautan dan aksi (Unduh rilis terbaru, Lihat kode sumber, Laporkan masalah, Tentang aplikasi, tautan Info Aplikasi/Autostart/baterai, tombol Muat ulang/Tes tulis log/Ambil logcat sistem, baris berkas log) kini rata dengan judul kartu dan garis sekat; area sentuh tetap selebar baris.
+- `MainActivity.kt`: baris berkas log jadi dua baris: nama (putus hanya sesudah garis bawah) dan sumber di baris kecil berwarna redup.
+- Metrik frame tema Glass (120 Hz): median 15,0 ms, p99 25,3 ms, rata-rata GPU 8,77 ms per frame; hambatan GPU masih ada dan tidak disentuh batch ini.
+- Belum dijalankan di CI (kompilasi, tes, detekt, SpotBugs, lint). Target run berikutnya: 175 tes lulus dan semua alat tetap 0 temuan.
+
 ## v175
 - Laporan user: "Masih nyaru dan kurang sekat pemisah!!" (rekaman layar Pengaturan, diag frame, laporan CI run 27). Laporan CI run 27 (commit v174): semua alat lulus. 175 tes lulus (target v174 tercapai: 169 + 6), detekt polos dan typed 0 temuan, SpotBugs 0, ArchUnit 7 aturan tanpa pelanggaran, peringatan kompilator 0, deprecated 0, lint hanya 1 petunjuk (compose-bom, disengaja).
 - Bukti rekaman: di Pengaturan, baris Baterai, peringatan merah, tombol tautan, header lipat beserta isinya, sakelar, dan daftar tautan Info & diagnostik menyatu dalam satu kartu tanpa garis pemisah. Header lipat berupa teks biru tanpa latar. Tepi bawah kartu kaca nyaris tak tampak (border alpha 5%).

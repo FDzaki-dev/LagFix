@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
@@ -439,10 +441,17 @@ internal fun SectionDivider() {
     HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = DIVIDER_ALPHA))
 }
 
-/** v175: latar pil tipis utk baris lipat (header) supaya terbaca sbg kepala bagian, bukan teks biasa. */
+/**
+ * v175: latar pil tipis utk baris lipat (header) supaya terbaca sbg kepala bagian, bukan teks biasa.
+ * v177 (laporan user: "ripple effect yang bertumpuk-tumpuk dengan desain pil"): v175 menggambar pil lewat
+ * `Modifier.background` DI LUAR TextButton -> dua lapis pil bertumpuk (latar luar setinggi area sentuh 48dp, permukaan
+ * tombol + ripple 40dp di dalamnya). Kini latar = `containerColor` tombol itu sendiri: SATU permukaan, ripple
+ * tergambar tepat di atas latar yg sama (bentuk & tinggi identik).
+ */
 @Composable
-internal fun Modifier.foldBar(): Modifier =
-    this.background(MaterialTheme.colorScheme.onSurface.copy(alpha = FOLD_BAR_ALPHA), CircleShape)
+internal fun foldBarColors(): ButtonColors = ButtonDefaults.textButtonColors(
+    containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = FOLD_BAR_ALPHA)
+)
 
 @Composable
 internal fun LagButton(

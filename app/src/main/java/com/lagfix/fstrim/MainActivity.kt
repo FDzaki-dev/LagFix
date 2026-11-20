@@ -24,11 +24,12 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -97,6 +98,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -259,7 +261,7 @@ private fun HomeScreen(vm: MainViewModel) {
         // identik v73.
         // v77: swipe horizontal lintas tab (geser kiri = Pengaturan, geser kanan = Utama). Jalur transisi
         // SAMA dgn tap ikon nav (cukup ubah `selectedTab` -> efek v76), 0 komponen baru (bukan Pager).
-        // Gestur yg sudah dikonsumsi anak (chip interval `horizontalScroll`, kolom teks) tak memicu pindah
+        // Gestur yg sudah dikonsumsi anak (mis. kolom teks) tak memicu pindah
         // tab; diabaikan selama `transitioning`. Ambang 72dp: cukup sengaja agar tak bentrok dgn gulir.
         Box(
             Modifier
@@ -538,20 +540,24 @@ private fun SettingsTab(
                     focusManager.clearFocus()
                 }
             }
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)
-            ) {
-                presets.forEach { (h, label) ->
-                    FilterChip(
-                        selected = ui.intervalMinutes == h * 60L,
-                        onClick = {
-                            customText = ""
-                            vm.setInterval(h * 60L)
-                            onFeedback("Interval diubah ke $label.")
-                        },
-                        label = { Text(label) }
-                    )
+            // v176 (laporan user: "kurang finishing"): 5 preset dulu SATU baris geser -> "3 hari" terpotong di tepi
+            // kartu dan "7 hari" tak terlihat sama sekali. Kini baris berisi 3 chip berlebar sama (baris terakhir
+            // diisi Spacer agar lebarnya seragam); semua preset tampak tanpa menggeser. Aksi chip identik.
+            presets.chunked(PRESETS_PER_ROW).forEach { rowPresets ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
+                    rowPresets.forEach { (h, label) ->
+                        FilterChip(
+                            selected = ui.intervalMinutes == h * 60L,
+                            onClick = {
+                                customText = ""
+                                vm.setInterval(h * 60L)
+                                onFeedback("Interval diubah ke $label.")
+                            },
+                            label = { Text(label, Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    repeat(PRESETS_PER_ROW - rowPresets.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
             Row(
@@ -577,7 +583,8 @@ private fun SettingsTab(
                                     "Minimal $minInterval menit (batas WorkManager)."
                                 }
                             } else {
-                                "Interval aktif: ${formatInterval(ui.intervalMinutes)}"
+                                // v176: dulu "Interval aktif: 15 / menit" (kata "menit" yatim di baris kedua)
+                                "Aktif: ${formatInterval(ui.intervalMinutes)}"
                             }
                         )
                     },
@@ -594,7 +601,8 @@ private fun SettingsTab(
             // v118 (permintaan user): mode interval radikal (< 15 menit), bebas dinyalakan/dimatikan kapan saja
             // tanpa batasan/konfirmasi. Mati -> interval < 15 menit otomatis dinaikkan ke 15 (lihat setInterval).
             ToggleRow(
-                "Interval radikal (< 15 menit)",
+                // v176: dulu "(< 15 menit)" ikut label -> baris kedua hanya "menit)"; rentang sudah di keterangan
+                "Interval radikal",
                 ui.radicalInterval,
                 description = "Izinkan interval 1-14 menit (batas normal 15 menit)."
             ) { on ->
@@ -662,7 +670,8 @@ private fun SettingsTab(
                 )
                 TextButton(
                     onClick = { runCatching { ctx.startExternal(batteryOptimizationIntent(ctx)) } },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = FlushPadding
                 ) {
                     Text("Izinkan berjalan tanpa batas", Modifier.weight(1f))
                     Text("↗", Modifier.decorative())
@@ -713,7 +722,8 @@ private fun SettingsTab(
                             )
                         }
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = FlushPadding
                 ) {
                     Text("Buka Info Aplikasi LagFix", Modifier.weight(1f))
                     Text("↗", Modifier.decorative())
@@ -722,7 +732,8 @@ private fun SettingsTab(
                 // lama v24/v49 "tak ada intent khusus merek" HANYA untuk Xiaomi/Samsung/Huawei (VendorSettings.kt).
                 TextButton(
                     onClick = { openVendorBatterySettings(ctx) },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = FlushPadding
                 ) {
                     Text("Buka pengaturan Autostart / baterai merek HP", Modifier.weight(1f))
                     Text("↗", Modifier.decorative())
@@ -928,9 +939,12 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
 
     // v79 (M5): dirender di dalam kartu "Info & diagnostik" -> tanpa GlassCard/judul sendiri.
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-            TextButton(onClick = { load() }) { Text(if (loading) "Memuat…" else "Muat ulang") }
+        Row(horizontalArrangement = Arrangement.spacedBy(LagSpacing.lg)) {
+            TextButton(onClick = { load() }, contentPadding = FlushPadding) {
+                Text(if (loading) "Memuat…" else "Muat ulang")
+            }
             TextButton(
+                contentPadding = FlushPadding,
                 onClick = {
                     testing = true
                     scope.launch(Dispatchers.IO) {
@@ -981,7 +995,8 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
                     }
                 }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = FlushPadding
         ) { Text(if (capturing) "Mengambil… (bisa memakan waktu)" else "Ambil logcat sistem", Modifier.weight(1f)) }
         // v172 (laporan user: hierarki membingungkan): dulu 3 paragraf penjelasan menyela deretan tombol
         // (tombol, paragraf, tombol, paragraf). Kini aksi berkumpul di atas, penjelasan terlipat (kalimat tak diubah).
@@ -1030,13 +1045,19 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
                         }
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = FlushPadding
             ) {
-                Text(
-                    "${log.displayName} · ${log.source}",
-                    Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodySmall
-                )
+                // v176: nama berkas dulu putus di tengah angka ("..._164" / "314.txt") dan sumber menempel di nama.
+                // Kini nama putus hanya sesudah "_" (spasi lebar-nol) dan sumber di baris kecil sendiri.
+                Column(Modifier.weight(1f)) {
+                    Text(log.displayName.replace("_", "_\u200B"), style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        log.source,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
         if (logs.size > PREVIEW_COUNT) { // v98
@@ -1074,9 +1095,14 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
     }
 }
 
+// v176: teks baris tautan/aksi dulu menjorok 12dp dari judul kartu & garis sekat (padding bawaan TextButton). Kini
+// rata dgn judul dan garis; area sentuh tetap selebar baris.
+private val FlushPadding = PaddingValues(vertical = 8.dp)
+private const val PRESETS_PER_ROW = 3
+
 @Composable
 private fun LinkRow(label: String, onClick: () -> Unit) {
-    TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+    TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth(), contentPadding = FlushPadding) {
         Text(label, Modifier.weight(1f))
         Text("↗", Modifier.decorative())
     }
@@ -1089,7 +1115,7 @@ private fun openUrl(ctx: Context, url: String) {
 // v9 (E2): beda dari LinkRow ("↗" = buka browser) — "›" krn ini buka dialog in-app, bukan tautan.
 @Composable
 private fun AboutRow(label: String, onClick: () -> Unit) {
-    TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+    TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth(), contentPadding = FlushPadding) {
         Text(label, Modifier.weight(1f))
         Text("›", Modifier.decorative())
     }
@@ -1600,10 +1626,8 @@ private fun CardTitle(text: String, subtitle: String? = null) {
 private fun FoldHeader(label: String, expanded: Boolean, onToggle: () -> Unit) {
     TextButton(
         onClick = onToggle,
-        modifier = Modifier
-            .fillMaxWidth()
-            .foldBar() // v175: header lipat tampak sbg bilah, bukan teks biasa
-            .semantics { stateDescription = if (expanded) "Terbuka" else "Tertutup" }
+        modifier = Modifier.fillMaxWidth().semantics { stateDescription = if (expanded) "Terbuka" else "Tertutup" },
+        colors = foldBarColors() // v177: pil = latar tombol itu sendiri (satu lapis), bukan background luar
     ) {
         Text(label, Modifier.weight(1f))
         Text(if (expanded) "▴" else "▾", Modifier.decorative())
@@ -1644,7 +1668,8 @@ private fun BackgroundRestrictedNotice(ctx: Context) {
                 ctx.startExternal(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, appUri))
             }
         },
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = FlushPadding
     ) {
         Text("Buka Info Aplikasi LagFix", Modifier.weight(1f))
         Text("↗", Modifier.decorative())
