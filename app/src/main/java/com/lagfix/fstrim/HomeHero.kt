@@ -31,12 +31,17 @@ import androidx.compose.ui.unit.dp
 // v68 (M3, additive): komposabel baru utk tab Utama. Visual-only: callback, kondisi `enabled`, dan
 // teks (judul/isi/aksi/label tombol) dipindah PERSIS dari `StatusCard` + `Button` run di
 // MainActivity.kt (v67). File ini tak mengakses state/Prefs/ViewModel: semua lewat parameter.
+// v171 (laporan user: hierarki tampilan membingungkan): aksi primer HANYA satu per keadaan (belum siap = aksi status;
+// siap = jalankan), judul "Siap dijalankan", dan baris ringkasan jadwal (dulu hanya terlihat di tab Pengaturan).
 
 /**
  * Hero status Shizuku + aksi utama dalam satu kartu kaca.
  * - Lencana bulat berikon (READY = centang mint, selain itu = peringatan amber; token `LocalStatusColors`).
  * - Aksi status (`Unduh Shizuku`/`Buka Shizuku`/`Beri izin`) hanya bila belum READY, seperti `StatusCard` lama.
- * - Tombol run SELALU ada (identik v67): `enabled = READY && !running`, `onClick = onRunNow`.
+ * - Tombol run SELALU ada (identik v67): `enabled = READY && !running`, `onClick = onRunNow`. v171: gaya primer
+ *   (terisi) hanya saat READY; belum READY = tonal (sekunder, nonaktif) supaya aksi status di atasnya jadi satu-satunya
+ *   primer.
+ * - [scheduleLine] = ringkasan jadwal otomatis di bawah tombol run (teks dari pemanggil, mis. "Jadwal otomatis aktif").
  * - Progress indeterminate HANYA selama `running` (terikat state, bukan animasi abadi); slot 4dp
  *   dicadangkan supaya tata letak tak melompat saat run mulai/selesai.
  */
@@ -44,6 +49,7 @@ import androidx.compose.ui.unit.dp
 internal fun HeroStatusCard(
     state: ShizukuState,
     running: Boolean,
+    scheduleLine: String,
     onGrant: () -> Unit,
     onOpen: () -> Unit,
     onRunNow: () -> Unit
@@ -64,7 +70,7 @@ internal fun HeroStatusCard(
             "Beri izin LagFix untuk memakai Shizuku.",
             "Beri izin"
         )
-        ShizukuState.READY -> Triple("Siap", "Shizuku aktif dan izin diberikan.", null)
+        ShizukuState.READY -> Triple("Siap dijalankan", "Shizuku aktif dan izin diberikan.", null)
     }
     val ready = state == ShizukuState.READY
     val statusColors = LocalStatusColors.current
@@ -117,11 +123,23 @@ internal fun HeroStatusCard(
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth().alpha(progressAlpha))
                     }
                 }
-                Button(
-                    onClick = onRunNow,
-                    enabled = ready && !running,
+                val runLabel = if (running) "Menjalankan\u2026" else "Jalankan fstrim sekarang"
+                if (ready) {
+                    Button(onClick = onRunNow, enabled = !running, modifier = Modifier.fillMaxWidth()) {
+                        Text(runLabel)
+                    }
+                } else {
+                    LagTonalButton(onClick = onRunNow, enabled = false, modifier = Modifier.fillMaxWidth()) {
+                        Text(runLabel)
+                    }
+                }
+                Text(
+                    scheduleLine,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
-                ) { Text(if (running) "Menjalankan\u2026" else "Jalankan fstrim sekarang") }
+                )
             }
         }
     }

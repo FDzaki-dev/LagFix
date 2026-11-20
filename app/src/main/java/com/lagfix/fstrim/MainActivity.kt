@@ -228,7 +228,13 @@ private fun HomeScreen(vm: MainViewModel) {
 
     Scaffold(
         containerColor = Color.Transparent, // v61: backdrop berglow dari LagFixTheme tampil di belakang
-        topBar = { TopAppBar(title = { Text("LagFix (fstrim)") }, colors = glassTopBarColors()) },
+        topBar = {
+            TopAppBar(
+                // v171: judul = layar aktif (dulu "LagFix (fstrim)" di kedua tab -> tak jelas sedang di layar mana).
+                title = { Text(if (selectedTab == 0) "LagFix (fstrim)" else "Pengaturan") },
+                colors = glassTopBarColors()
+            )
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             NavigationBar(containerColor = lagNavContainer(), modifier = Modifier.lagTopEdge(LocalAppTheme.current)) {
@@ -296,6 +302,7 @@ private fun HomeScreen(vm: MainViewModel) {
                                     ui = ui,
                                     ctx = ctx,
                                     versionName = versionName,
+                                    downloadProgress = { vm.downloadProgress }, // v171: dibaca di bilah progres saja
                                     onRunNow = { showRunConfirm = true }, // v11: minta konfirmasi dulu
                                     onGrant = ::requestShizukuPermission,
                                     onCheckUpdate = vm::checkUpdate,
@@ -373,6 +380,7 @@ private fun MainTab(
     ui: UiState,
     ctx: Context,
     versionName: String?,
+    downloadProgress: () -> DownloadProgress?,
     onRunNow: () -> Unit,
     onGrant: () -> Unit,
     onCheckUpdate: () -> Unit,
@@ -380,9 +388,16 @@ private fun MainTab(
 ) {
     // v68 (M3): status Shizuku + tombol run digabung jadi hero (HomeHero.kt). Callback, kondisi
     // enabled (READY && !running), dan semua teks identik v67; progress hanya saat running.
+    // v171: + ringkasan jadwal otomatis (dulu hanya terlihat di tab Pengaturan).
+    val scheduleLine = if (ui.enabled) {
+        "Jadwal otomatis aktif · tiap ${formatInterval(ui.intervalMinutes)}"
+    } else {
+        "Jadwal otomatis nonaktif · atur di tab Pengaturan"
+    }
     HeroStatusCard(
         state = ui.shizuku,
         running = ui.running,
+        scheduleLine = scheduleLine,
         onGrant = onGrant,
         onOpen = { openShizuku(ctx, ui.shizuku) },
         onRunNow = onRunNow
@@ -390,17 +405,25 @@ private fun MainTab(
 
     GlassCard(Modifier.fillMaxWidth(), animateSize = true) { // v71 (M4): tinggi kartu halus saat isi berubah
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.xs)) {
-            CardTitle("Riwayat")
+            CardTitle("Riwayat", "Proses fstrim terbaru, manual maupun otomatis")
             if (ui.lastRunMs == 0L) {
                 HistoryEmptyState() // v68 (M3): copy lama "Belum pernah dijalankan" + petunjuk aksi
             } else {
+                // v171: hasil terakhir = baris utama berwarna status (dulu sebaris teks polos yang mengulang baris
+                // log pertama di bawahnya). Penentuan dilewati/berhasil/gagal identik versi lama.
+                val skipped = ui.log.firstOrNull()?.contains("dilewati") == true
+                val statusColors = LocalStatusColors.current
+                val verdict = when {
+                    skipped -> "Dilewati (Shizuku belum siap)" to statusColors.warning
+                    ui.lastOk -> "Berhasil" to statusColors.success
+                    else -> "Gagal" to MaterialTheme.colorScheme.error
+                }
                 Text(
-                    formatTime(ui.lastRunMs) + when {
-                        ui.log.firstOrNull()?.contains("dilewati") == true -> " — dilewati (Shizuku belum siap)"
-                        ui.lastOk -> " — berhasil"
-                        else -> " — gagal"
-                    }
+                    "Terakhir: ${verdict.first}",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = verdict.second
                 )
+                Text(formatTime(ui.lastRunMs), style = MaterialTheme.typography.bodySmall)
             }
             // v38: pemicu run terakhir (Manual/Otomatis) dari baris log terbaru. Baris lama tanpa
             // token -> label null -> tidak ditampilkan (bukan menebak).
@@ -410,6 +433,14 @@ private fun MainTab(
                 Text("Dipicu oleh: $lastTriggerLabel", style = MaterialTheme.typography.bodySmall)
             }
             var showAllRuns by rememberSaveable { mutableStateOf(false) } // v98
+            if (ui.log.isNotEmpty()) {
+                Text(
+                    "Proses terbaru", // v171: label daftar, memisahkannya dari baris hasil terakhir di atas
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = LagSpacing.xs)
+                )
+            }
             (if (showAllRuns) ui.log else ui.log.take(PREVIEW_COUNT)).forEach { LogLine(it) }
             if (ui.log.size > PREVIEW_COUNT) {
                 TextButton(onClick = { showAllRuns = !showAllRuns }, modifier = Modifier.fillMaxWidth()) {
@@ -427,6 +458,7 @@ private fun MainTab(
         checking = ui.updateChecking,
         result = ui.updateResult,
         downloading = ui.downloading,
+        downloadProgress = downloadProgress,
         downloadError = ui.downloadError,
         onCheck = onCheckUpdate,
         onInstall = onInstallUpdate
@@ -469,15 +501,20 @@ private fun SettingsTab(
     // v79 (M5): bagian yang jarang dipakai dilipat; state tahan rotasi. Default tertutup.
     var guideOpen by rememberSaveable { mutableStateOf(false) }
     var logOpen by rememberSaveable { mutableStateOf(false) }
-    ThemePickerCard() // v142: pilih tema (Glass / Neo Burgundy)
+    var bootInfoOpen by rememberSaveable { mutableStateOf(false) } // v171: catatan "Paksa trim saat reboot"
+    var persistInfoOpen by rememberSaveable { mutableStateOf(false) } // v171: catatan layanan persisten
     GlassCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-            CardTitle("Jadwal")
-            ToggleRow("Jadwal otomatis", ui.enabled) {
+            CardTitle("Jadwal", "Jalankan fstrim otomatis di latar belakang")
+            ToggleRow(
+                "Jadwal otomatis",
+                ui.enabled,
+                description = "fstrim dijalankan berulang sesuai interval di bawah."
+            ) {
                 vm.setEnabled(it)
                 onFeedback(if (it) "Jadwal otomatis diaktifkan." else "Jadwal otomatis dinonaktifkan.")
             }
-            Text("Interval")
+            Text("Interval", style = MaterialTheme.typography.titleSmall)
             // v44 (permintaan user: interval kustom diisi sendiri, biar tak kelamaan nunggu saat
             // uji): chip preset TETAP (nilai jam x 60 -> menit), ditambah kolom angka menit.
             // Batas bawah 15 menit = batas periodik WorkManager (di bawah itu WorkManager diam-diam
@@ -554,7 +591,11 @@ private fun SettingsTab(
             }
             // v118 (permintaan user): mode interval radikal (< 15 menit), bebas dinyalakan/dimatikan kapan saja
             // tanpa batasan/konfirmasi. Mati -> interval < 15 menit otomatis dinaikkan ke 15 (lihat setInterval).
-            ToggleRow("Interval radikal (< 15 menit)", ui.radicalInterval) { on ->
+            ToggleRow(
+                "Interval radikal (< 15 menit)",
+                ui.radicalInterval,
+                description = "Izinkan interval 1-14 menit (batas normal 15 menit)."
+            ) { on ->
                 vm.setInterval(ui.intervalMinutes, on)
                 if (!on && customValue != null && customValue < Scheduler.MIN_INTERVAL_MINUTES) customText = ""
                 onFeedback(if (on) "Interval radikal aktif." else "Interval radikal nonaktif.")
@@ -579,6 +620,25 @@ private fun SettingsTab(
                     style = MaterialTheme.typography.bodySmall
                 )
             }
+        }
+    }
+
+    // v49 (milestone "Kartu panduan jadwal", dipilih user; menggantikan paragraf teks "Autostart"
+    // v24 yg dulu di kartu Jadwal — DIPINDAH ke sini & dilengkapi, bukan diduplikasi).
+    // Dasar bukti: logcat v41 (XOS `TranManualCleanMgr` SIGKILL saat swipe-Recents + tolak restart
+    // servis) — cuma poin 1 yg TERBUKTI di HP ini. Poin 2 (Kunci Recents) & 3 (Autostart) = praktik
+    // umum ROM, BELUM diverifikasi di HP ini -> teksnya sengaja berhati-hati, tanpa klaim pasti.
+    // Tombol hanya membuka Info Aplikasi (intent standar Android, 0 tebakan nama activity per ROM
+    // -> tetap patuh alasan v24: tak ada intent Autostart khusus merek).
+    // v27 (fitur opsional, HANYA utk user yg sudah coba opsi baterai/Autostart di atas & masih
+    // bermasalah — konsultasi eksplisit dgn user sebelum dibuat, lihat riwayat v25/v26, dikerjakan v27). 0 logic
+    // fstrim baru — cuma menjaga proses tetap hidup, jadwal periodik tetap lewat WorkManager
+    // (Scheduler.apply(), 0 diubah).
+    GlassCard(Modifier.fillMaxWidth(), animateSize = true) {
+        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
+            CardTitle("Keandalan latar belakang", "Agar jadwal tidak dimatikan oleh sistem HP")
+            // v171: status baterai & pembatasan latar belakang DIPINDAH dari kartu Jadwal ke sini (isi & kondisi
+            // identik): semua yang menentukan "apakah jadwal benar-benar jalan" kini satu kartu.
             // v22 (root cause laporan user: jadwal otomatis tak tercatat di beberapa HP — toggle
             // sudah ON tapi OS/OEM (mis. XOS/MIUI/ColorOS) diam-diam membunuh job background kalau
             // app tak dikecualikan dari optimasi baterai). v23 (laporan user: sblmnya tombol cuma
@@ -609,75 +669,6 @@ private fun SettingsTab(
             // v111 (kandidat (ii)): baris di atas hanya mengecek optimasi baterai; pembatasan latar belakang
             // (`isBackgroundRestricted`) dicek & ditampilkan terpisah supaya ✓ di atas tak jadi sinyal aman palsu.
             if (ui.backgroundRestricted) BackgroundRestrictedNotice(ctx)
-        }
-    }
-
-    // v83 (H2(1), perintah user): atur setting sistem `fstrim_mandatory_interval` lewat Shizuku
-    // supaya Android memaksa fstrim saat boot. Nilai sistem DIBACA dulu & ditampilkan (tak menimpa
-    // diam-diam), hasil tulis dibuktikan baca-ulang, dan ada Reset (nilai bertahan stlh uninstall).
-    // Tombol vertikal (fillMaxWidth) spy tak terpotong di font scale besar. 0 perubahan Jadwal.
-    val bootTrim = vm.bootTrim
-    val shizukuReady = ui.shizuku == ShizukuState.READY
-    LaunchedEffect(ui.shizuku) { vm.refreshBootTrim() }
-    GlassCard(Modifier.fillMaxWidth(), animateSize = true) {
-        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-            CardTitle("Paksa trim saat reboot")
-            Text(
-                "Mengatur batas \"paksa fstrim\" bawaan Android (setting sistem " +
-                    "${BootTrimSetting.KEY}) ke 1 ms, supaya Android sendiri menjalankan fstrim saat boot, " +
-                    "tanpa menunggu Shizuku hidup. Cara kerja ini dari laporan pengguna mFSTRIM dan " +
-                    "BELUM diverifikasi di HP ini. Shizuku hanya dibutuhkan saat mengubah. Nilainya tersimpan " +
-                    "di sistem dan tetap ada walau LagFix di-uninstall: tekan Reset untuk mengembalikan. " +
-                    "Trim oleh sistem ini TIDAK masuk Riwayat; jejaknya bisa dicari lewat " +
-                        "\"Ambil logcat sistem\" di Info & diagnostik.",
-                style = MaterialTheme.typography.bodySmall
-            )
-            val reading = bootTrim.reading
-            Text(
-                when {
-                    !shizukuReady -> "Nilai sistem: tak bisa dibaca, Shizuku belum siap."
-                    reading == null -> "Nilai sistem: membaca…"
-                    else -> "Nilai sistem sekarang: ${describeBootTrim(reading)}"
-                }
-            )
-            bootTrim.note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-            val alreadyOn = reading == BootTrimReading.Value(BootTrimSetting.EVERY_REBOOT_MS)
-            val canChange = shizukuReady && !bootTrim.busy && reading != null
-            Button(
-                onClick = { vm.changeBootTrim(true) },
-                enabled = canChange && !alreadyOn,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    if (reading is BootTrimReading.Value) {
-                        "Timpa dengan 1 ms (tiap reboot)"
-                    } else {
-                        "Aktifkan (tiap reboot)"
-                    }
-                )
-            }
-            TextButton(
-                onClick = { vm.changeBootTrim(false) },
-                enabled = canChange && reading != BootTrimReading.Unset,
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("Reset ke default Android") }
-        }
-    }
-
-    // v49 (milestone "Kartu panduan jadwal", dipilih user; menggantikan paragraf teks "Autostart"
-    // v24 yg dulu di kartu Jadwal — DIPINDAH ke sini & dilengkapi, bukan diduplikasi).
-    // Dasar bukti: logcat v41 (XOS `TranManualCleanMgr` SIGKILL saat swipe-Recents + tolak restart
-    // servis) — cuma poin 1 yg TERBUKTI di HP ini. Poin 2 (Kunci Recents) & 3 (Autostart) = praktik
-    // umum ROM, BELUM diverifikasi di HP ini -> teksnya sengaja berhati-hati, tanpa klaim pasti.
-    // Tombol hanya membuka Info Aplikasi (intent standar Android, 0 tebakan nama activity per ROM
-    // -> tetap patuh alasan v24: tak ada intent Autostart khusus merek).
-    // v27 (fitur opsional, HANYA utk user yg sudah coba opsi baterai/Autostart di atas & masih
-    // bermasalah — konsultasi eksplisit dgn user sebelum dibuat, lihat riwayat v25/v26, dikerjakan v27). 0 logic
-    // fstrim baru — cuma menjaga proses tetap hidup, jadwal periodik tetap lewat WorkManager
-    // (Scheduler.apply(), 0 diubah).
-    GlassCard(Modifier.fillMaxWidth(), animateSize = true) {
-        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-            CardTitle("Keandalan latar belakang")
             // v79 (M5): kartu "Agar jadwal tetap jalan" (v49) digabung ke sini sbg panduan yang bisa dilipat.
             FoldHeader("Panduan agar jadwal tetap jalan", guideOpen) { guideOpen = !guideOpen }
             if (guideOpen) {
@@ -742,7 +733,13 @@ private fun SettingsTab(
                 // tetap jalan seperti biasa.
                 vm.setPersistentService(true)
             }
-            ToggleRow("Layanan latar depan persisten", ui.persistentServiceEnabled) { turnOn ->
+            ToggleRow(
+                "Layanan latar depan persisten",
+                ui.persistentServiceEnabled,
+                description = "Opsional — memaksa proses LagFix tetap hidup di HP yang agresif mematikan " +
+                    "aplikasi latar belakang, dengan notifikasi permanen yang tak bisa disembunyikan selama " +
+                    "aktif. Selama aktif, LagFix juga tidak tampil di daftar aplikasi terbaru (Recents)."
+            ) { turnOn ->
                 // v34 (investigasi lanjutan) — user sudah toggle ON, tapi 0 entri
                 // diag_persistent_service baru muncul sama sekali di Log Diagnostik — beda dari
                 // sekedar dugaan, ini instrumentasi utk BISECT 2 kemungkinan: handler toggle Compose
@@ -773,15 +770,16 @@ private fun SettingsTab(
                 }
                 onFeedback(if (turnOn) "Layanan latar depan diaktifkan." else "Layanan latar depan dimatikan.")
             }
-            Text(
-                "Opsional — memaksa proses LagFix tetap hidup di HP yang agresif mematikan " +
-                    "aplikasi latar belakang, dengan notifikasi permanen yang tak bisa disembunyikan " +
-                    "selama aktif. Coba dulu opsi baterai & Autostart di atas sebelum ini. Selama aktif, " +
-                    "LagFix juga tidak tampil di daftar aplikasi terbaru (Recents); " +
-                    "buka lewat ikon, widget, atau tile. Meninggalkan aplikasi juga menutup layarnya " +
-                    "(tab dan dialog kembali ke awal saat dibuka lagi).",
-                style = MaterialTheme.typography.bodySmall
-            )
+            // v171: keterangan toggle dipecah: inti tampil di bawah label, sisanya terlipat (isi kalimat tak diubah).
+            FoldHeader("Catatan layanan persisten", persistInfoOpen) { persistInfoOpen = !persistInfoOpen }
+            if (persistInfoOpen) {
+                Text(
+                    "Coba dulu opsi baterai & Autostart di atas sebelum ini. Buka LagFix lewat ikon, widget, atau " +
+                        "tile. Meninggalkan aplikasi juga menutup layarnya (tab dan dialog kembali ke awal saat " +
+                        "dibuka lagi).",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
             // v28 (investigasi laporan "toggle aktif, izin POST_NOTIFICATIONS muncul, tapi
             // notifikasi permanen tak pernah kelihatan"): izin runtime POST_NOTIFICATIONS BEDA dari
             // toggle "Izinkan notifikasi" di level OS/Setelan HP (mis. XOS/MIUI kadang punya toggle
@@ -805,6 +803,67 @@ private fun SettingsTab(
         }
     }
 
+    ThemePickerCard() // v142: pilih tema (Glass / Neo Burgundy); v171: dipindah dari paling atas
+
+    // v83 (H2(1), perintah user): atur setting sistem `fstrim_mandatory_interval` lewat Shizuku
+    // supaya Android memaksa fstrim saat boot. Nilai sistem DIBACA dulu & ditampilkan (tak menimpa
+    // diam-diam), hasil tulis dibuktikan baca-ulang, dan ada Reset (nilai bertahan stlh uninstall).
+    // Tombol vertikal (fillMaxWidth) spy tak terpotong di font scale besar. 0 perubahan Jadwal.
+    val bootTrim = vm.bootTrim
+    val shizukuReady = ui.shizuku == ShizukuState.READY
+    LaunchedEffect(ui.shizuku) { vm.refreshBootTrim() }
+    GlassCard(Modifier.fillMaxWidth(), animateSize = true) {
+        Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
+            CardTitle("Paksa trim saat reboot", "Eksperimental · belum diverifikasi di HP ini")
+            Text(
+                "Mengatur batas \"paksa fstrim\" bawaan Android (setting sistem " +
+                    "${BootTrimSetting.KEY}) ke 1 ms, supaya Android sendiri menjalankan fstrim saat boot, " +
+                    "tanpa menunggu Shizuku hidup. Nilainya tersimpan di sistem dan tetap ada walau LagFix " +
+                    "di-uninstall: tekan Reset untuk mengembalikan.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            // v171: sisa penjelasan lama terlipat (kalimatnya tak diubah, hanya dipindah dari paragraf tunggal).
+            FoldHeader("Cara kerja & catatan", bootInfoOpen) { bootInfoOpen = !bootInfoOpen }
+            if (bootInfoOpen) {
+                Text(
+                    "Cara kerja ini dari laporan pengguna mFSTRIM dan BELUM diverifikasi di HP ini. Shizuku " +
+                        "hanya dibutuhkan saat mengubah. Trim oleh sistem ini TIDAK masuk Riwayat; jejaknya bisa " +
+                        "dicari lewat \"Ambil logcat sistem\" di Info & diagnostik.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            val reading = bootTrim.reading
+            Text(
+                when {
+                    !shizukuReady -> "Nilai sistem: tak bisa dibaca, Shizuku belum siap."
+                    reading == null -> "Nilai sistem: membaca…"
+                    else -> "Nilai sistem sekarang: ${describeBootTrim(reading)}"
+                }
+            )
+            bootTrim.note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            val alreadyOn = reading == BootTrimReading.Value(BootTrimSetting.EVERY_REBOOT_MS)
+            val canChange = shizukuReady && !bootTrim.busy && reading != null
+            Button(
+                onClick = { vm.changeBootTrim(true) },
+                enabled = canChange && !alreadyOn,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    if (reading is BootTrimReading.Value) {
+                        "Timpa dengan 1 ms (tiap reboot)"
+                    } else {
+                        "Aktifkan (tiap reboot)"
+                    }
+                )
+            }
+            TextButton(
+                onClick = { vm.changeBootTrim(false) },
+                enabled = canChange && reading != BootTrimReading.Unset,
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Reset ke default Android") }
+        }
+    }
+
     // v31 (laporan user: fix v30 blm cukup — folder Download/LagFix/ tetap 0 muncul di file
     // manager HP ini). Pembaca log LANGSUNG di dalam aplikasi (lepas dari ketergantungan file
     // manager/OS pihak lain menampilkan folder baru) + tombol salin teks.
@@ -812,7 +871,7 @@ private fun SettingsTab(
     // v12: tautan dipindah dari tab Utama biar tab Utama cuma isi fitur utama (status/aksi/riwayat/pembaruan).
     GlassCard(Modifier.fillMaxWidth(), animateSize = true) {
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.xs)) {
-            CardTitle("Info & diagnostik")
+            CardTitle("Info & diagnostik", "Log, tautan, dan tentang aplikasi")
             FoldHeader("Log diagnostik", logOpen) { logOpen = !logOpen }
             if (logOpen) LogReaderCard(ctx = ctx, onFeedback = onFeedback)
             LinkRow("Unduh rilis terbaru") { openUrl(ctx, AppLinks.releases) }
@@ -1179,7 +1238,7 @@ private fun StatsCard(log: List<String>) {
 
     GlassCard(Modifier.fillMaxWidth(), animateSize = true) { // v71 (M4): tinggi kartu halus saat isi berubah
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-            CardTitle("Statistik")
+            CardTitle("Statistik", "Ringkasan dan grafik dari riwayat proses")
             Text(
                 "Dari ${stats.size} proses terakhir: $okCount berhasil · $skippedCount dilewati · $failCount gagal" +
                     if (withTrigger.isNotEmpty()) " ($autoCount otomatis · $manualCount manual)" else "",
@@ -1365,6 +1424,7 @@ private fun UpdateCard(
     checking: Boolean,
     result: UpdateResult?,
     downloading: Boolean,
+    downloadProgress: () -> DownloadProgress?,
     downloadError: String?,
     onCheck: () -> Unit,
     onInstall: (String) -> Unit
@@ -1373,15 +1433,28 @@ private fun UpdateCard(
 
     GlassCard(Modifier.fillMaxWidth(), animateSize = true) { // v71 (M4): tinggi kartu halus saat isi berubah
         Column(Modifier.padding(LagSpacing.lg), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-            CardTitle("Pembaruan")
+            CardTitle("Pembaruan", "Versi aplikasi dari GitHub Releases")
 
             when (result) {
                 null -> Text(if (checking) "Memeriksa pembaruan…" else "Ketuk untuk memeriksa versi terbaru di GitHub.")
                 is UpdateResult.UpToDate -> Text("Sudah versi terbaru (build ${result.installedBuild}).")
-                is UpdateResult.Error -> Text("Gagal memeriksa pembaruan: ${result.message}")
+                is UpdateResult.Error -> Text(
+                    "Gagal memeriksa pembaruan: ${result.message}",
+                    color = MaterialTheme.colorScheme.error
+                )
                 is UpdateResult.Available -> {
-                    Text("Versi terpasang: build ${result.installedBuild}")
-                    Text("Versi tersedia: build ${result.info.latestBuild} (${result.info.latestName})")
+                    // v171: versi tersedia = baris utama, versi terpasang = keterangan (dulu 2 baris teks sama berat).
+                    Text(
+                        "Pembaruan tersedia: build ${result.info.latestBuild} (${result.info.latestName})",
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Text(
+                        "Terpasang: build ${result.installedBuild}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    // v171 (laporan user: unduhan tak punya bilah progres): bilah + persen + "x MB dari y MB".
+                    if (downloading) DownloadProgressBar(downloadProgress)
                     // v65: aksi disusun simetris — semua tombol selebar kartu & setinggi sama (sebelumnya
                     // TextButton + Button berdampingan: teks Update membungkus 2 baris, tinggi tak sama,
                     // TextButton menjorok ke dalam). Hierarki: Update = primer (filled), changelog = tonal.
@@ -1389,7 +1462,7 @@ private fun UpdateCard(
                         onClick = { onInstall(result.info.downloadUrl) },
                         enabled = !downloading,
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text(if (downloading) "Memasang…" else "Update sekarang") }
+                    ) { Text(if (downloading) "Mengunduh…" else "Update sekarang") }
                     FilledTonalButton(
                         onClick = { showChangelog = true },
                         modifier = Modifier.fillMaxWidth()
@@ -1407,12 +1480,11 @@ private fun UpdateCard(
             if (checking) {
                 CircularProgressIndicator(Modifier.padding(top = 4.dp))
             } else {
-                val checkLabel = if (result == null) "Cek pembaruan" else "Cek ulang"
-                if (result is UpdateResult.Available) {
-                    // v65: saat ada update, "Update sekarang" jadi satu-satunya aksi primer -> cek ulang = tonal.
-                    FilledTonalButton(onClick = onCheck, modifier = Modifier.fillMaxWidth()) { Text(checkLabel) }
-                } else {
-                    Button(onClick = onCheck, modifier = Modifier.fillMaxWidth()) { Text(checkLabel) }
+                // v171: cek pembaruan = aksi sekunder (tonal) di semua keadaan; dulu terisi (primer) saat belum ada
+                // update, sehingga bersaing dgn "Jalankan fstrim sekarang" sbg aksi primer layar. Nonaktif saat
+                // mengunduh: cek ulang mengosongkan hasil & menyembunyikan bilah progres.
+                FilledTonalButton(onClick = onCheck, enabled = !downloading, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (result == null) "Cek pembaruan" else "Cek ulang")
                 }
             }
         }
@@ -1438,27 +1510,48 @@ private fun UpdateCard(
 }
 
 @Composable
-private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun ToggleRow(label: String, checked: Boolean, description: String? = null, onChange: (Boolean) -> Unit) {
     // v82 (M9): seluruh baris = SATU target Switch (`toggleable`): TalkBack membaca label + status "aktif/nonaktif"
     // (sebelumnya Switch terbaca tanpa label), target sentuh >= 48dp (dulu hanya Switch ~32dp).
-    // Callback `onChange` sama.
+    // Callback `onChange` sama. v171: `description` (opsional) = keterangan 1-2 baris tepat di bawah label (pola daftar
+    // pengaturan: judul + keterangan + sakelar), ikut terbaca TalkBack karena satu target.
     Row(
         Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
             .toggleable(value = checked, role = Role.Switch, onValueChange = onChange),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.spacedBy(LagSpacing.md)
     ) {
-        Text(label, Modifier.weight(1f))
+        Column(Modifier.weight(1f)) {
+            Text(label)
+            if (description != null) {
+                Text(
+                    description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
         LagSwitch(checked = checked)
     }
 }
 
 // v82 (M9): judul kartu = heading (TalkBack bisa lompat antar judul).
+// v171: `subtitle` (opsional) = 1 baris keterangan fungsi kartu tepat di bawah judul -> tiap kartu terbaca
+// "apa ini" sebelum isinya (hierarki 3 tingkat: judul, keterangan, isi).
 @Composable
-private fun CardTitle(text: String) {
-    Text(text, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+private fun CardTitle(text: String, subtitle: String? = null) {
+    Column {
+        Text(text, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+        if (subtitle != null) {
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }
 
 // v82 (M9): baris lipat (Pengaturan) — glif ▾/▴ dekoratif (dulu dibaca "segitiga hitam"),

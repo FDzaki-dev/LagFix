@@ -152,8 +152,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // v171: kemajuan unduhan APK = state TERPISAH dari `UiState` (pola `bootTrim`). Dilaporkan <= ~100x per unduhan;
+    // UI membacanya lewat lambda di bilah progres saja -> seluruh layar tak direkomposisi tiap laporan. null = belum
+    // ada laporan (menghubungkan) atau tak sedang mengunduh. Properti, bukan fungsi: `MainViewModel` tetap 10 fungsi.
+    var downloadProgress by mutableStateOf<DownloadProgress?>(null)
+        private set
+
     fun checkUpdate() {
-        if (ui.updateChecking) return
+        if (ui.updateChecking || ui.downloading) return // v171: cek ulang saat mengunduh mengosongkan `updateResult`
         ui = ui.copy(updateChecking = true, updateResult = null, downloadError = null)
         viewModelScope.launch(Dispatchers.IO) {
             val app = getApplication<Application>()
@@ -173,11 +179,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     @Suppress("TooGenericExceptionCaught")
     fun installUpdate(url: String) {
         if (ui.downloading) return
+        downloadProgress = null
         ui = ui.copy(downloading = true, downloadError = null)
         viewModelScope.launch(Dispatchers.IO) {
             val app = getApplication<Application>()
             try {
-                val apk = UpdateChecker.download(app, url)
+                val apk = UpdateChecker.download(app, url) { done, total ->
+                    downloadProgress = DownloadProgress(done, total)
+                }
                 val uri = FileProvider.getUriForFile(app, "${app.packageName}.fileprovider", apk)
                 val intent = Intent(Intent.ACTION_VIEW).apply {
                     setDataAndType(uri, "application/vnd.android.package-archive")
@@ -187,6 +196,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 ui = ui.copy(downloading = false)
             } catch (e: Exception) {
                 ui = ui.copy(downloading = false, downloadError = UpdateChecker.friendlyError(e))
+            } finally {
+                downloadProgress = null // v171
             }
         }
     }
