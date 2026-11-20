@@ -1,5 +1,9 @@
 # Changelog
 
+## v172
+- Laporan CI run 24 (commit v171): semua alat lulus. 169 tes lulus (target v171 tercapai: 160 + 9), detekt polos dan typed 0 temuan, SpotBugs 0, ArchUnit 7 aturan tanpa pelanggaran, peringatan kompilator 0, deprecated 0, lint hanya 1 petunjuk (compose-bom 2026.09.00 ke 2026.11.01, disengaja). Bilah progres unduhan dan penataan hierarki v171 lolos kompilasi, tes, detekt, SpotBugs, dan lint; tampilannya di perangkat belum dinilai.
+- Hierarki kartu Info & diagnostik (lanjutan keluhan UI/UX v171): pembaca log dulu menyelipkan 3 paragraf penjelasan di antara tombol (tombol, paragraf, tombol, paragraf). Kini tombol Muat ulang, Tes tulis log, dan Ambil logcat sistem berkumpul di atas, dan ketiga paragraf dilipat di bawah "Penjelasan tombol" (kalimatnya tidak diubah). Logika dan callback tidak berubah.
+
 ## v171
 - Laporan user (tanpa laporan CI baru; basis ZIP `LagFix_v170.zip`, CI run 23 hijau untuk v170): (1) unduhan pembaruan aplikasi tidak punya bilah progres; (2) tampilan keseluruhan dinilai kurang profesional dan hierarkinya membingungkan.
 - Bilah progres unduhan: kartu Pembaruan kini menampilkan bilah, persen, dan "x MB dari y MB" selama mengunduh (bilah tak tentu bila server tak memberi ukuran, "Menghubungkan ke GitHub…" sebelum ada data). Tombol berubah "Mengunduh…" (dulu "Memasang…"), dan Cek ulang dinonaktifkan saat mengunduh. `UpdateChecker.download` menerima callback progres (opsional), laporan dibatasi sekitar 100 kali per unduhan, dan header `Accept-Encoding: identity` dikirim supaya ukuran akurat. Kemajuan disimpan di state terpisah `MainViewModel.downloadProgress` dan dibaca hanya oleh bilah, jadi layar tidak direkomposisi tiap laporan.

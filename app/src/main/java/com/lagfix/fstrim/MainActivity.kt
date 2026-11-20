@@ -896,6 +896,7 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
     var capturing by remember { mutableStateOf(false) } // v84: snapshot logcat
     var logs by remember { mutableStateOf<List<CrashLogger.LogFile>>(emptyList()) }
     var showAllLogs by rememberSaveable { mutableStateOf(false) } // v98: daftar diringkas ke PREVIEW_COUNT
+    var explainOpen by rememberSaveable { mutableStateOf(false) } // v172: penjelasan tombol terlipat
     var loadError by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedName by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedContent by rememberSaveable { mutableStateOf<String?>(null) }
@@ -917,11 +918,6 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
 
     // v79 (M5): dirender di dalam kartu "Info & diagnostik" -> tanpa GlassCard/judul sendiri.
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
-        Text(
-            "Baca langsung dari dalam aplikasi — tidak bergantung file manager/folder Documents " +
-                "yang mungkin tidak menampilkan file baru di sebagian HP.",
-            style = MaterialTheme.typography.bodySmall
-        )
         Row(horizontalArrangement = Arrangement.spacedBy(LagSpacing.sm)) {
             TextButton(onClick = { load() }) { Text(if (loading) "Memuat…" else "Muat ulang") }
             TextButton(
@@ -943,11 +939,6 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
                 }
             ) { Text(if (testing) "Menguji…" else "Tes tulis log") }
         }
-        Text(
-            "\"Tes tulis log\" langsung menulis 1 file percobaan — tanpa perlu toggle apa pun — " +
-                "untuk memastikan penulisan file bisa berhasil di HP ini.",
-            style = MaterialTheme.typography.bodySmall
-        )
         // v84 (perintah user: perluas catch logcat): 1 file ringkasan bukti tanpa adb/PC.
         TextButton(
             onClick = {
@@ -982,15 +973,30 @@ private fun LogReaderCard(ctx: Context, onFeedback: (String) -> Unit) {
             },
             modifier = Modifier.fillMaxWidth()
         ) { Text(if (capturing) "Mengambil… (bisa memakan waktu)" else "Ambil logcat sistem", Modifier.weight(1f)) }
-        Text(
-            "Menyimpan 2 file di Documents/LagFix: ringkasan (.txt, bisa dibaca di sini) dan dump mentah " +
-                "logcat LENGKAP tanpa filter (.zip, tidak tampil di daftar ini — kirim file ini bila ringkasan " +
-                "kurang). Ringkasan memuat status sistem (notifikasi, servis, jadwal, baterai) dan alasan proses " +
-                "mati. Setelah dump, buffer logcat diperbesar sementara (kembali normal saat reboot) agar " +
-                "pengambilan berikutnya mencakup lebih lama — jadi tekan sekali SEBELUM menguji, lalu sekali lagi " +
-                "sesudahnya. Bagian logcat butuh Shizuku siap.",
-            style = MaterialTheme.typography.bodySmall
-        )
+        // v172 (laporan user: hierarki membingungkan): dulu 3 paragraf penjelasan menyela deretan tombol
+        // (tombol, paragraf, tombol, paragraf). Kini aksi berkumpul di atas, penjelasan terlipat (kalimat tak diubah).
+        FoldHeader("Penjelasan tombol", explainOpen) { explainOpen = !explainOpen }
+        if (explainOpen) {
+            Text(
+                "Baca langsung dari dalam aplikasi — tidak bergantung file manager/folder Documents " +
+                    "yang mungkin tidak menampilkan file baru di sebagian HP.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                "\"Tes tulis log\" langsung menulis 1 file percobaan — tanpa perlu toggle apa pun — " +
+                    "untuk memastikan penulisan file bisa berhasil di HP ini.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                "Menyimpan 2 file di Documents/LagFix: ringkasan (.txt, bisa dibaca di sini) dan dump mentah " +
+                    "logcat LENGKAP tanpa filter (.zip, tidak tampil di daftar ini — kirim file ini bila " +
+                    "ringkasan kurang). Ringkasan memuat status sistem (notifikasi, servis, jadwal, baterai) dan " +
+                    "alasan proses mati. Setelah dump, buffer logcat diperbesar sementara (kembali normal saat " +
+                    "reboot) agar pengambilan berikutnya mencakup lebih lama — jadi tekan sekali SEBELUM menguji, " +
+                    "lalu sekali lagi sesudahnya. Bagian logcat butuh Shizuku siap.",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
         when {
             loadError != null -> Text(
                 "Error: ${loadError.orEmpty()}",
