@@ -1,5 +1,18 @@
 # Changelog
 
+## v180
+- Perintah user: "Perbaiki dan terapkan OkHttp+Okio" (unggahan: `LagFix_v179.zip`, `LagFix-fail-log-152.zip`, `LagFix_diag_process_catch_20261121_062959.txt`).
+- Bukti (log build gagal run 152): `:app:compileDebugKotlin` gagal di `UpdateWebFallback.kt:38:72` ("Missing '}'"), `:78:1` ("Unclosed comment"), dan 3 "Unresolved reference" (`latestTag`, `apkHref`, `pageText`) yang hanya akibat. Akar: KDoc `apkHref` (v178) memuat pola berkas APK yang berisi garis miring lalu bintang; Kotlin mendukung komentar bersarang, jadi urutan itu membuka komentar baru yang tak pernah tertutup dan sisa berkas ikut menjadi komentar. Build v178 dan v179 tidak pernah terkompilasi di CI (run 29 = v177 adalah yang terakhir hijau).
+- Perbaikan: KDoc `apkHref` diganti kata-kata tanpa urutan itu. Pemindaian seluruh `app/` dan `config/` menemukan tidak ada komentar bersarang atau tak tertutup lain.
+- OkHttp+Okio: `UpdateHttp.kt` (baru) menjadi satu-satunya pintu jaringan pembaruan, menggantikan `HttpURLConnection`. Klien malas: cek rilis sambung 6 + baca 8 dtk (nilai v174), jalur cadangan tanpa mengikuti pengalihan, unduh 15 + 15 dtk (nilai v171); ketiganya berbagi pool koneksi. Pesan galat "HTTP <kode>" identik, jadi deteksi rate limit 403/429 dan pemetaan `friendlyError` tak berubah.
+- Unduh APK: `ResponseBody.source()` dialirkan ke berkas lewat `sink().buffer().use {}`; tiap putaran memindahkan maksimal 8 KiB lalu `emitCompleteSegments()`, jadi memori tidak menampung seluruh APK dan `bytes()` tidak dipakai. `Accept-Encoding: identity` tetap, supaya Content-Length = ukuran APK dan bilah progres akurat.
+- Teks kecil (JSON rilis, CHANGELOG, halaman daftar aset) dibaca lewat aliran Okio dengan batas 4 MiB; lebih dari itu menjadi galat, bukan dimuat utuh.
+- `SilentInstaller.kt`: APK dialirkan ke stdin `pm install` lewat Okio (`writeAll`), menggantikan `buffered()` + `copyTo`; perilaku sama.
+- `app/build.gradle.kts`: `com.squareup.okhttp3:okhttp:5.5.1` (rilis stabil terbaru, 22 Okt 2026) dan `com.squareup.okio:okio:3.18.1` (versi yang ditarik OkHttp 5.5.x).
+- Tes: `DownloadProgressTest` dialihkan ke Okio (`Buffer`/`Source`, asersi lama sama) + 1 tes baru (maks 8 KiB per putaran, urutan byte terjaga); `UpdateHttpTest` (baru, 6 tes: kode 2xx dan galat 199/300/403/429, pemetaan rate limit, teks UTF-8, batas teks, header permintaan, header unduhan).
+- Berkas diag `LagFix_diag_process_catch_*` diterima tetapi tidak diproses di batch ini; BUG_TARGET v147 (notifikasi persisten) tetap terbuka dan tak disentuh.
+- Belum dijalankan di CI (kompilasi, tes, detekt, SpotBugs, lint); v178 dan v179 juga belum pernah terkompilasi, jadi run berikutnya bisa memunculkan galat kompilasi lanjutan di berkas v178/v179. Target run berikutnya: 190 tes lulus dan semua alat tetap 0 temuan.
+
 ## v179
 - Perintah user: "Adaptasi maksimal ke Lagfix!!" dengan berkas `update/` dari SONIX (`GitHubReleaseChecker`, `UpdateDownloader`, `UpdateManager`).
 - Diadopsi: pasang senyap lewat Shizuku. Bila Shizuku siap dan APK memang paket aplikasi ini, "Update sekarang" memasang APK dengan `pm install -r` di proses Shizuku, tanpa dialog installer; APK dialirkan lewat stdin secara buffered. Bila Shizuku belum siap atau pemasangan gagal, dipakai installer sistem seperti sebelumnya, dan keluaran mentah kegagalan dicatat ke log (tag `SilentInstaller`).

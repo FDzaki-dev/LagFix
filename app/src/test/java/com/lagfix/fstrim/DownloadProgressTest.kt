@@ -1,23 +1,26 @@
 package com.lagfix.fstrim
 
+import okio.Buffer
+import okio.Source
+import okio.Timeout
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import java.io.IOException
-import java.io.InputStream
 
-/** v171: progres unduhan APK (murni, tanpa Android/jaringan): persen, teks MB, jarak laporan, dan salinan berlapor. */
+/**
+ * v171: progres unduhan APK (murni, tanpa Android/jaringan): persen, teks MB, jarak laporan, dan salinan berlapor.
+ * v180: salinan kini lewat aliran Okio (`Buffer` = sumber & tujuan di memori); asersi tak berubah.
+ */
 class DownloadProgressTest {
     private fun copyAndCollect(data: ByteArray, total: Long): Pair<ByteArray, List<Pair<Long, Long>>> {
-        val out = ByteArrayOutputStream()
+        val out = Buffer()
         val reports = mutableListOf<Pair<Long, Long>>()
-        copyWithProgress(ByteArrayInputStream(data), out, total) { done, t -> reports += done to t }
-        return out.toByteArray() to reports
+        copyWithProgress(Buffer().write(data), out, total) { done, t -> reports += done to t }
+        return out.readByteArray() to reports
     }
 
     @Test
@@ -87,6 +90,22 @@ class DownloadProgressTest {
     }
 
     @Test
+    fun `salinan memindahkan paling banyak 8 KiB per putaran dan urutan byte terjaga`() {
+        val data = ByteArray(100_000) { (it % 241).toByte() }
+        val source = Buffer().write(data)
+        val sizes = mutableListOf<Long>()
+        val spying = object : Source by source {
+            override fun read(sink: Buffer, byteCount: Long): Long =
+                source.read(sink, byteCount).also { if (it > 0L) sizes += it }
+        }
+        val out = Buffer()
+        copyWithProgress(spying, out, data.size.toLong()) { _, _ -> }
+        assertTrue("putaran = ${sizes.size}", sizes.all { it <= 8_192L })
+        assertEquals(data.size.toLong(), sizes.sum())
+        assertArrayEquals(data, out.readByteArray())
+    }
+
+    @Test
     fun `salinan kosong hanya melapor awal, dan byte terakhir yg sudah terlapor tak dilapor ulang`() {
         val (emptyCopy, emptyReports) = copyAndCollect(ByteArray(0), 0L)
         assertEquals(0, emptyCopy.size)
@@ -98,20 +117,23 @@ class DownloadProgressTest {
 
     @Test
     fun `galat baca di tengah salinan diteruskan apa adanya setelah laporan yg sudah terjadi`() {
-        val failing = object : InputStream() {
+        val failing = object : Source {
             private var reads = 0
 
-            override fun read(): Int = throw IOException("putus")
-
-            override fun read(b: ByteArray, off: Int, len: Int): Int {
+            override fun read(sink: Buffer, byteCount: Long): Long {
                 reads++
                 if (reads > 2) throw IOException("putus")
-                return minOf(len, 100).also { count -> b.fill(1, off, off + count) }
+                sink.write(ByteArray(100) { 1 })
+                return 100L
             }
+
+            override fun timeout(): Timeout = Timeout.NONE
+
+            override fun close() = Unit
         }
         val reports = mutableListOf<Long>()
         val failure = assertThrows(IOException::class.java) {
-            copyWithProgress(failing, ByteArrayOutputStream(), 200L) { done, _ -> reports += done }
+            copyWithProgress(failing, Buffer(), 200L) { done, _ -> reports += done }
         }
         assertEquals("putus", failure.message)
         assertEquals(listOf(0L, 100L, 200L), reports)

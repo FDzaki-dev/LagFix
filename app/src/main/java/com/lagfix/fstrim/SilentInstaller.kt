@@ -2,9 +2,11 @@ package com.lagfix.fstrim
 
 import android.content.Context
 import android.util.Log
+import okio.buffer
+import okio.sink
+import okio.source
 import rikka.shizuku.Shizuku
 import java.io.File
-import java.io.FileInputStream
 import java.io.IOException
 
 /** Hasil [SilentInstaller.install]: [success] = terpasang; selain itu [detail] berisi alasan/keluaran mentah. */
@@ -65,11 +67,14 @@ internal object SilentInstaller {
     private fun archivePackage(context: Context, apk: File): String? =
         context.packageManager.getPackageArchiveInfo(apk.absolutePath, 0)?.packageName
 
-    /** Buat proses `pm install` lalu alirkan APK ke stdin-nya (buffered, `use {}` menutup stdin = EOF bagi pm). */
+    /**
+     * Buat proses `pm install` lalu alirkan APK ke stdin-nya lewat Okio (v180): `writeAll` memindahkan per segmen
+     * 8 KiB tanpa memuat APK utuh; `use {}` pada sink menutup stdin (= EOF bagi pm).
+     */
     private fun spawnAndFeed(apk: File): Process {
         val p = spawn(arrayOf("sh", "-c", installCommand(apk.length())))
         try {
-            p.outputStream.buffered().use { out -> FileInputStream(apk).use { it.copyTo(out) } }
+            p.outputStream.sink().buffer().use { out -> apk.source().use { input -> out.writeAll(input) } }
         } catch (e: IOException) {
             BoundedShell.release(p)
             throw e

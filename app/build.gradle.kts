@@ -85,6 +85,12 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.12.0")
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
+    // v180 (perintah user: "terapkan OkHttp+Okio"): jaringan alur pembaruan (cek rilis, changelog, jalur web
+    // cadangan, unduh APK) lewat OkHttp (rilis stabil terbaru 5.5.1, 22 Okt 2026); tubuh respons dialirkan lewat
+    // Okio. Okio dideklarasikan eksplisit karena paket okio diimpor langsung; versinya = yang ditarik OkHttp 5.5.x
+    // (Okio 3.18.1). Tanpa aturan R8: `isMinifyEnabled = false`.
+    implementation("com.squareup.okhttp3:okhttp:5.5.1")
+    implementation("com.squareup.okio:okio:3.18.1")
 
     // v7: unit test murni (JVM, tanpa device) — Prefs.record() + FstrimExecutor.state()
     // v17 (C4 kandidat b): FstrimExecutorTest.kt pindah dari mockStatic ke mock interface biasa
