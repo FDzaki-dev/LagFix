@@ -8,6 +8,8 @@ import okio.source
 import rikka.shizuku.Shizuku
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 
 /** Hasil [SilentInstaller.install]: [success] = terpasang; selain itu [detail] berisi alasan/keluaran mentah. */
 internal class SilentInstallResult(val success: Boolean, val detail: String)
@@ -25,6 +27,12 @@ internal object SilentInstaller {
 
     /** Batas waktu `pm install` SESUDAH APK selesai dialirkan (pemasangan + verifikasi). */
     private const val INSTALL_TIMEOUT_MS = 120_000L
+
+    /** v188: batas waktu pengaliran APK ke stdin `pm` (dulu tanpa batas: `pm` tak membaca stdin = menggantung). */
+    private const val FEED_TIMEOUT_MS = 120_000L
+
+    /** v188: tunggu penulis berhenti sesudah proses dihentikan (pipa tertutup -> penulisan gagal). */
+    private const val FEED_JOIN_GRACE_MS = 2_000L
 
     /** Perintah shell pemasangan; `-S` = ukuran byte APK di stdin, `-r` = timpa versi terpasang. Murni. */
     internal fun installCommand(sizeBytes: Long): String = "pm install -r -S $sizeBytes 2>&1"
@@ -88,12 +96,36 @@ internal object SilentInstaller {
      */
     private fun spawnAndFeed(apk: File, onFeedFailure: (IOException) -> Unit): Process {
         val p = spawn(arrayOf("sh", "-c", installCommand(apk.length())))
-        try {
-            p.outputStream.sink().buffer().use { out -> apk.source().use { input -> out.writeAll(input) } }
-        } catch (e: IOException) {
-            onFeedFailure(e)
-        }
+        feedApk(p, apk, FEED_TIMEOUT_MS)?.let(onFeedFailure)
         return p
+    }
+
+    /**
+     * v188 (temuan terbuka v182, audit statis; BELUM teramati di perangkat): `writeAll` ke stdin `pm` memblokir bila
+     * `pm` tak membaca stdin (pipa penuh) dan, karena dipanggil dari `start()` milik [BoundedShell.run] SEBELUM
+     * `timeoutMs`-nya mulai, pemasangan senyap bisa menggantung tanpa batas (tak pernah jatuh ke installer sistem).
+     * Kini APK dialirkan di thread daemon dan ditunggu paling lama [timeoutMs]; lewat itu proses dihentikan
+     * ([BoundedShell.release]) sehingga penulis terlepas, dan hasilnya galat pengaliran. Mengembalikan galat itu
+     * (`null` = APK selesai dialirkan & stdin ditutup = EOF bagi pm). Galat non-IO di thread dibungkus (tak boleh
+     * menjadi uncaught exception yang menjatuhkan proses). Blocking — WAJIB dari Dispatchers.IO.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    internal fun feedApk(p: Process, apk: File, timeoutMs: Long): IOException? {
+        val failure = AtomicReference<IOException?>(null)
+        val feeder = thread(isDaemon = true, name = "lagfix-install-feeder") {
+            try {
+                p.outputStream.sink().buffer().use { out -> apk.source().use { input -> out.writeAll(input) } }
+            } catch (e: IOException) {
+                failure.set(e)
+            } catch (e: Exception) {
+                failure.set(IOException("${e.javaClass.simpleName}: ${e.message ?: "null"}", e))
+            }
+        }
+        feeder.join(timeoutMs)
+        if (!feeder.isAlive) return failure.get()
+        BoundedShell.release(p)
+        feeder.join(FEED_JOIN_GRACE_MS)
+        return IOException("Pengaliran APK melewati $timeoutMs ms (stdin pm tak dibaca)")
     }
 
     // Shizuku.newProcess bersifat private sejak API 13 -> reflection (sama dgn FstrimExecutor.sh).

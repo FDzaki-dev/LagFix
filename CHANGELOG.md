@@ -1,5 +1,12 @@
 # Changelog
 
+## v188
+- Perintah user: "Fokus ke hal lain yang bisa diperbaiki langsung!!" (di luar notifikasi persisten). Unggahan: `LagFix_diag_persistent_service_20261121_124201.txt` dan `LagFix_diag_process_catch_20261121_124437.txt`. Laporan CI v187 belum ada.
+- Pemasangan senyap (Shizuku): pengaliran APK ke stdin `pm` kini berbatas waktu. Sebelumnya `writeAll` berjalan sebelum batas waktu `BoundedShell` dimulai, sehingga bila `pm` tidak membaca stdin penulisan memblokir tanpa batas dan "Update sekarang" menggantung tanpa jatuh ke installer sistem. Kini APK dialirkan di thread daemon dan ditunggu maksimal 120 detik; lewat batas proses dihentikan dan hasilnya galat pengaliran (`feed=IOException: Pengaliran APK melewati ... ms`), sehingga pemasangan jatuh ke installer sistem seperti kegagalan lain. Galat non-IO di thread dibungkus agar tidak menjadi uncaught exception. Perilaku normal tidak berubah. Belum teramati di perangkat; semantik `destroy()` pada pipa Shizuku belum terbukti (hanya memengaruhi pembersihan thread).
+- Tes: `SilentInstallerTest` +4 tes (Process palsu): APK terkirim utuh dan stdin ditutup; stdin macet kembali pada batas waktu dan proses dihentikan; `IOException` dikembalikan apa adanya; galat non-IO dibungkus. Target run berikutnya: 213 tes lulus (209 pada v187 belum terbukti).
+- Data baru dicatat untuk BUG_TARGET v147 (tidak ada perubahan kode): saat app di depan notifikasi foreground service asli tampil (`flags=0x2006a`, `foreground=true`) walau `isBackgroundRestricted=true`; pada start dingin, notifikasi tampil bersamaan dengan `startForeground` kedua (dari `onResume`), bukan yang pertama.
+- Belum dijalankan di CI dan belum diuji di perangkat.
+
 ## v187
 - Unggahan user: `LagFix_diag_persistent_service_20261121_123223.txt` + `LagFix_v186.zip` (tanpa teks). Laporan CI run 38 (v186) belum ada; kompilasi v186 terbukti tak langsung (baris `lateState` muncul di diag).
 - Diag notifikasi persisten (X6855, 12:32:23): kejadian kedua berturut-turut dengan pola sama. Start dari latar, `startForeground` tanpa exception, id 42 belum ada 1,5 detik sesudahnya, lalu ada sesudah `notify()` (flags `0x2000a`, tanpa flag foreground service). Baris `lateState`: umur proses 3422 ms, `importance` 300, servis `foreground=false`. `isBackgroundRestricted = true`. Sebab belum terbukti; ketahanan notifikasi hasil repost dalam jangka panjang belum terbukti.
