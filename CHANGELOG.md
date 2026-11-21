@@ -1,5 +1,12 @@
 # Changelog
 
+## v185
+- Unggahan user: `LagFix_v184.zip` + `LagFix_diag_persistent_service_20261121_121434.txt` (tanpa teks). Laporan CI run 36 (v184) belum ada: kompilasi v184 terbukti tak langsung (baris konteks baru muncul di diag), tes/detekt/lint belum terverifikasi.
+- Diag notifikasi persisten (X6855, 12:14:34): `startForeground` tidak melempar exception, importance proses 125 (foreground service tanpa Activity di atas, artinya start dari latar), `isBackgroundRestricted = true`, dan notifikasi id 42 tetap belum ada 1,5 detik sesudahnya. Pola sama dengan diag 11:52. Koreksi catatan v184: setelah `startForeground`, proses di latar terbaca 125, bukan 300/400.
+- `PersistentTrimService`: percobaan perbaikan. Bila 1,5 detik sesudah `startForeground` notifikasi id 42 belum ada, notifikasi yang sama diposting lewat `notify()` (id sama, jadi menggantikan). Hasilnya dicatat mentah (exception `notify` apa adanya dan dump `activeNotifications` sesudah repost) di file diag atau logcat. `onDestroy` membatalkan notifikasi hasil repost. Urutan `startForeground`, channel, dan isi notifikasi tidak berubah.
+- Tes: `FormatActiveNotificationsTest` +4 tes murni untuk keputusan repost. Target run berikutnya: 203 tes lulus.
+- Belum dijalankan di CI dan belum terbukti di perangkat; belum boleh disebut sembuh. BUG_TARGET v147 tetap terbuka sampai diag berikutnya memuat baris `repost`.
+
 ## v184
 - Unggahan user: `LagFix_laporan-untuk-claude_run35.zip` + `LagFix_diag_persistent_service_20261121_120020.txt` (tanpa teks). Laporan run 35 untuk v183: semua hijau (assembleDebug exit 0, 197 tes lulus, detekt 0, detekt typed 0, SpotBugs 0, ArchUnit 7 aturan 0 pelanggaran, lint hanya hint compose-bom).
 - Diag notifikasi persisten (X6855, 12:00:20): notifikasi aplikasi diizinkan, channel importance 4 (HIGH), `startForeground` tidak melempar exception, tetapi notifikasi belum ada 1,5 detik sesudahnya. Berkas itu belum mencatat pemicu start dan keadaan proses.

@@ -1,9 +1,11 @@
 package com.lagfix.fstrim
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** v113: dump `activeNotifications` (+ v184: konteks start) di log persistent_service = data mentah. */
+/** v113: dump `activeNotifications` (+ v184: konteks start, v185: keputusan repost) di log persistent_service. */
 class FormatActiveNotificationsTest {
 
     @Test
@@ -49,5 +51,27 @@ class FormatActiveNotificationsTest {
                 "isBackgroundRestricted = null",
             text
         )
+    }
+
+    @Test
+    fun needsRepost_emptyRead_isTrue() {
+        assertTrue(needsRepost(Result.success(emptyList()), 42))
+    }
+
+    @Test
+    fun needsRepost_onlyOtherId_isTrue() {
+        val other = NotifSnapshot(id = 7, tag = null, channelId = "x", flags = 0x2, postTime = 1L)
+        assertTrue(needsRepost(Result.success(listOf(other)), 42))
+    }
+
+    @Test
+    fun needsRepost_ownIdPresent_isFalseEvenWithoutForegroundFlag() {
+        val own = NotifSnapshot(id = 42, tag = null, channelId = "x", flags = 0x2002a, postTime = 1L)
+        assertFalse(needsRepost(Result.success(listOf(own)), 42))
+    }
+
+    @Test
+    fun needsRepost_readFailure_isFalse() {
+        assertFalse(needsRepost(Result.failure(SecurityException("ditolak")), 42))
     }
 }

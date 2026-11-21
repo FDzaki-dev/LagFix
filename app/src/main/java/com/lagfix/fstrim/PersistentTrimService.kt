@@ -43,6 +43,10 @@ class PersistentTrimService : Service() {
     // v49: waktu onCreate (elapsedRealtime) utk menghitung umur servis di log onDestroy().
     private var createdAtMs = 0L
 
+    // v185: true bila notifikasi id 42 diposting ulang lewat `notify()` oleh servis ini; `onDestroy()` membatalkannya.
+    @Volatile
+    private var reposted = false
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -113,8 +117,9 @@ class PersistentTrimService : Service() {
         val failure = result.exceptionOrNull()
         val appCtx = applicationContext
         if (intent?.getBooleanExtra(EXTRA_QUIET, false) == true) {
-            // v111: tetap tanpa file; hanya 1 baris logcat dump mentah activeNotifications (di IO, bukan Main).
-            CoroutineScope(Dispatchers.IO).launch { recheckShown(appCtx, failure) }
+            // v111: tetap tanpa file; hanya baris logcat dump mentah activeNotifications (di IO, bukan Main).
+            // v185: + repost bila id 42 absen (lihat `repostAndRead`).
+            CoroutineScope(Dispatchers.IO).launch { repostAndRead(appCtx, recheckShown(appCtx, failure)) }
             return START_STICKY
         }
         val intentNull = intent == null
@@ -132,13 +137,15 @@ class PersistentTrimService : Service() {
             val startInfo = startContext(appCtx, startId, flags, intentNull)
             val immediate = readActiveNotifications(appCtx)
             val delayed = recheckShown(appCtx, failure)
-            val body = listOf(
+            val repostLines = repostAndRead(appCtx, delayed)
+            val rawLines = listOf(
                 preCheck,
                 "startForeground exception = ${failure ?: "null"}",
                 startInfo,
                 formatActiveNotifications("immediate", immediate),
                 formatActiveNotifications("+${SHOWN_RECHECK_DELAY_MS}ms", delayed)
-            ).joinToString("\n")
+            )
+            val body = (rawLines + repostLines).joinToString("\n")
             CrashLogger.logDiagnostic(appCtx, "persistent_service", body)
         }
         return START_STICKY
@@ -151,8 +158,13 @@ class PersistentTrimService : Service() {
         Log.i(
             TAG,
             "LIFECYCLE onDestroy pid=${Process.myPid()} " +
-                "serviceUptime=${SystemClock.elapsedRealtime() - createdAtMs}ms"
+                "serviceUptime=${SystemClock.elapsedRealtime() - createdAtMs}ms reposted=$reposted"
         )
+        // v185: batalkan notifikasi hasil `notify()` agar tak yatim sesudah servis berhenti.
+        if (reposted) {
+            runCatching { getSystemService(NotificationManager::class.java)?.cancel(NOTIF_ID) }
+                .onFailure { Log.w(TAG, "Batal notifikasi hasil repost gagal", it) }
+        }
         super.onDestroy()
     }
 
@@ -165,6 +177,28 @@ class PersistentTrimService : Service() {
         } else {
             startForeground(NOTIF_ID, notification)
         }
+    }
+
+    /**
+     * v185 (BUG_TARGET v147; diag 12:14:34 X6855: start dari latar, `startForeground` tanpa exception, id 42 tetap
+     * absen 1,5 dtk sesudahnya): bila pembacaan [read] sukses dan id 42 TIDAK ada, notifikasi yang sama diposting
+     * lewat `NotificationManager.notify` (id sama = menggantikan, bukan menggandakan). Dipanggil SESUDAH
+     * `startForeground()` dan jeda (aturan v35 utuh). Hasilnya dicatat MENTAH: exception `notify` apa adanya + dump
+     * `activeNotifications` sesudah jeda; kosong bila id 42 sudah ada atau pembacaan gagal.
+     */
+    private suspend fun repostAndRead(ctx: Context, read: Result<List<NotifSnapshot>>): List<String> {
+        if (!needsRepost(read, NOTIF_ID)) return emptyList()
+        val failure = runCatching {
+            requireNotNull(ctx.getSystemService(NotificationManager::class.java)).notify(NOTIF_ID, buildNotification())
+        }.exceptionOrNull()
+        reposted = failure == null
+        delay(SHOWN_RECHECK_DELAY_MS)
+        val lines = listOf(
+            "repost notify() exception = ${failure ?: "null"}",
+            formatActiveNotifications("+${SHOWN_RECHECK_DELAY_MS}ms after repost", readActiveNotifications(ctx))
+        )
+        Log.i(TAG, "LIFECYCLE " + lines.joinToString(" | ").replace("\n", " | "))
+        return lines
     }
 
     private fun buildNotification(): Notification {
@@ -348,6 +382,13 @@ internal fun formatActiveNotifications(label: String, read: Result<List<NotifSna
     }
     return (listOf("activeNotifications[$label]: count=${items.size}") + lines).joinToString("\n")
 }
+
+/**
+ * v185: true HANYA bila pembacaan [read] berhasil dan tak ada notifikasi ber-[id]; pembacaan gagal = false
+ * (tak menebak). Murni.
+ */
+internal fun needsRepost(read: Result<List<NotifSnapshot>>, id: Int): Boolean =
+    read.getOrNull()?.none { it.id == id } ?: false
 
 /**
  * v184: baris konteks start di log persistent_service = data mentah ([origin], `importance`,
