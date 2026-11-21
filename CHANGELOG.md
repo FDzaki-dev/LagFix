@@ -1,5 +1,12 @@
 # Changelog
 
+## v182
+- Unggahan user: `LagFix_laporan-untuk-claude_run33.zip` (tanpa teks). Laporan run 33 untuk v181: semua hijau (assembleDebug exit 0, 193 tes lulus, detekt 0, detekt typed 0, SpotBugs 0, ArchUnit 7 aturan 0 pelanggaran, lint hanya hint compose-bom).
+- Audit statis alur pasang senyap (`SilentInstaller`): bila `pm install` menolak sebelum membaca stdin, penulisan APK gagal (EPIPE) dan dulu hanya "IOException: Broken pipe" yang tercatat; alasan penolakan dari `pm` hilang. Kini galat pengaliran dilaporkan, proses tetap dibaca, dan log memuat keluaran mentah `pm` ditambah baris `feed=`. Pemasangan yang pengaliran APK-nya gagal tidak pernah dianggap sukses; tetap jatuh ke installer sistem seperti sebelumnya.
+- Teks log/detail untuk jalur normal (tanpa galat pengaliran) sama persis dengan v181.
+- Tes: `SilentInstallerTest` +3 tes murni (format detail, baris `feed=`, penilaian sukses). Target run berikutnya: 196 tes lulus.
+- Belum dijalankan di CI. Temuan terbuka (tak diubah, perlu bukti perangkat): pengaliran APK ke stdin `pm` belum punya batas waktu. BUG_TARGET v147 (notifikasi persisten) tetap terbuka.
+
 ## v181
 - Unggahan user: `LagFix_v180.zip` + `LagFix_laporan-untuk-claude_run32.zip` (tanpa teks). Laporan run 32: build debug v180 terkompilasi (`assembleDebug` exit 0), 190 tes lulus, ArchUnit 7 aturan 0 pelanggaran, SpotBugs 0; sisanya gagal di detekt (1 temuan), detekt typed (5 temuan), dan lint (1 error).
 - `SilentInstaller.kt`: `install` kini punya 2 `return` (batas detekt 2; sebelumnya 3). Dua pengaman awal digabung: Shizuku harus siap, lalu paket APK harus sama dengan paket aplikasi; pemeriksaan paket dipindah ke fungsi murni baru `packageMismatch` (urutan tetap: paket APK hanya dibaca bila Shizuku siap).

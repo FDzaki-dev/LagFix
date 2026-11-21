@@ -29,9 +29,15 @@ internal object SilentInstaller {
     /** Perintah shell pemasangan; `-S` = ukuran byte APK di stdin, `-r` = timpa versi terpasang. Murni. */
     internal fun installCommand(sizeBytes: Long): String = "pm install -r -S $sizeBytes 2>&1"
 
-    /** `pm install` sukses = kode keluar 0 DAN keluaran memuat "Success". Murni. */
-    internal fun isInstallSuccess(exit: Int?, output: String): Boolean =
-        exit == 0 && output.contains("Success", ignoreCase = true)
+    /** Sukses = kode keluar 0 DAN keluaran memuat "Success", dan APK tak gagal dialirkan ([feedFailed]). Murni. */
+    internal fun isInstallSuccess(exit: Int?, output: String, feedFailed: Boolean = false): Boolean =
+        !feedFailed && exit == 0 && output.contains("Success", ignoreCase = true)
+
+    /** Detail hasil: `exit=.. timedOut=..`, `feed=..` HANYA bila pengaliran APK gagal, lalu keluaran mentah. Murni. */
+    internal fun installDetail(exit: Int?, timedOut: Boolean, output: String, feedFailure: String?): String {
+        val feed = if (feedFailure == null) "" else "feed=$feedFailure\n"
+        return "exit=${exit ?: "null"} timedOut=$timedOut\n$feed$output"
+    }
 
     /** Alasan menolak bila paket APK bukan [ownPackage] (null = tak terbaca juga ditolak); cocok -> null. Murni. */
     internal fun packageMismatch(archivePackage: String?, ownPackage: String): String? =
@@ -50,9 +56,11 @@ internal object SilentInstaller {
         if (refusal != null) return SilentInstallResult(false, refusal)
         Log.w(TAG, "Pasang senyap via Shizuku dimulai: ${apk.name} ${apk.length()} byte")
         return try {
-            val r = BoundedShell.run(INSTALL_TIMEOUT_MS) { spawnAndFeed(apk) }
-            val detail = "exit=${r.exit ?: "null"} timedOut=${r.timedOut}\n${r.output}"
-            val ok = isInstallSuccess(r.exit, r.output)
+            var feedFailure: IOException? = null
+            val r = BoundedShell.run(INSTALL_TIMEOUT_MS) { spawnAndFeed(apk) { feedFailure = it } }
+            val feed = feedFailure?.let { "${it.javaClass.simpleName}: ${it.message ?: "null"}" }
+            val detail = installDetail(r.exit, r.timedOut, r.output, feed)
+            val ok = isInstallSuccess(r.exit, r.output, feedFailed = feed != null)
             if (ok) {
                 Log.w(TAG, "Pasang senyap via Shizuku selesai: $detail")
             } else {
@@ -73,14 +81,17 @@ internal object SilentInstaller {
     /**
      * Buat proses `pm install` lalu alirkan APK ke stdin-nya lewat Okio (v180): `writeAll` memindahkan per segmen
      * 8 KiB tanpa memuat APK utuh; `use {}` pada sink menutup stdin (= EOF bagi pm).
+     * v182 (audit statis): pm bisa menolak SEBELUM membaca stdin (mis. pembatasan pemasangan) -> penulisan APK kena
+     * EPIPE; dulu proses dibuang & hanya "IOException: Broken pipe" yg tercatat, alasan penolakan pm hilang. Kini galat
+     * pengaliran dilaporkan lewat [onFeedFailure] dan proses TETAP dikembalikan, jadi [BoundedShell.run] membaca kode
+     * keluar + keluaran mentah pm (dibersihkan di `finally`-nya); hasilnya tetap bukan sukses ([isInstallSuccess]).
      */
-    private fun spawnAndFeed(apk: File): Process {
+    private fun spawnAndFeed(apk: File, onFeedFailure: (IOException) -> Unit): Process {
         val p = spawn(arrayOf("sh", "-c", installCommand(apk.length())))
         try {
             p.outputStream.sink().buffer().use { out -> apk.source().use { input -> out.writeAll(input) } }
         } catch (e: IOException) {
-            BoundedShell.release(p)
-            throw e
+            onFeedFailure(e)
         }
         return p
     }
