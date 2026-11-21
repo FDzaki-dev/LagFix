@@ -1,5 +1,6 @@
 package com.lagfix.fstrim
 
+import android.app.ActivityManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -116,6 +117,7 @@ class PersistentTrimService : Service() {
             CoroutineScope(Dispatchers.IO).launch { recheckShown(appCtx, failure) }
             return START_STICKY
         }
+        val intentNull = intent == null
         val notifMgrCompat = NotificationManagerCompat.from(this)
         val preCheck = "areNotificationsEnabled() = ${notifMgrCompat.areNotificationsEnabled()}\n" +
             "channel importance (getNotificationChannelCompat) = " +
@@ -127,11 +129,13 @@ class PersistentTrimService : Service() {
             // v113: isi file = DATA MENTAH (permintaan user), tanpa kalimat penjelasan/kesimpulan. Dua dump mentah
             // `activeNotifications`: segera & setelah jeda. File ditulis SETELAH jeda (trade-off v112: proses
             // dibunuh sebelum jeda = file tak tertulis; baris logcat `onStartCommand` tetap ada).
+            val startInfo = startContext(appCtx, startId, flags, intentNull)
             val immediate = readActiveNotifications(appCtx)
             val delayed = recheckShown(appCtx, failure)
             val body = listOf(
                 preCheck,
                 "startForeground exception = ${failure ?: "null"}",
+                startInfo,
                 formatActiveNotifications("immediate", immediate),
                 formatActiveNotifications("+${SHOWN_RECHECK_DELAY_MS}ms", delayed)
             ).joinToString("\n")
@@ -206,6 +210,28 @@ class PersistentTrimService : Service() {
         // servis lahir bersamaan proses baru (cold start / revive), bukan servis lama yg hidup terus.
         // `getStartElapsedRealtime()` API 24+, minSdk 26.
         private fun procAgeMs(): Long = SystemClock.elapsedRealtime() - Process.getStartElapsedRealtime()
+
+        /**
+         * v184 (BUG_TARGET v147: diag run 20261121_120020 tak memuat pemicu/keadaan proses): konteks start non-quiet =
+         * DATA MENTAH utk membedakan start dari latar vs depan: pid, umur proses, `startId`/`flags`/`intentNull`,
+         * `importance` proses (`ActivityManager.getMyMemoryState`), `isBackgroundRestricted` (API 28+; bawahnya null).
+         * Gagal baca = `null`. Dipanggil dari coroutine IO SESUDAH `startForeground()` (aturan v35 utuh).
+         */
+        private fun startContext(ctx: Context, startId: Int, flags: Int, intentNull: Boolean): String {
+            val origin = "start pid=${Process.myPid()} procAge=${procAgeMs()}ms " +
+                "startId=$startId flags=$flags intentNull=$intentNull"
+            val importance = runCatching {
+                ActivityManager.RunningAppProcessInfo().also { ActivityManager.getMyMemoryState(it) }.importance
+            }.getOrNull()
+            val restricted = runCatching {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    ctx.getSystemService(ActivityManager::class.java)?.isBackgroundRestricted
+                } else {
+                    null
+                }
+            }.getOrNull()
+            return formatStartContext(origin, importance, restricted)
+        }
 
         fun start(ctx: Context, quiet: Boolean = false) {
             val app = ctx.applicationContext
@@ -322,3 +348,10 @@ internal fun formatActiveNotifications(label: String, read: Result<List<NotifSna
     }
     return (listOf("activeNotifications[$label]: count=${items.size}") + lines).joinToString("\n")
 }
+
+/**
+ * v184: baris konteks start di log persistent_service = data mentah ([origin], `importance`,
+ * `isBackgroundRestricted`); `null` = gagal/tak tersedia dibaca. Tanpa kalimat penjelasan/kesimpulan. Murni.
+ */
+internal fun formatStartContext(origin: String, importance: Int?, restricted: Boolean?): String =
+    "$origin\nmyMemoryState importance=${importance ?: "null"}\nisBackgroundRestricted = ${restricted ?: "null"}"

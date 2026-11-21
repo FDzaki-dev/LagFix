@@ -3,7 +3,7 @@ package com.lagfix.fstrim
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** v113: dump `activeNotifications` di log persistent_service = data mentah, tanpa penjelasan buatan. */
+/** v113: dump `activeNotifications` (+ v184: konteks start) di log persistent_service = data mentah. */
 class FormatActiveNotificationsTest {
 
     @Test
@@ -27,5 +27,27 @@ class FormatActiveNotificationsTest {
     fun readFailure_printsExceptionAsIs() {
         val text = formatActiveNotifications("immediate", Result.failure(SecurityException("ditolak")))
         assertEquals("activeNotifications[immediate]: read exception = java.lang.SecurityException: ditolak", text)
+    }
+
+    @Test
+    fun startContext_printsRawOriginImportanceAndRestriction() {
+        val text = formatStartContext("start pid=14905 procAge=309ms startId=1 flags=0 intentNull=false", 100, true)
+        assertEquals(
+            "start pid=14905 procAge=309ms startId=1 flags=0 intentNull=false\n" +
+                "myMemoryState importance=100\n" +
+                "isBackgroundRestricted = true",
+            text
+        )
+    }
+
+    @Test
+    fun startContext_unreadableValuesArePrintedAsNull() {
+        val text = formatStartContext("start pid=1 procAge=2ms startId=1 flags=0 intentNull=true", null, null)
+        assertEquals(
+            "start pid=1 procAge=2ms startId=1 flags=0 intentNull=true\n" +
+                "myMemoryState importance=null\n" +
+                "isBackgroundRestricted = null",
+            text
+        )
     }
 }

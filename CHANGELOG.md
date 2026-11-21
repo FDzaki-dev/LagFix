@@ -1,5 +1,12 @@
 # Changelog
 
+## v184
+- Unggahan user: `LagFix_laporan-untuk-claude_run35.zip` + `LagFix_diag_persistent_service_20261121_120020.txt` (tanpa teks). Laporan run 35 untuk v183: semua hijau (assembleDebug exit 0, 197 tes lulus, detekt 0, detekt typed 0, SpotBugs 0, ArchUnit 7 aturan 0 pelanggaran, lint hanya hint compose-bom).
+- Diag notifikasi persisten (X6855, 12:00:20): notifikasi aplikasi diizinkan, channel importance 4 (HIGH), `startForeground` tidak melempar exception, tetapi notifikasi belum ada 1,5 detik sesudahnya. Berkas itu belum mencatat pemicu start dan keadaan proses.
+- `PersistentTrimService`: log diag `persistent_service` kini memuat satu blok konteks start (data mentah): pid, umur proses, `startId`/`flags`/`intentNull`, `importance` proses, dan `isBackgroundRestricted`. Hanya pencatatan sesudah `startForeground()`; alur servis dan notifikasi tidak berubah. Diag berikutnya bisa membedakan start dari latar vs depan.
+- Tes: `FormatActiveNotificationsTest` +2 tes murni untuk format baru. Target run berikutnya: 199 tes lulus.
+- Belum dijalankan di CI. BUG_TARGET v147 (notifikasi persisten di latar) tetap terbuka.
+
 ## v183
 - Unggahan user: `LagFix_laporan-untuk-claude_run34.zip` + `LagFix_diag_process_catch_20261121_115212.txt` (tanpa teks). Laporan run 34 untuk v182: semua hijau (assembleDebug exit 0, 196 tes lulus, detekt 0, detekt typed 0, SpotBugs 0, ArchUnit 7 aturan 0 pelanggaran, lint hanya hint compose-bom).
 - `ArchitectureTest`: kelas alur pembaruan (`UpdateHttp`, `UpdateWebFallback`, `ReleaseRef`, `SilentInstaller`, `SilentInstallResult`) kini terdaftar di dua daftar aturan arsitektur (bebas Compose dan bebas kelas UI) sehingga ikut diperiksa; sebelumnya luput. Tes baru `coreLists_coverUpdateFlowClasses` menjaga pendaftaran itu. Target run berikutnya: 197 tes lulus. Perilaku aplikasi tidak berubah.
