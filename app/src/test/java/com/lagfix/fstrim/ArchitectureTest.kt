@@ -20,7 +20,8 @@ private val NON_COMPOSE_FILES = listOf(
     "AppLinks", "BootReceiver", "BootTrimSetting", "BoundedShell", "CatchJournal", "CrashLogger", "FstrimExecutor",
     "KillCatcher", "LagFixApp", "LagFixTileService", "LagFixWidgetProvider", "LeaveStop", "LogBuffer",
     "LogcatSnapshot", "OwnLogcat", "PersistentTrimService", "Prefs", "ProcessCatcher", "RecentsExclusion",
-    "TimeFormat", "TrimWorker", "UpdateChecker", "VendorSettings",
+    "ReleaseRef", "SilentInstallResult", "SilentInstaller", "TimeFormat", "TrimWorker", "UpdateChecker",
+    "UpdateHttp", "UpdateWebFallback", "VendorSettings",
 )
 
 // Berkas logika inti: tak memakai simbol apa pun dari berkas UI di bawah (pemeriksaan kode tanpa komentar, v148).
@@ -28,7 +29,8 @@ private val NON_COMPOSE_FILES = listOf(
 private val UI_FREE_CORE_FILES = listOf(
     "AppLinks", "BootTrimSetting", "BoundedShell", "CatchJournal", "CrashLogger", "FstrimExecutor", "KillCatcher",
     "LeaveStop", "LogBuffer", "LogcatSnapshot", "OwnLogcat", "Prefs", "ProcessCatcher", "RecentsExclusion",
-    "TimeFormat", "TrimWorker", "UpdateChecker", "VendorSettings",
+    "ReleaseRef", "SilentInstallResult", "SilentInstaller", "TimeFormat", "TrimWorker", "UpdateChecker",
+    "UpdateHttp", "UpdateWebFallback", "VendorSettings",
 )
 private val UI_FILES = listOf("MainActivity", "MainViewModel", "Design", "HomeHero", "NeoTheme", "FrameJank")
 
@@ -155,5 +157,17 @@ class ArchitectureTest {
         assertFalse("androidx.compose.runtime.internal.StabilityInferred".matches(compose))
         assertTrue("androidx.compose.runtime.Composer".matches(compose))
         assertTrue("androidx.compose.ui.Modifier".matches(compose))
+    }
+
+    @Test
+    fun coreLists_coverUpdateFlowClasses() {
+        val core = Regex(classesOf(UI_FREE_CORE_FILES))
+        val nonCompose = Regex(classesOf(NON_COMPOSE_FILES))
+        listOf("UpdateHttp", "UpdateWebFallback", "ReleaseRef", "SilentInstaller", "SilentInstallResult").forEach {
+            assertTrue(it, "com.lagfix.fstrim.$it".matches(core))
+            assertTrue(it, "com.lagfix.fstrim.$it".matches(nonCompose))
+        }
+        assertTrue("com.lagfix.fstrim.SilentInstaller\$install\$1".matches(core))
+        assertFalse("com.lagfix.fstrim.SilentInstallerX".matches(core))
     }
 }

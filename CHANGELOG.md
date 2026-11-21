@@ -1,5 +1,11 @@
 # Changelog
 
+## v183
+- Unggahan user: `LagFix_laporan-untuk-claude_run34.zip` + `LagFix_diag_process_catch_20261121_115212.txt` (tanpa teks). Laporan run 34 untuk v182: semua hijau (assembleDebug exit 0, 196 tes lulus, detekt 0, detekt typed 0, SpotBugs 0, ArchUnit 7 aturan 0 pelanggaran, lint hanya hint compose-bom).
+- `ArchitectureTest`: kelas alur pembaruan (`UpdateHttp`, `UpdateWebFallback`, `ReleaseRef`, `SilentInstaller`, `SilentInstallResult`) kini terdaftar di dua daftar aturan arsitektur (bebas Compose dan bebas kelas UI) sehingga ikut diperiksa; sebelumnya luput. Tes baru `coreLists_coverUpdateFlowClasses` menjaga pendaftaran itu. Target run berikutnya: 197 tes lulus. Perilaku aplikasi tidak berubah.
+- Diag notifikasi persisten (X6855): stempel `startHistory` kini terbaca (perbaikan v147 terbukti di perangkat). Notifikasi baru muncul setelah `startForeground` kedua dari `onResume`; selama aplikasi di latar tetap `shown=false` dan `isBackgroundRestricted=true`. Sebab pastinya belum terbukti, `PersistentTrimService` tidak diubah. BUG_TARGET v147 tetap terbuka.
+- Belum dijalankan di CI.
+
 ## v182
 - Unggahan user: `LagFix_laporan-untuk-claude_run33.zip` (tanpa teks). Laporan run 33 untuk v181: semua hijau (assembleDebug exit 0, 193 tes lulus, detekt 0, detekt typed 0, SpotBugs 0, ArchUnit 7 aturan 0 pelanggaran, lint hanya hint compose-bom).
 - Audit statis alur pasang senyap (`SilentInstaller`): bila `pm install` menolak sebelum membaca stdin, penulisan APK gagal (EPIPE) dan dulu hanya "IOException: Broken pipe" yang tercatat; alasan penolakan dari `pm` hilang. Kini galat pengaliran dilaporkan, proses tetap dibaca, dan log memuat keluaran mentah `pm` ditambah baris `feed=`. Pemasangan yang pengaliran APK-nya gagal tidak pernah dianggap sukses; tetap jatuh ke installer sistem seperti sebelumnya.
