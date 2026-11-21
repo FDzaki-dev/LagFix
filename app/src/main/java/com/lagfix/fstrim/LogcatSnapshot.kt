@@ -176,6 +176,10 @@ object LogcatSnapshot {
     internal const val BUFFER_RESIZE_CMD = "logcat $BUFFERS -G 16M" // v132: internal agar dipakai `LogBuffer.kt`
     private const val RAW_CAP_BYTES = 192L * 1024L * 1024L // pagar pengaman; buffer 16M ~ <130 MiB
 
+    // v189 (audit statis): dump mentah dulu dibaca tanpa batas waktu (bagian lain sudah berbatas sejak v98) -> `logcat`
+    // yg macet menahan snapshot & kunci `running` selamanya. Pengawas menghentikan proses lewat batas ini.
+    private const val RAW_TIMEOUT_MS = 120_000L
+
     // v98 (laporan user: "Mengambil…" tak kunjung selesai): tiap perintah shell ringkasan dibatasi waktu, dan
     // seluruh bagian ringkasan punya anggaran total. Dump mentah (zip) TIDAK dibatasi ini & selalu lebih dulu.
     private const val SECTION_TIMEOUT_MS = 40_000L
@@ -391,10 +395,13 @@ object LogcatSnapshot {
                 shellError = null
                 zip.putNextEntry(ZipEntry("logcat_all.txt"))
                 var proc: Process? = null // v170: SELALU dibereskan di `finally` (normal, terpotong, galat zip)
+                var dog: ProcessWatchdog? = null // v189: batas waktu dump
+                val counted = CountingStream(zip) // v189: byte logcat yg SUDAH tertulis walau dump galat/dihentikan
                 try {
                     val p = shizukuProcess(RAW_CMD)
                     proc = p
-                    val r = p.inputStream.use { copyCapped(it, zip, RAW_CAP_BYTES) }
+                    dog = ProcessWatchdog(p, RAW_TIMEOUT_MS)
+                    val r = p.inputStream.use { copyCapped(it, counted, RAW_CAP_BYTES) }
                     logBytes = r.bytes
                     truncated = r.truncated
                     if (r.truncated) {
@@ -407,6 +414,12 @@ object LogcatSnapshot {
                     shellError = failure
                     runCatching { zip.write("\n[ERROR dump: $failure]\n".toByteArray(Charsets.UTF_8)) }
                 } finally {
+                    dog?.cancel()
+                    if (dog?.timedOut == true) {
+                        val earlier = shellError?.let { "; $it" }.orEmpty()
+                        shellError = "Waktu habis $RAW_TIMEOUT_MS ms (dump dihentikan)$earlier"
+                    }
+                    logBytes = counted.count
                     proc?.let { BoundedShell.release(it) } // sesudah kode keluar dibaca (urutan penting, v135)
                 }
                 zip.closeEntry()

@@ -28,6 +28,10 @@ private const val MS_PER_DAY = 86_400_000L
 private const val DETAIL_MAX_CHARS = 80
 private const val MESSAGE_MAX_CHARS = 120
 
+// v189 (audit statis): `settings get/put/delete` dulu lewat `FstrimExecutor.sh` yg membaca TANPA batas waktu -> Shizuku
+// macet menahan kartu "Paksa trim saat reboot" (busy selamanya) dan snapshot logcat (kunci `running`) selamanya.
+private const val SHELL_TIMEOUT_MS = 10_000L
+
 /** Parsing murni keluaran `settings get global ...` (mudah dites tanpa Shizuku). */
 internal fun parseBootTrimReading(out: String): BootTrimReading {
     val t = out.trim()
@@ -67,11 +71,12 @@ object BootTrimSetting {
     // -> catch Throwable DISENGAJA.
     @Suppress("TooGenericExceptionCaught")
     fun read(): BootTrimReading = try {
-        val (code, out) = FstrimExecutor.sh("settings get global $KEY")
-        if (code == 0) {
-            parseBootTrimReading(out)
-        } else {
-            BootTrimReading.Unreadable("exit=$code ${out.trim().take(DETAIL_MAX_CHARS)}".trim())
+        val r = shell("settings get global $KEY")
+        val out = r.output.trim().take(DETAIL_MAX_CHARS)
+        when {
+            r.timedOut -> BootTrimReading.Unreadable("waktu habis $SHELL_TIMEOUT_MS ms $out".trim())
+            r.exit == 0 -> parseBootTrimReading(r.output)
+            else -> BootTrimReading.Unreadable("exit=${r.exit ?: "null"} $out".trim())
         }
     } catch (e: Throwable) {
         BootTrimReading.Unreadable("${e.javaClass.simpleName}: ${e.message ?: "null"}".take(DETAIL_MAX_CHARS))
@@ -93,7 +98,7 @@ object BootTrimSetting {
     @Suppress("TooGenericExceptionCaught")
     private fun write(cmd: String, successMessage: String, verify: (BootTrimReading) -> Boolean): BootTrimOutcome {
         val res = try {
-            FstrimExecutor.sh(cmd)
+            shell(cmd)
         } catch (e: Throwable) {
             val failMessage = "Gagal: ${e.javaClass.simpleName}: ${e.message ?: "null"}".take(MESSAGE_MAX_CHARS)
             return BootTrimOutcome(false, read(), failMessage)
@@ -102,8 +107,14 @@ object BootTrimSetting {
         return if (verify(after)) {
             BootTrimOutcome(true, after, successMessage)
         } else {
-            val detail = "exit=${res.first} ${res.second.trim().take(DETAIL_MAX_CHARS)}".trim()
+            val timeout = if (res.timedOut) " waktu habis $SHELL_TIMEOUT_MS ms" else ""
+            val detail = "exit=${res.exit ?: "null"}$timeout ${res.output.trim().take(DETAIL_MAX_CHARS)}".trim()
             BootTrimOutcome(false, after, "Gagal ($detail). Nilai terbaca: ${describeBootTrim(after)}")
         }
     }
+
+    // v189: jalur Shizuku yg sama dgn `FstrimExecutor.sh` ([LogcatSnapshot.shizukuProcess] juga menggabung stderr),
+    // tetapi berbatas waktu ([BoundedShell]); proses selalu dibereskan di sana.
+    private fun shell(cmd: String): BoundedResult =
+        BoundedShell.run(SHELL_TIMEOUT_MS) { LogcatSnapshot.shizukuProcess(cmd) }
 }

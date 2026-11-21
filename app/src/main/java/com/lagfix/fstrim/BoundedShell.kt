@@ -1,11 +1,37 @@
 package com.lagfix.fstrim
 
 import java.io.StringWriter
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
 /** Hasil [BoundedShell.run]: [exit] null bila dihentikan/tak sempat selesai, [output] bisa parsial. */
 internal class BoundedResult(val exit: Int?, val output: String, val timedOut: Boolean)
+
+/**
+ * v189: pengawas waktu utk proses yg keluarannya dibaca LANGSUNG oleh pemanggil (tak lewat [BoundedShell.run]):
+ * thread daemon menghentikan [p] ([BoundedShell.release]) bila [cancel] belum dipanggil dalam [timeoutMs], sehingga
+ * pembacaan yg macet lepas (EOF atau IOException). [timedOut] = true bila pengawas yg menghentikan proses.
+ */
+internal class ProcessWatchdog(p: Process, timeoutMs: Long) {
+    private val done = CountDownLatch(1)
+    private val fired = AtomicBoolean(false)
+
+    val timedOut: Boolean get() = fired.get()
+
+    init {
+        thread(isDaemon = true, name = "lagfix-watchdog") {
+            if (!done.await(timeoutMs, TimeUnit.MILLISECONDS)) {
+                fired.set(true)
+                BoundedShell.release(p)
+            }
+        }
+    }
+
+    /** Pembacaan selesai tepat waktu: pengawas berhenti tanpa menyentuh proses. */
+    fun cancel() = done.countDown()
+}
 
 /**
  * v98 (laporan user: tombol "Ambil logcat sistem" terus menampilkan "Mengambil…"): `FstrimExecutor.sh`

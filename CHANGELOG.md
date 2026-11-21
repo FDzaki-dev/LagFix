@@ -1,5 +1,13 @@
 # Changelog
 
+## v189
+- Perintah user: "Fokus perburuan cacat yang lain!!". Unggahan: `LagFix_diag_persistent_service_20261121_173516.txt`. Laporan CI v187/v188 belum ada.
+- Dump logcat mentah ("Ambil logcat sistem") kini berbatas waktu 120 detik. Sebelumnya dibaca tanpa batas: `logcat` yang macet menahan snapshot dan kunci "sedang berjalan" selamanya, sehingga tombol mengambang dan ketukan berikutnya ditolak. Kini pengawas menghentikan proses pada batas; ringkasan memuat `Galat shell: Waktu habis 120000 ms (dump dihentikan)` dan jumlah byte logcat yang sudah tertulis dicatat jujur.
+- Kartu "Paksa trim saat reboot" dan baris `fstrim_mandatory_interval` di snapshot: perintah `settings get/put/delete` kini berbatas waktu 10 detik (sebelumnya tanpa batas; Shizuku macet membuat kartu sibuk selamanya dan snapshot ikut menggantung). Timeout ditampilkan sebagai "waktu habis" (data mentah); penulisan tetap dibuktikan lewat baca ulang.
+- Tes: `BoundedShellTest` +2 tes (`ProcessWatchdog`: proses macet dihentikan pada batas dan `timedOut`; `cancel()` sebelum batas tidak menyentuh proses). Target run berikutnya: 215 tes lulus (213 pada v188 belum terbukti).
+- Data baru dicatat untuk BUG_TARGET v147 (tidak ada perubahan kode): start dari latar pada 17:35 gagal lagi; saat start `importance=125` lalu 6 detik kemudian `importance=300` dan `foreground=false`, `isBackgroundRestricted=true`.
+- Belum dijalankan di CI dan belum diuji di perangkat.
+
 ## v188
 - Perintah user: "Fokus ke hal lain yang bisa diperbaiki langsung!!" (di luar notifikasi persisten). Unggahan: `LagFix_diag_persistent_service_20261121_124201.txt` dan `LagFix_diag_process_catch_20261121_124437.txt`. Laporan CI v187 belum ada.
 - Pemasangan senyap (Shizuku): pengaliran APK ke stdin `pm` kini berbatas waktu. Sebelumnya `writeAll` berjalan sebelum batas waktu `BoundedShell` dimulai, sehingga bila `pm` tidak membaca stdin penulisan memblokir tanpa batas dan "Update sekarang" menggantung tanpa jatuh ke installer sistem. Kini APK dialirkan di thread daemon dan ditunggu maksimal 120 detik; lewat batas proses dihentikan dan hasilnya galat pengaliran (`feed=IOException: Pengaliran APK melewati ... ms`), sehingga pemasangan jatuh ke installer sistem seperti kegagalan lain. Galat non-IO di thread dibungkus agar tidak menjadi uncaught exception. Perilaku normal tidak berubah. Belum teramati di perangkat; semantik `destroy()` pada pipa Shizuku belum terbukti (hanya memengaruhi pembersihan thread).

@@ -9,6 +9,7 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * v98: [BoundedShell] — perintah normal selesai utuh; perintah macet dihentikan sesuai batas
@@ -51,6 +52,42 @@ class BoundedShellTest {
         assertFalse(r.timedOut)
         assertEquals(EXIT_CODE_SEVEN, r.exit)
         assertEquals("ok", r.output)
+    }
+
+    @Test
+    fun watchdog_stopsStuckProcessAfterTimeout_andReportsTimedOut() {
+        val p = sh("exec sleep 30")
+        val dog = ProcessWatchdog(p, TIMEOUT_SHORT_MS)
+        val t0 = System.nanoTime()
+        runCatching { p.inputStream.read() } // memblokir sampai pengawas menghentikan proses (EOF atau IOException)
+        val elapsedMs = (System.nanoTime() - t0) / NANOS_PER_MS
+        assertTrue(dog.timedOut)
+        assertTrue("harus lepas jauh sebelum 30 dtk, nyatanya $elapsedMs ms", elapsedMs < MAX_ELAPSED_MS)
+    }
+
+    @Test
+    fun watchdog_cancelBeforeTimeout_neverStopsTheProcess() {
+        val destroyed = AtomicBoolean(false)
+        val dog = ProcessWatchdog(QuietProcess { destroyed.set(true) }, TIMEOUT_SHORT_MS)
+        dog.cancel()
+        Thread.yield()
+        assertFalse(dog.timedOut)
+        assertFalse(destroyed.get())
+    }
+
+    /** v189: Process palsu tanpa keluaran; [onDestroy] dipanggil oleh `destroy()`. */
+    private class QuietProcess(private val onDestroy: () -> Unit) : Process() {
+        override fun getOutputStream(): OutputStream = ByteArrayOutputStream()
+
+        override fun getInputStream(): InputStream = ByteArrayInputStream(ByteArray(0))
+
+        override fun getErrorStream(): InputStream = ByteArrayInputStream(ByteArray(0))
+
+        override fun waitFor(): Int = 0
+
+        override fun exitValue(): Int = 0
+
+        override fun destroy() = onDestroy()
     }
 
     /** v135: `exitValue()` melempar `IllegalArgumentException` (bukan ITSE) selagi belum dituai. */
