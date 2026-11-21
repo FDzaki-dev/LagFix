@@ -1,5 +1,14 @@
 # Changelog
 
+## v187
+- Unggahan user: `LagFix_diag_persistent_service_20261121_123223.txt` + `LagFix_v186.zip` (tanpa teks). Laporan CI run 38 (v186) belum ada; kompilasi v186 terbukti tak langsung (baris `lateState` muncul di diag).
+- Diag notifikasi persisten (X6855, 12:32:23): kejadian kedua berturut-turut dengan pola sama. Start dari latar, `startForeground` tanpa exception, id 42 belum ada 1,5 detik sesudahnya, lalu ada sesudah `notify()` (flags `0x2000a`, tanpa flag foreground service). Baris `lateState`: umur proses 3422 ms, `importance` 300, servis `foreground=false`. `isBackgroundRestricted = true`. Sebab belum terbukti; ketahanan notifikasi hasil repost dalam jangka panjang belum terbukti.
+- Temuan audit statis (belum teramati di perangkat): (1) `shown` mensyaratkan flag foreground service, jadi notifikasi hasil repost selalu tercatat `shown=false` dan tidak bisa dibedakan dari notifikasi yang absen. (2) `repostAndRead` berjalan di coroutine IO yang lepas dari lifecycle servis: bila `stop()`/`onDestroy()` terjadi dalam jeda 1,5 detik sebelum `notify()`, notifikasi diposting sesudah pembatalan dan tertinggal.
+- `PersistentTrimService`: flag `destroyed` (diset di awal `onDestroy`); `repostAndRead` tidak memanggil `notify()` bila servis sudah destroyed dan membatalkan id 42 bila destroyed terlihat sesudah `notify()`. `ensureShowing` membaca `activeNotifications` sekali dan mencatat `present=<true|false|null>` (id 42 ada tanpa syarat flag; `null` = pembacaan gagal).
+- `CatchJournal` + `ProcessCatcher`: log `catch` dan kunci jurnal `observations` kini memuat `shown=` dan `present=`. Baris jurnal lama (tanpa `present`) tetap terbaca dan tidak dilipat dengan baris baru.
+- Tes: `CatchJournalTest` disesuaikan + 4 tes murni (`formatNotifState`, `notificationPresent`). Target run berikutnya: 209 tes lulus (205 pada v186 belum terbukti).
+- Belum dijalankan di CI dan belum diuji lama di perangkat. BUG_TARGET v147 tetap terbuka sampai `process_catch` jangka panjang tiba.
+
 ## v186
 - Unggahan user: `LagFix_diag_persistent_service_20261121_122444.txt` (tanpa teks). Laporan CI run 37 (v185) belum ada; kompilasi v185 terbukti tak langsung (baris `repost` muncul di diag).
 - Diag notifikasi persisten (X6855, 12:24:44): start dari latar, `startForeground` tanpa exception, notifikasi id 42 belum ada 1,5 detik sesudahnya. Percobaan v185 bekerja pada kejadian ini: `notify()` tanpa exception dan 1,5 detik sesudahnya id 42 ada (flags `0x2000a`, tanpa flag foreground service). Belum terbukti notifikasi itu bertahan lama di latar.

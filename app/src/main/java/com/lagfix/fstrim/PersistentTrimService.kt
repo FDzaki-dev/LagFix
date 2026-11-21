@@ -47,6 +47,11 @@ class PersistentTrimService : Service() {
     @Volatile
     private var reposted = false
 
+    // v187: true sesudah `onDestroy()`; coroutine IO `repostAndRead` tak terikat lifecycle servis dan tak boleh
+    // memosting notifikasi sesudahnya (yatim: `stop()`/`onDestroy()` sudah lewat).
+    @Volatile
+    private var destroyed = false
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -155,6 +160,7 @@ class PersistentTrimService : Service() {
     // langsung menghentikan servis saat task dihapus & callback itu TIDAK dipanggil (dead code).
     // Bukti stop dari sistem = onDestroy() di bawah TANPA baris "stop() dipanggil kode app" sebelumnya.
     override fun onDestroy() {
+        destroyed = true
         Log.i(
             TAG,
             "LIFECYCLE onDestroy pid=${Process.myPid()} " +
@@ -187,11 +193,17 @@ class PersistentTrimService : Service() {
      * `activeNotifications` sesudah jeda; kosong bila id 42 sudah ada atau pembacaan gagal.
      */
     private suspend fun repostAndRead(ctx: Context, read: Result<List<NotifSnapshot>>): List<String> {
-        if (!needsRepost(read, NOTIF_ID)) return emptyList()
+        if (destroyed || !needsRepost(read, NOTIF_ID)) return emptyList()
         val failure = runCatching {
             requireNotNull(ctx.getSystemService(NotificationManager::class.java)).notify(NOTIF_ID, buildNotification())
         }.exceptionOrNull()
         reposted = failure == null
+        // v187: `onDestroy()` bisa jalan di antara cek `destroyed` dan `notify()`; kedua flag @Volatile -> paling
+        // sedikit satu sisi (onDestroy atau baris ini) melihat flag sisi lain dan membatalkan notifikasi yatim.
+        if (reposted && destroyed) {
+            runCatching { ctx.getSystemService(NotificationManager::class.java)?.cancel(NOTIF_ID) }
+                .onFailure { Log.w(TAG, "Batal notifikasi yatim sesudah destroy gagal", it) }
+        }
         delay(SHOWN_RECHECK_DELAY_MS)
         val lines = listOf(
             "repost notify() exception = ${failure ?: "null"}",
@@ -311,11 +323,14 @@ class PersistentTrimService : Service() {
         fun ensureShowing(ctx: Context, from: String) {
             val app = ctx.applicationContext
             val enabled = Prefs(app).persistentServiceEnabled
-            val shown = isForegroundNotificationShown(app)
+            val read = readActiveNotifications(app)
+            val shown = isForegroundNotificationShown(read)
+            // v187: `present` = id 42 ada TANPA syarat flag FGS (`null` = pembacaan gagal); `shown` tak bisa melihat
+            // notifikasi hasil repost v185 (tanpa flag FGS), jadi tak bisa membuktikan notifikasi bertahan di latar.
             Log.i(
                 TAG,
                 "LIFECYCLE ensureShowing from=$from pid=${Process.myPid()} procAge=${procAgeMs()}ms " +
-                    "toggleOn=$enabled shown=$shown"
+                    "toggleOn=$enabled shown=$shown present=${notificationPresent(read, NOTIF_ID) ?: "null"}"
             )
             if (!enabled || shown) return
             runCatching { start(app, quiet = true) }
@@ -324,12 +339,10 @@ class PersistentTrimService : Service() {
 
         // Notifikasi id 42 tampil DAN masih berflag FOREGROUND_SERVICE (kalau sistem menurunkan FGS,
         // notifikasi bisa tetap ada tanpa flag itu -> dianggap tidak tampil). Gagal baca -> false (aman:
-        // start ulang itu idempoten).
-        private fun isForegroundNotificationShown(ctx: Context): Boolean = runCatching {
-            ctx.getSystemService(NotificationManager::class.java)?.activeNotifications?.any {
-                it.id == NOTIF_ID && (it.notification.flags and Notification.FLAG_FOREGROUND_SERVICE) != 0
-            } ?: false
-        }.getOrDefault(false)
+        // start ulang itu idempoten). v187: menerima hasil baca [readActiveNotifications] (1 IPC per `ensureShowing`).
+        private fun isForegroundNotificationShown(read: Result<List<NotifSnapshot>>): Boolean = read.getOrNull()?.any {
+            it.id == NOTIF_ID && (it.flags and Notification.FLAG_FOREGROUND_SERVICE) != 0
+        } ?: false
 
         /**
          * v113: baca MENTAH `activeNotifications` milik app (id, tag, channel, flags, postTime). Gagal baca ->
@@ -415,6 +428,13 @@ internal fun formatActiveNotifications(label: String, read: Result<List<NotifSna
  */
 internal fun needsRepost(read: Result<List<NotifSnapshot>>, id: Int): Boolean =
     read.getOrNull()?.none { it.id == id } ?: false
+
+/**
+ * v187: `true`/`false` = ada/tidak ada notifikasi ber-[id] di [read] TANPA syarat flag FGS; pembacaan gagal = `null`
+ * (dicetak literal, tak menebak). Murni.
+ */
+internal fun notificationPresent(read: Result<List<NotifSnapshot>>, id: Int): Boolean? =
+    read.getOrNull()?.any { it.id == id }
 
 /**
  * v184: baris konteks start di log persistent_service = data mentah ([origin], `importance`,

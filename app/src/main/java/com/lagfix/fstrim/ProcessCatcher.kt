@@ -70,9 +70,11 @@ internal object ProcessCatcher {
         // Pembacaan segera dilakukan SINKRON di thread pemanggil (sebelum pemanggil sempat `ensureShowing`).
         val immediate = readCatchNotifications(app)
         val shown = isPersistentShown(immediate)
-        Log.i(CATCH_TAG, "LIFECYCLE catch source=$source pid=$pid procAge=${procAgeMs}ms shown=$shown")
+        // v187: `present` = id 42 ada TANPA syarat flag FGS (`shown` tak melihat notifikasi hasil repost v185).
+        val notifState = formatNotifState(shown, notificationPresent(immediate, CATCH_PERSISTENT_NOTIF_ID))
+        Log.i(CATCH_TAG, "LIFECYCLE catch source=$source pid=$pid procAge=${procAgeMs}ms $notifState")
         val toggleOn = Prefs(app).persistentServiceEnabled
-        val observationKey = readObservationKey(app, pid, shown, toggleOn) // v147: dibaca sinkron, sebelum re-assert
+        val observationKey = readObservationKey(app, pid, notifState, toggleOn) // v147: sinkron, sebelum re-assert
         val observedAtMs = System.currentTimeMillis()
         CoroutineScope(Dispatchers.IO).launch { CatchJournal.record(app, observationKey, observedAtMs) } // v147
         val windowStartMs = logcatWindowStartMs(System.currentTimeMillis(), procAgeMs) // v128: awal jendela logcat

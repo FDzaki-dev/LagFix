@@ -47,14 +47,23 @@ internal object CatchJournal {
 private fun splitRows(raw: String?): List<String> =
     raw.orEmpty().split(JOURNAL_SEPARATOR).filter { it.isNotEmpty() }
 
-/** v147: kunci keadaan 1 pengamatan (nilai mentah; `null` = tak terbaca). Beda kunci = baris jurnal baru. */
+/**
+ * v187: keadaan notifikasi id 42 pada 1 pengamatan, nilai mentah: `shown` = ada DAN berflag FGS, `present` = ada
+ * TANPA syarat flag (`null` = pembacaan gagal, dicetak literal). Murni.
+ */
+internal fun formatNotifState(shown: Boolean, present: Boolean?): String = "shown=$shown present=${present ?: "null"}"
+
+/**
+ * v147: kunci keadaan 1 pengamatan (nilai mentah; `null` = tak terbaca). Beda kunci = baris jurnal baru.
+ * v187: [notifState] = [formatNotifState] (menggantikan `shown: Boolean`; 5 parameter, di bawah ambang detekt).
+ */
 internal fun observationKey(
     pid: Int,
-    shown: Boolean,
+    notifState: String,
     importance: Int,
     toggleOn: Boolean,
     restricted: Boolean?
-): String = "pid=$pid shown=$shown importance=$importance toggleOn=$toggleOn bgRestricted=${restricted ?: "null"}"
+): String = "pid=$pid $notifState importance=$importance toggleOn=$toggleOn bgRestricted=${restricted ?: "null"}"
 
 /**
  * v147: lipat 1 pengamatan ke [rows] (tertua dulu). Kunci SAMA dgn baris terakhir -> baris itu diperbarui (`first`
@@ -76,7 +85,7 @@ internal fun foldObservation(rows: List<String>, key: String, nowMs: Long, maxRo
  * v147: baca SINKRON (di thread pemanggil, SEBELUM `ensureShowing`) importance proses ini & `isBackgroundRestricted`,
  * lalu susun kunci pengamatan. Tak pernah melempar: nilai yg gagal dibaca = -1 / `null` (tercetak apa adanya).
  */
-internal fun readObservationKey(app: Context, pid: Int, shown: Boolean, toggleOn: Boolean): String {
+internal fun readObservationKey(app: Context, pid: Int, notifState: String, toggleOn: Boolean): String {
     val importance = runCatching {
         val info = ActivityManager.RunningAppProcessInfo()
         ActivityManager.getMyMemoryState(info)
@@ -89,7 +98,7 @@ internal fun readObservationKey(app: Context, pid: Int, shown: Boolean, toggleOn
             null
         }
     }.getOrNull()
-    return observationKey(pid, shown, importance, toggleOn, restricted)
+    return observationKey(pid, notifState, importance, toggleOn, restricted)
 }
 
 /**
