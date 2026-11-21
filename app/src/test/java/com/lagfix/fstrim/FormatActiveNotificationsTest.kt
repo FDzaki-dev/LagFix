@@ -5,7 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** v113: dump `activeNotifications` (+ v184: konteks start, v185: keputusan repost) di log persistent_service. */
+/** v113: dump `activeNotifications` (+ v184 konteks start, v185 keputusan repost, v186 keadaan akhir) = data mentah. */
 class FormatActiveNotificationsTest {
 
     @Test
@@ -73,5 +73,21 @@ class FormatActiveNotificationsTest {
     @Test
     fun needsRepost_readFailure_isFalse() {
         assertFalse(needsRepost(Result.failure(SecurityException("ditolak")), 42))
+    }
+
+    @Test
+    fun lateState_printsRawValues() {
+        assertEquals(
+            "lateState procAge=3100ms myMemoryState importance=300 ownService foreground=false",
+            formatLateState(3100L, 300, false)
+        )
+    }
+
+    @Test
+    fun lateState_unreadableValuesArePrintedAsNull() {
+        assertEquals(
+            "lateState procAge=5ms myMemoryState importance=null ownService foreground=null",
+            formatLateState(5L, null, null)
+        )
     }
 }

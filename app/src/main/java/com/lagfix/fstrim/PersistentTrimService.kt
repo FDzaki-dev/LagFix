@@ -145,7 +145,7 @@ class PersistentTrimService : Service() {
                 formatActiveNotifications("immediate", immediate),
                 formatActiveNotifications("+${SHOWN_RECHECK_DELAY_MS}ms", delayed)
             )
-            val body = (rawLines + repostLines).joinToString("\n")
+            val body = (rawLines + repostLines + lateState(appCtx)).joinToString("\n")
             CrashLogger.logDiagnostic(appCtx, "persistent_service", body)
         }
         return START_STICKY
@@ -240,6 +240,9 @@ class PersistentTrimService : Service() {
         // FGS secara asinkron, jadi cek segera setelah startForeground() bisa false walau akhirnya tampil.
         private const val SHOWN_RECHECK_DELAY_MS = 1500L
 
+        // v186: batas daftar `getRunningServices` (sejak API 26 hanya servis milik app sendiri).
+        private const val SERVICES_SCAN_MAX = 100
+
         // v49: umur proses (ms) sejak dibuat. Kecil (< beberapa detik) saat onCreate servis =
         // servis lahir bersamaan proses baru (cold start / revive), bukan servis lama yg hidup terus.
         // `getStartElapsedRealtime()` API 24+, minSdk 26.
@@ -265,6 +268,24 @@ class PersistentTrimService : Service() {
                 }
             }.getOrNull()
             return formatStartContext(origin, importance, restricted)
+        }
+
+        /**
+         * v186 (BUG_TARGET v147; diag 12:14 importance=125, diag 12:24 importance=300, gejala sama):
+         * keadaan proses SAAT berkas ditulis (sesudah jeda & repost) = DATA MENTAH: umur proses, `importance`
+         * (`getMyMemoryState`) dan flag `foreground` servis ini menurut `getRunningServices`. `null` = gagal dibaca /
+         * servis tak ditemukan. Dipanggil dari coroutine IO SESUDAH `startForeground()` (aturan v35 utuh).
+         */
+        @Suppress("DEPRECATION")
+        private fun lateState(ctx: Context): String {
+            val importance = runCatching {
+                ActivityManager.RunningAppProcessInfo().also { ActivityManager.getMyMemoryState(it) }.importance
+            }.getOrNull()
+            val foreground = runCatching {
+                ctx.getSystemService(ActivityManager::class.java)?.getRunningServices(SERVICES_SCAN_MAX)
+                    ?.firstOrNull { it.service.className == PersistentTrimService::class.java.name }?.foreground
+            }.getOrNull()
+            return formatLateState(procAgeMs(), importance, foreground)
         }
 
         fun start(ctx: Context, quiet: Boolean = false) {
@@ -353,6 +374,11 @@ class PersistentTrimService : Service() {
             Log.i(TAG, "LIFECYCLE stop() dipanggil dari kode app pid=${Process.myPid()}")
             val app = ctx.applicationContext
             app.stopService(Intent(app, PersistentTrimService::class.java))
+            // v186 (audit statis atas repost v185, BELUM teramati di perangkat): notifikasi hasil `notify()` milik
+            // instans servis yg sudah mati tak dibatalkan `onDestroy()` (tak pernah jalan utk servis yg tak hidup);
+            // batalkan eksplisit agar tak yatim sesudah toggle dimatikan. Id yg tak ada = tanpa efek.
+            runCatching { app.getSystemService(NotificationManager::class.java)?.cancel(NOTIF_ID) }
+                .onFailure { Log.w(TAG, "Batal notifikasi saat stop() gagal", it) }
         }
     }
 }
@@ -396,3 +422,11 @@ internal fun needsRepost(read: Result<List<NotifSnapshot>>, id: Int): Boolean =
  */
 internal fun formatStartContext(origin: String, importance: Int?, restricted: Boolean?): String =
     "$origin\nmyMemoryState importance=${importance ?: "null"}\nisBackgroundRestricted = ${restricted ?: "null"}"
+
+/**
+ * v186: baris keadaan proses saat berkas diag ditulis = data mentah; `null` = gagal dibaca / servis tak ditemukan.
+ * Tanpa kalimat penjelasan/kesimpulan. Murni.
+ */
+internal fun formatLateState(procAgeMs: Long, importance: Int?, foreground: Boolean?): String =
+    "lateState procAge=${procAgeMs}ms myMemoryState importance=${importance ?: "null"} " +
+        "ownService foreground=${foreground ?: "null"}"

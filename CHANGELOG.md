@@ -1,5 +1,13 @@
 # Changelog
 
+## v186
+- Unggahan user: `LagFix_diag_persistent_service_20261121_122444.txt` (tanpa teks). Laporan CI run 37 (v185) belum ada; kompilasi v185 terbukti tak langsung (baris `repost` muncul di diag).
+- Diag notifikasi persisten (X6855, 12:24:44): start dari latar, `startForeground` tanpa exception, notifikasi id 42 belum ada 1,5 detik sesudahnya. Percobaan v185 bekerja pada kejadian ini: `notify()` tanpa exception dan 1,5 detik sesudahnya id 42 ada (flags `0x2000a`, tanpa flag foreground service). Belum terbukti notifikasi itu bertahan lama di latar.
+- `PersistentTrimService.stop()`: sesudah menghentikan servis, notifikasi id 42 dibatalkan eksplisit. Temuan audit statis atas repost v185 (belum teramati di perangkat): notifikasi hasil `notify()` dari instans servis yang sudah mati tidak dibatalkan `onDestroy()`, jadi bisa tertinggal sesudah toggle dimatikan.
+- Diag `persistent_service`: baris baru `lateState` di akhir berkas (umur proses, `importance`, flag `foreground` servis menurut `getRunningServices`; `null` bila tak terbaca). Importance sampel awal berbeda antar diag (125 pada 12:14, 300 pada 12:24) untuk gejala yang sama; baris ini membaca keadaan sesudah jeda.
+- Tes: `FormatActiveNotificationsTest` +2 tes murni untuk `formatLateState`. Target run berikutnya: 205 tes lulus (203 pada v185 belum terbukti).
+- Belum dijalankan di CI dan belum diuji lama di perangkat. BUG_TARGET v147 tetap terbuka sampai diag/`process_catch` jangka panjang tiba.
+
 ## v185
 - Unggahan user: `LagFix_v184.zip` + `LagFix_diag_persistent_service_20261121_121434.txt` (tanpa teks). Laporan CI run 36 (v184) belum ada: kompilasi v184 terbukti tak langsung (baris konteks baru muncul di diag), tes/detekt/lint belum terverifikasi.
 - Diag notifikasi persisten (X6855, 12:14:34): `startForeground` tidak melempar exception, importance proses 125 (foreground service tanpa Activity di atas, artinya start dari latar), `isBackgroundRestricted = true`, dan notifikasi id 42 tetap belum ada 1,5 detik sesudahnya. Pola sama dengan diag 11:52. Koreksi catatan v184: setelah `startForeground`, proses di latar terbaca 125, bukan 300/400.
